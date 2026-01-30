@@ -14,12 +14,11 @@ terms:
       - Payment Resolution
       - Transaction Matching
 
- #All the Actors formally defined
+ #Actors
   - name: Expense Submitter
     definition: An authorized employee role responsible for incurring business-related costs and initiating reimbursement claims within the system.
     aliases:
       - ES
-
 
   - name: Configuration Manager
     definition: An administrative persona responsible for system governance, including user provisioning, role assignment, and the configuration of global expense rules.
@@ -50,7 +49,8 @@ terms:
     aliases:
       - Banking Interface
       - Payment Provider
-
+  
+#Definitions
   - name: Company ID
     definition: A unique alphanumeric identifier assigned to a client organization, allowing the system to support multi-tenancy and data isolation.
     aliases:
