@@ -1,1 +1,69 @@
+#Domain: "Organization's Expense Tracker"
+#Problem Statement: Expense, Reconciliation & Compliance Management Platform
+#Last Updated: 30/1/25
 
+terms:
+  - name: Expense
+    definition: A formal financial claim submitted by an employee for the reimbursement of business-related costs incurred during professional activities, subject to policy validation.
+    aliases:
+      -EXP
+
+  - name: Reconciliation
+    definition: The automated or manual process of matching internal expense records against external transaction details provided by the bank to ensure financial accuracy.
+    aliases:
+      - Payment Resolution
+      - Transaction Matching
+
+ #All the Actors formally defined
+  - name: Expense Submitter
+    definition: An authorized employee role responsible for incurring business-related costs and initiating reimbursement claims within the system.
+    aliases:
+      - ES
+
+
+  - name: Configuration Manager
+    definition: An administrative persona responsible for system governance, including user provisioning, role assignment, and the configuration of global expense rules.
+    aliases:
+      - CM
+      - System Admin
+
+  - name: Financial Officer
+    definition: A specialized role focused on the monetary lifecycle, responsible for processing payments and resolving discrepancies between internal records and bank statements.
+    aliases:
+      - FO
+      - Finance Admin
+
+  - name: Compliance Officer
+    definition: An oversight role dedicated to defining organizational expense policies and reviewing audit logs to ensure regulatory adherence and fraud detection.
+    aliases:
+      - CO
+      - Auditor
+
+  - name: Manager
+    definition: A supervisory role responsible for the operational review of submitted expenses, possessing the authority to approve or reject claims based on validity and proof.
+    aliases:
+      - Reporting Manager
+      - Approver
+
+  - name: External Bank
+    definition: A third-party financial institution or payment gateway that executes fund transfers and provides transaction statements for reconciliation.
+    aliases:
+      - Banking Interface
+      - Payment Provider
+
+  - name: Company ID
+    definition: A unique alphanumeric identifier assigned to a client organization, allowing the system to support multi-tenancy and data isolation.
+    aliases:
+      - CID
+      - Org ID
+
+  - name: Employee ID
+    definition: A unique identifier linked to a specific user profile within an organization's directory, used for authentication and audit tracking.
+    aliases:
+      - EID
+      - User ID
+
+  - name: Audit Log
+    definition: An immutable, chronological record of all system activities, including approvals, rejections, and policy changes, used for security and forensic analysis.
+    aliases:employee
+      - System Logs
