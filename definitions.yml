@@ -1,69 +1,109 @@
-#Domain: "Organization's Expense Tracker"
-#Problem Statement: Expense, Reconciliation & Compliance Management Platform
-#Last Updated: 1/2/26
+# Domain: Organization's Expense Tracker
+# Problem Statement: Expense, Reconciliation & Compliance Management Platform
+# Last Updated: 02/02/2026
 
 terms:
+
   - name: Expense
-    definition: A formal financial claim submitted by an employee for the reimbursement of business-related costs incurred during professional activities, subject to policy validation.
+    definition: A business-related cost claimed by an employee for reimbursement (such as travel, food, or software), which must comply with company policies and be approved before payment.
     aliases:
-      -EXP
+      - Expense Fund
+      - Claim
+      - Fund
+      - BHLC
+
+  - name: Receipts
+    definition: Digital proof (images or PDFs) attached to an expense to verify that the transaction actually occurred, including amount, date, and vendor details.
+    aliases:
+      - Expense Proof
+      - Bill
+      - Invoice
+
+  - name: Management
+    definition: The operational review stage where managers examine submitted expenses to ensure they are necessary, justified, and supported by valid receipts before financial processing.
+    aliases:
+      - Manager Review
+      - Approval Layer
 
   - name: Reconciliation
-    definition: The automated or manual process of matching internal expense records against external transaction details provided by the bank to ensure financial accuracy.
+    definition: The process of matching internal expense records with external bank transaction confirmations to ensure payments were completed correctly and to detect discrepancies.
     aliases:
-      - Payment Resolution
       - Transaction Matching
+      - Payment Resolution
 
- #Actors
-  - name: Expense Submitter
-    definition: An authorized employee role responsible for incurring business-related costs and initiating reimbursement claims within the system.
+  - name: Transaction Proof
+    definition: A unique transaction identifier or confirmation provided by the external bank after payment, used as the final reference for reconciliation.
     aliases:
+      - Transaction ID
+      - Payment Reference
+
+  - name: Payment Gateway
+    definition: The external banking system or API that executes fund transfers from the organization’s account to the employee’s account once an expense is approved.
+    aliases:
+      - External Bank
+      - Banking Interface
+
+  - name: Audit Log
+    definition: A permanent, time-ordered record of important system events such as submissions, approvals, rejections, logins, and policy changes, used for accountability and investigations.
+    aliases:
+      - Audit Logs
+      - System Logs
+
+  - name: Compliance
+    definition: The enforcement of organizational policies and legal regulations through system rules, monitoring, and audits to prevent misuse, fraud, or policy violations.
+    aliases:
+      - Regulatory Compliance
+      - Policy Enforcement
+
+# Actors
+
+  - name: Expense Submitter
+    definition: An employee who incurs business expenses and submits them in the system along with required receipts for approval and reimbursement.
+    aliases:
+      - Employee
       - ES
 
-  - name: Configuration Manager
-    definition: An administrative persona responsible for system governance, including user provisioning, role assignment, and the configuration of global expense rules.
-    aliases:
-      - CM
-      - System Admin
-
-  - name: Financial Officer
-    definition: A specialized role focused on the monetary lifecycle, responsible for processing payments and resolving discrepancies between internal records and bank statements.
-    aliases:
-      - FO
-      - Finance Admin
-
-  - name: Compliance Officer
-    definition: An oversight role dedicated to defining organizational expense policies and reviewing audit logs to ensure regulatory adherence and fraud detection.
-    aliases:
-      - CO
-      - Auditor
-
   - name: Manager
-    definition: A supervisory role responsible for the operational review of submitted expenses, possessing the authority to approve or reject claims based on validity and proof.
+    definition: A supervisory role responsible for reviewing expense claims and approving or rejecting them based on business necessity and proof.
     aliases:
       - Reporting Manager
       - Approver
 
-  - name: External Bank
-    definition: A third-party financial institution or payment gateway that executes fund transfers and provides transaction statements for reconciliation.
+  - name: Finance Officer
+    definition: A finance team member responsible for processing approved expenses, executing payments, and resolving reconciliation issues.
     aliases:
-      - Banking Interface
-      - Payment Provider
-  
-#Definitions
+      - Finance Admin
+      - FO
+
+  - name: Compliance Officer
+    definition: A governance role responsible for monitoring expenses, reviewing audit logs, and ensuring adherence to policies and regulations.
+    aliases:
+      - Auditor
+      - CO
+
+  - name: Configuration Manager
+    definition: An administrative role responsible for defining expense policies, managing users and roles (RBAC), and maintaining system-wide settings.
+    aliases:
+      - HR Manager
+      - Compliance Manager
+      - System Admin
+
+  - name: External Bank
+    definition: A third-party financial institution that executes payments and provides transaction confirmations used for reconciliation.
+    aliases:
+      - Payment Gateway
+      - Banking Provider
+
+# Identifiers
+
   - name: Company ID
-    definition: A unique alphanumeric identifier assigned to a client organization, allowing the system to support multi-tenancy and data isolation.
+    definition: An identifier that tells the system which organization a user belongs to, ensuring that each company’s data remains isolated and secure.
     aliases:
       - CID
-      - Org ID
+      - Organization ID
 
   - name: Employee ID
-    definition: A unique identifier linked to a specific user profile within an organization's directory, used for authentication and audit tracking.
+    definition: An identifier that uniquely represents an employee within a company and is used for authentication, authorization, and activity tracking.
     aliases:
       - EID
       - User ID
-
-  - name: Audit Log
-    definition: An immutable, chronological record of all system activities, including approvals, rejections, and policy changes, used for security and forensic analysis.
-    aliases:employee
-      - System Logs
