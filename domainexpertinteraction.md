@@ -35,7 +35,7 @@
 | **Management** | The step where the manager looks at the expense and decides whether it should be approved. |
 | **Reconciliation** | Matching the company's internal expense records with the bank statement to make sure the payment was actually made. |
 | **Compliance** | Ensuring that all expenses follow the company's rules and spending limits. |
-| **HR/Compliance Manager** | The administrative role responsible for defining expense policies, managing user roles (RBAC), and overseeing system governance. (System equivalent: **Configuration Manager**). |
+| **HR/Compliance Manager** | The person who sets the rules and limits for spending to prevent fraud. |
 | **Receipts** | A photo or digital copy of the bill that proves the employee actually spent the money. |
 | **BHLC** | **Boarding, Hoarding, and Lodging Charges**. A specific category of business expenses covering accommodation, food, and daily allowances during official travel. |
 | **Transaction Proof** | A unique code given by the bank after a payment is successful. |
