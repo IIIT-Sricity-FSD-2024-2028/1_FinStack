@@ -17,7 +17,7 @@ This project focuses on designing an **Expense, Reconciliation, and Compliance M
 
 The system involves the following actors:
 
-1. **Employee**
+1. **Expense Submitter**
 2. **Manager**
 3. **Finance Officer**
 4. **Compliance Officer**
@@ -27,11 +27,11 @@ The system involves the following actors:
 
 ## 3. Planned Features by Actors
 
-### 3.1 Employee  
-The employee is responsible for submitting and tracking expenses.
+### 3.1 Expense Submitter  
+The expense submitter is responsible for submitting and tracking expenses.
 
 **Planned Features:**
-- Log in using organization ID and employee credentials  
+- Log in using organization ID, employee ID, and password.  
 - Submit expenses with required details and receipts  
 - View submitted expenses  
 - Track expense status (submitted, approved, rejected, paid)  
@@ -77,8 +77,8 @@ The compliance officer ensures adherence to **organizational expense policies**.
 The configuration manager is responsible for **system setup and access control**.
 
 **Planned Features:**
-- Add, update, or deactivate employee accounts  
-- Assign roles (employee, manager, finance officer, compliance officer)  
+- Add, update, or deactivate employee accounts
+- Assign roles (expense submitter, manager, finance officer, compliance officer)  
 - Manage access permissions  
 - Configure organization-level system settings  
 
@@ -105,14 +105,4 @@ The bank is an external entity responsible for executing payments.
 
 ---
 
-## 5. Project Objective
-
-The objectives of this project are to:
-
-- Understand real-world enterprise expense workflows  
-- Model financial processes involving approvals, payments, and reconciliation  
-- Apply requirements engineering and system design principles  
-- Design clear documentation and diagrams aligned with industry practices  
-
----
 
