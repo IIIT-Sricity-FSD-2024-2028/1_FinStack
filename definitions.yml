@@ -1,155 +1,259 @@
-# Domain: Organization's Expense Tracker
+# Domain: FinTech, Expense Management
 # Problem Statement: Expense, Reconciliation & Compliance Management Platform
-# Last Updated: 05/02/2026
+# Last Updated: 09/03/2026
 
 terms:
-
-  - name: Expense
-    definition: A business-related cost paid by an employee that needs to be paid back by the company.
-    examples:
-      - Paying for a taxi to visit a client.
-      - Buying lunch during a business trip.
-    aliases:
-      - Expense Fund
-      - Claim
-      - Fund
-      - BHLC
-
-  - name: Receipts
-    definition: A photo or digital copy of the bill that proves the employee actually spent the money.
-    examples:
-      - Uploading a photo of the restaurant bill.
-      - Attaching a PDF invoice from a hotel stay.
-    aliases:
-      - Expense Proof
-      - Bill
-      - Invoice
-
-  - name: Management
-    definition: The step where the manager looks at the expense and decides whether it should be approved.
-    examples:
-      - A manager reviewing a team member's travel bill.
-      - Rejecting a claim because it was for personal use, not business.
-    aliases:
-      - Manager Review
-      - Approval Layer
-
-  - name: Reconciliation
-    definition: Matching the company's internal expense records with the bank statement to make sure the payment was actually made.
-    examples:
-      - Checking if the money left the bank account and reached the employee.
-      - Finding a missing payment that the system thought was successful.
-    aliases:
-      - Transaction Matching
-      - Payment Resolution
-
-  - name: Payment Gateway
-    definition: The external system (like a Bank API) that actually transfers the money from the company to the employee.
-    examples:
-      - Connecting to HDFC Bank or SBI to send the funds.
-      - The system that processes the online transfer and returns success or failure.
-    aliases:
-      - External Bank
-      - Banking Interface
-
-  - name: Audit Log
-    definition: A history record of every action taken in the system, like who clicked what and when.
-    examples:
-      - A record showing Manager A approved a bill at 10 AM.
-      - A log showing who changed the spending limit.
-    aliases:
-      - Audit Logs
-      - System Logs
-
-  - name: Compliance
-    definition: Ensuring that all expenses follow the company's rules and spending limits.
-    examples:
-      - Blocking a claim because it is over the ₹5000 limit.
-      - Checking that no one is claiming money for alcohol.
-    aliases:
-      - Regulatory Compliance
-      - Policy Enforcement
-
 # Actors
 
   - name: Expense Submitter
-    definition: A person in organization who submits expenses.
+    definition: A user within the organization responsible for submitting expense claims.
     examples:
-      - A sales person submitting a travel bill.
+      - An employee submitting a travel reimbursement request.
     responsibilities:
-      - Upload clear photos of bills
-      - Submit expenses on time
+      - Upload clear receipts
+      - Provide accurate expense information
+      - Submit expenses within the allowed timeframe
     aliases:
       - Employee
       - ES
 
   - name: Manager
-    definition: The supervisor who reviews and approves employee's expense requests.
+    definition: The supervisor responsible for reviewing and approving expense requests submitted by employees.
     examples:
-      - A Team Lead checking their team's monthly spending.
+      - A manager reviewing their team's monthly travel claims.
     responsibilities:
-      - Check if the expense was for real business work
-      - Approve or Reject the claim
+      - Verify business relevance of expenses
+      - Approve or reject expense claims
+      - Request clarification when required
     aliases:
       - Reporting Manager
       - Approver
 
   - name: Finance Officer
-    definition: The finance staff member who makes the final payment after reconciliation.
+    definition: The finance department representative responsible for processing payments and performing reconciliation.
     examples:
-      - The accountant who releases the money to employees.
+      - A finance officer issuing reimbursements to employees.
     responsibilities:
-      - Send the money
-      - Check bank statements for errors(does Reconciliation)
+      - Initiate reimbursement payments
+      - Verify bank transaction records
+      - Perform financial reconciliation
     aliases:
       - Finance Admin
       - FO
 
   - name: Compliance Officer
     definition: The person who sets the rules and limits for spending to prevent fraud.
+    examples:
+      - A compliance officer setting spending limits for different expense categories.
     responsibilities:
-      - Define spending limits and company policies (e.g., max ₹5000 for travel)
-      - Review audit logs to catch fraud or misuse
+      - Define spending limits and expense policies
+      - Review audit logs
+      - Investigate potential fraud or misuse
     aliases:
       - Auditor
       - CO
 
   - name: Configuration Manager
-    definition: The admin who manages user accounts and general system settings and also updates the policies given by Compliance Officer.
+    definition: The admin who manages user accounts and general system settings and also updates the policies given by the Compliance Officer.
+    examples:
+      - A configuration manager enabling the compliance role for the organization.
     responsibilities:
-      - Create and manage user accounts for new employees
-      - Update system settings and apply the rules defined by the Compliance Officer
+      - Create and manage user accounts
+      - Enable or disable predefined system roles for the organization
+      - Configure organization-level settings and policies
     aliases:
-      - HR Manager
-      - Compliance Manager
-      - System Admin
+      - System Administrator
       - CM
 
   - name: External Bank
-    definition: The bank's system that handles the real money transfer.
+    definition: The banking system responsible for executing payment transactions initiated by the platform.
+    examples:
+      - An external bank API processing a reimbursement payment.
     responsibilities:
-      - Execute payment
-      - Provide Bank Statements
+      - Execute payment transfers
+      - Provide transaction confirmations
+      - Provide bank statements for reconciliation
     aliases:
       - Payment Gateway
       - Banking Provider
 
+#Important Definitions
+  - name: Expense
+    definition: A business-related cost incurred by an employee during business activities that must be reimbursed by the organization.
+    examples:
+      - An employee submits a travel expense after visiting a client.
+      - A food bill submitted during an official business meeting.
+    aliases:
+      - Claim
+      - Expense Claim
+
+  - name: Receipt
+    definition: A digital image or document uploaded as proof of an expense transaction. The system process receipts using OCRto extract structured information such as vendor, invoice number, date, and amount.
+    examples:
+      - Uploading a photo of a restaurant receipt.
+      - Attaching a hotel receipt in PDF format.
+    aliases:
+      - Bill
+      - Invoice
+      - Expense Proof
+
+  - name: Manager Review
+    definition: The stage where a manager evaluates a submitted expense and decides whether to approve, reject, or request clarification.
+    examples:
+      - A manager reviewing a team member's travel claim.
+      - Rejecting a claim because it was not business-related.
+    aliases:
+      - Approval Layer
+      - Expense Approval
+
+  - name: Reconciliation
+    definition: The process of matching the organization's internal expense payment records with bank transaction statements to confirm that payments were successfully executed.
+    examples:
+      - Checking whether the reimbursement amount was transferred to the employee.
+      - Detecting missing or mismatched payments.
+    aliases:
+      - Transaction Matching
+      - Payment Verification
+
+  - name: Audit Log
+    definition: A secure,immutable record of all important system activities including user actions, approvals, configuration changes, and payment processing events.
+    examples:
+      - Recording that a manager approved an expense at a specific time.
+      - Tracking who modified an expense policy.
+    aliases:
+      - System Logs
+      - Activity Logs
+
+  - name: Compliance
+    definition: Ensuring that expense submissions follow the organization's financial policies, limits, and regulatory requirements.
+    examples:
+      - Rejecting a claim exceeding the allowed travel budget.
+      - Preventing reimbursement for restricted expense categories.
+    aliases:
+      - Policy Enforcement
+      - Regulatory Compliance
+
+  - name: Expense Policy
+    definition: A configurable set of organizational rules that define spending limits, receipt requirements, and approval conditions for different expense categories.
+    examples:
+      - Travel expenses limited to ₹5000 per day.
+      - Receipts mandatory for expenses above ₹1000.
+      - Hotel expenses allowed only during approved travel.
+    aliases:
+      - Policy Rules
+      - Expense Rules
+
+  - name: OCR Processing
+    definition: The automated extraction of structured information from uploaded receipt images using Optical Character Recognition.
+    examples:
+      - Extracting vendor name and amount from a receipt image.
+      - Detecting invoice numbers from scanned bills.
+    aliases:
+      - Receipt Data Extraction
+      - OCR Extraction
+
+  - name: Duplicate Detection
+    definition: The process of identifying repeated expense submissions using invoice numbers or receipt similarity checks.
+    examples:
+      - Detecting when the same invoice number is submitted twice.
+      - Identifying repeated receipt images.
+    aliases:
+      - Duplicate Check
+      - Invoice Duplication Detection
+
+  - name: Risk Score
+    definition: A numerical value assigned to an expense indicating the likelihood of policy violations or anomalies such as duplicate invoices, missing receipts, or inconsistent receipt data.
+    examples:
+      - An expense with a missing receipt receives a higher risk score.
+      - Duplicate invoices increase the risk score.
+      - Expenses exceeding policy limits increase the risk score.
+    aliases:
+      - Risk Evaluation
+      - Expense Risk Level
+
+  - name: Policy Validation
+    definition: The process of verifying whether an expense complies with predefined organizational expense policies.
+    examples:
+      - Checking if the expense amount exceeds category limits.
+      - Verifying whether a receipt is mandatory for a category.
+    aliases:
+      - Rule Validation
+      - Policy Enforcement
+
+  - name: Multi-Tenant Architecture
+    definition: A system architecture where multiple organizations use the same platform while keeping their data isolated using unique organization identifiers.
+    examples:
+      - Two companies using the same system without accessing each other's data.
+    aliases:
+      - Multi-Tenant System
+      - SaaS Architecture
+
+  - name: Role Configuration
+    definition: The ability for an organization to enable or disable predefined system roles depending on its operational requirements.
+    examples:
+      - A startup enabling only manager and finance roles.
+      - A large company enabling compliance and audit roles.
+    aliases:
+      - Role Management
+      - Role Control
+
+  - name: Cross Validation 
+    definition: The process of comparing user-entered expense information with data extracted from receipts to detect inconsistencies.
+    examples:
+    - Comparing entered amount with receipt amount.
+    - Detecting mismatched dates between the receipt and expense form.
+    aliases:
+    - Data Validation
+    - Expense Verification
+
+  - name: Expense Status
+    definition: The current stage of an expense within the processing workflow.
+    examples:
+      - Submitted
+      - AI Validation
+      - Manager Review
+      - Compliance Review
+      - Approved
+      - Paid
+      - Reconciled
+    aliases:
+      - Expense State
+      - Processing Status
+
+  - name: Expense Category
+    definition: A classification used to group expenses based on their type so that different policies, limits, and approval rules can be applied.
+    examples:
+      - Travel expenses such as flights, taxis, or fuel.
+      - Meal expenses during business meetings.
+      - Accommodation expenses for hotel stays during business trips.
+    aliases:
+      - Expense Type
+      - Spending Category
+
 # Identifiers
 
-  - name: Company ID
-    definition: A unique code to separate one company's data from another.
+  - name: Organization ID
+    definition: A unique identifier assigned to each organization to ensure data isolation in the multi-tenant system.
     aliases:
+      - OrgID
+      - Company ID
       - CID
-      - Organization ID
 
   - name: Employee ID
-    definition: A unique code to identify each employee in the system.
+    definition: A unique identifier assigned to each user within an organization.
     aliases:
-      - EID
       - User ID
+      - EID
 
-  - name: Transaction Proof
-    definition: A unique code given by the bank after a payment is successful.
+  - name: Transaction ID
+    definition: A unique reference number generated by the bank after a payment transaction is successfully executed.
     aliases:
-      - Transaction ID
       - Payment Reference
+      - Transaction Proof
+
+  - name: Expense ID
+    definition: A unique identifier assigned to each submitted expense claim for tracking and processing purposes.
+    aliases:
+      - Claim ID
+      - Expense Reference
+      - EXP-ID
