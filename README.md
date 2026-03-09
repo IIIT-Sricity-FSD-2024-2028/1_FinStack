@@ -141,27 +141,27 @@ These features assist managers and finance officers in identifying suspicious or
 
 The expense lifecycle in the system follows the sequence below:
 
-         Expense Submission  
-                  ↓  
+Expense Submission  
+↓  
 Receipt Processing and OCR Data Extraction  
-                  ↓  
+↓  
 Cross Validation and Duplicate Detection  
-                  ↓  
-         Policy Validation  
-                  ↓  
-            Risk Scoring  
-                  ↓  
-           Manager Review  
-                  ↓  
-      Compliance Review (if required)  
-                  ↓  
-         Finance Processing  
-                  ↓  
-    Payment Execution through Bank  
-                  ↓  
-         Bank Reconciliation  
-                  ↓  
-          Expense Closure
+↓  
+Policy Validation  
+↓  
+Risk Scoring  
+↓  
+Manager Review  
+↓  
+Compliance Review (if required)  
+↓  
+Finance Processing  
+↓  
+Payment Execution through Bank  
+↓  
+Bank Reconciliation  
+↓  
+Expense Closure
 
 Each stage of the workflow is recorded in the audit log to ensure transparency and traceability.
 
