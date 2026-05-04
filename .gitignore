@@ -1,0 +1,15 @@
+# Node / backend
+node_modules/
+dist/
+.env
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+
+# Frontend temp (optional safety)
+coverage/
