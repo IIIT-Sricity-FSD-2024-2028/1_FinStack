@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Audit Logs</h1>
+          <p>Complete audit trail of all system actions and changes &nbsp;<span id="log-total-count" class="badge badge-purple" style="font-size:0.75rem;">0</span></p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" id="refresh-logs-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg> Refresh
+          </button>
+          <button class="btn btn-secondary" id="export-logs-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg> Export Logs
+          </button>
+        </div>
+      </div>
+
+      <div class="filters-bar">
+        <div class="search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" style="width:18px;height:18px;" width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" class="form-input has-icon" placeholder="Search logs..." id="log-search">
+        </div>
+        <select class="form-input" style="width:auto;" id="log-action-filter">
+          <option value="all">All Actions</option>
+          <option value="Created">Created</option>
+          <option value="Updated">Updated</option>
+          <option value="Deleted">Deleted</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Login">Login</option>
+        </select>
+        <select class="form-input" style="width:auto;" id="log-severity-filter">
+          <option value="all">All Severity</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Resource</th><th>Severity</th><th>Status</th></tr>
+            </thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <div class="pagination-info">Loading logs...</div>
+          <div class="pagination-buttons">
+            <button class="pagination-btn" data-action="prev" disabled>Previous</button>
+            <button class="pagination-btn active" data-page="1">1</button>
+            <button class="pagination-btn" data-action="next" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/audit-logs.js"></script>
+</body>
+</html>

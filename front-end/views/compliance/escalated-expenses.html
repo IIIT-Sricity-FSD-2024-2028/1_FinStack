@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Officer – Escalated Expenses | FinStack</title>
+  <link rel="stylesheet" href="../../css/actors/compliance.css" />
+  <script>
+    (function () {
+      const saved = localStorage.getItem('finstack-sidebar-collapsed');
+      if (saved === 'true') document.documentElement.classList.add('sidebar-collapsed-init');
+    })();
+  </script>
+</head>
+
+<body data-page="escalated">
+
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;"></div>
+  <div id="overlay" class="overlay" onclick="closeAllPanels()"></div>
+
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon"><span>F</span></div>
+          <span class="sidebar-logo-text">FinStack</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button" aria-label="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-page="dashboard" onclick="Router.navigate('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="escalated" onclick="Router.navigate('escalated')" id="nav-escalated">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Escalated Expenses
+          <span id="escalated-nav-badge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 4px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span>
+        </button>
+        <button class="nav-item" data-page="policies" onclick="Router.navigate('policies')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Policies
+        </button>
+        <button class="nav-item" data-page="audit" onclick="Router.navigate('audit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          Audit Logs
+        </button>
+        <button class="nav-item" data-page="compliance" onclick="Router.navigate('compliance')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          Policy Violations
+        </button>
+        <button class="nav-item" data-page="communications" onclick="Router.navigate('communications')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <circle cx="19" cy="7" r="3" fill="#22d3ee" stroke="#111827" stroke-width="2"/>
+          </svg>
+          Notifications
+        </button>
+        <button class="nav-item" data-page="profile" onclick="Router.navigate('profile')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          </svg>
+          Profile / Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logoutToSharedLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-wrap">
+      <header class="header">
+        <div class="header-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div class="header-brand">FinStack Workspace</div>
+        </div>
+        <div class="header-search-wrap">
+          <div class="header-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="escalated-search" placeholder="Search by ID, employee, merchant..." aria-label="Search expenses" oninput="filterEscalated()" />
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="Router.navigate('communications')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="badge"></span>
+          </button>
+          <div class="header-profile-wrap">
+            <button class="header-profile" type="button" data-profile-menu-trigger aria-haspopup="menu" aria-expanded="false">
+              <span class="header-profile-avatar">HV</span>
+              <span class="header-profile-copy">
+                <span class="header-profile-name">Hari Vamsi</span>
+                <span class="header-profile-email">hari.vamsi@finstack.io</span>
+              </span>
+              <svg class="header-profile-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="header-profile-menu" data-profile-menu role="menu" aria-hidden="true">
+              <div class="header-profile-menu-head">
+                <div class="header-profile-menu-name">Hari Vamsi</div>
+                <div class="header-profile-menu-email">hari.vamsi@finstack.io</div>
+              </div>
+              <button type="button" class="header-profile-menu-item" role="menuitem" onclick="Router.navigate('profile')">Profile Settings</button>
+              <div class="header-profile-menu-divider"></div>
+              <button type="button" class="header-profile-menu-item logout" role="menuitem" onclick="logoutToSharedLogin()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div id="page-escalated" class="page active">
+
+          <!-- Page Header -->
+          <section class="dashboard-hero" style="margin-bottom:24px;">
+            <div style="flex:1;">
+              <h1 class="page-title">Escalated Expenses</h1>
+              <p class="page-subtitle">Review expenses escalated by managers that require compliance decision before finance processing.</p>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <button class="btn btn-secondary btn-sm" onclick="loadEscalated()" style="display:flex;align-items:center;gap:6px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </section>
+
+          <!-- KPI Row -->
+          <div class="grid grid-4 mb-6" id="escalated-kpi-row">
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Total Escalated</div>
+                  <div class="kpi-value" id="kpi-total">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-violet">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row"><span class="kpi-desc">Awaiting compliance decision</span></div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">High Risk</div>
+                  <div class="kpi-value" id="kpi-high-risk">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-rose">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row"><span class="kpi-inline-trend negative">Risk score ≥ 70</span></div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Total Amount</div>
+                  <div class="kpi-value" id="kpi-amount" style="font-size:1.3rem;">₹0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-cyan">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row"><span class="kpi-desc">Total value under review</span></div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Avg. Risk Score</div>
+                  <div class="kpi-value" id="kpi-avg-risk">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-amber">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row"><span class="kpi-desc">Across all escalated expenses</span></div>
+            </div>
+          </div>
+
+          <!-- Filter bar -->
+          <div class="card mb-4" style="padding:16px 20px;">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <select id="escalated-filter-risk" class="form-control" style="max-width:160px;" onchange="filterEscalated()">
+                <option value="all">All Risk Levels</option>
+                <option value="high">High Risk (≥70)</option>
+                <option value="medium">Medium (40–69)</option>
+                <option value="low">Low (&lt;40)</option>
+              </select>
+              <select id="escalated-filter-escalator" class="form-control" style="max-width:200px;" onchange="filterEscalated()">
+                <option value="all">All Sources</option>
+                <option value="manager">Escalated by Manager</option>
+                <option value="finance">Flagged by Finance</option>
+              </select>
+              <select id="escalated-filter-sort" class="form-control" style="max-width:180px;" onchange="filterEscalated()">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="amount-desc">Highest Amount</option>
+                <option value="risk-desc">Highest Risk</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="resetFilters()" style="margin-left:auto;">Reset</button>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="card violations-table-card">
+            <div class="flex items-center justify-between violations-table-toolbar">
+              <div class="section-title">Escalated Expense Queue</div>
+              <div id="escalated-count-label" style="font-size:0.85rem;color:var(--text-secondary,#9ca3af);"></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Expense ID</th>
+                    <th>Employee</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Escalated By</th>
+                    <th>Risk Score</th>
+                    <th>Manager Note</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="escalated-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /page-escalated -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Detail Side Panel -->
+  <div id="escalated-panel" class="panel">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="violation-panel-header-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <span class="panel-title">Expense Review</span>
+      </div>
+      <button class="btn-icon" onclick="closePanel('escalated-panel')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="panel-body" id="escalated-panel-body"></div>
+  </div>
+
+  <!-- Approve Modal -->
+  <div class="modal-overlay" id="approve-modal">
+    <div class="modal-card" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 style="color:var(--green,#10b981);display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Approve Expense
+        </h3>
+        <button class="btn-icon" onclick="closeModal('approve-modal')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);margin-bottom:16px;">Approving will forward this expense to the Finance Officer for payment processing.</p>
+        <div style="margin-bottom:8px;font-weight:600;font-size:.875rem;">Expense: <span id="approve-exp-id" style="color:var(--accent,#22d3ee);"></span></div>
+        <div style="margin-bottom:16px;font-size:.875rem;color:var(--text-secondary);">Amount: <strong id="approve-exp-amount" style="color:var(--text-primary);"></strong></div>
+        <label style="display:block;font-size:.875rem;font-weight:600;margin-bottom:6px;">Compliance Note <span style="color:var(--text-muted)">(optional)</span></label>
+        <textarea id="approve-note" rows="3" placeholder="Add a note for the Finance Officer..." style="width:100%;background:var(--bg-input,#1f2937);border:1px solid var(--border-default,#374151);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-size:.875rem;resize:vertical;"></textarea>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeModal('approve-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitApprove()" style="background:var(--green,#10b981);border-color:var(--green,#10b981);">✓ Approve &amp; Forward to Finance</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Modal -->
+  <div class="modal-overlay" id="reject-modal">
+    <div class="modal-card" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 style="color:var(--red,#ef4444);display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          Reject Expense
+        </h3>
+        <button class="btn-icon" onclick="closeModal('reject-modal')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);margin-bottom:16px;">The expense will be rejected and the submitter will be notified with your reason.</p>
+        <div style="margin-bottom:8px;font-weight:600;font-size:.875rem;">Expense: <span id="reject-exp-id" style="color:var(--accent,#22d3ee);"></span></div>
+        <div style="margin-bottom:16px;font-size:.875rem;color:var(--text-secondary);">Amount: <strong id="reject-exp-amount" style="color:var(--text-primary);"></strong></div>
+        <label style="display:block;font-size:.875rem;font-weight:600;margin-bottom:6px;">Rejection Reason <span style="color:var(--red,#ef4444);">*</span></label>
+        <textarea id="reject-note" rows="3" placeholder="State the reason for rejection..." style="width:100%;background:var(--bg-input,#1f2937);border:1px solid var(--border-default,#374151);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-size:.875rem;resize:vertical;"></textarea>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeModal('reject-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="submitReject()" style="background:var(--red,#ef4444);border-color:var(--red,#ef4444);">✕ Reject Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/compliance/dashboard.js"></script>
+  <script src="../../js/pages/compliance/escalated-expenses.js"></script>
+
+</body>
+</html>

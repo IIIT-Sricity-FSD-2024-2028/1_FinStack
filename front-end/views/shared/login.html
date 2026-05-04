@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Login to FinStack - Enterprise Expense Management Platform">
+  <title>Login - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-glow auth-glow-purple"></div>
+    <div class="auth-glow auth-glow-cyan"></div>
+    
+    
+
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:32px;">
+        <div class="sidebar-logo-icon" style="width:40px;height:40px;">
+          <span style="font-size:1.125rem;">F</span>
+        </div>
+        <span style="font-size:1.5rem;font-weight:600;color:white;">FinStack</span>
+      </div>
+
+      <div class="auth-card-inner">
+        <div style="text-align:center;margin-bottom:32px;">
+          <h1 style="font-size:1.5rem;margin-bottom:8px;">Welcome Back</h1>
+          <p style="font-size:0.875rem;color:var(--text-secondary);">Enter your credentials to access your account</p>
+          <p style="font-size:0.8125rem;color:var(--purple-light);margin-top:10px;">
+            Configuration Manager is the Super User workspace with full platform access.
+          </p>
+        </div>
+
+        <!-- Error Message Container -->
+        <div id="login-error" style="display:none;padding:12px 16px;border-radius:var(--radius-lg);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.8125rem;margin-bottom:4px;">
+          <span id="login-error-text"></span>
+        </div>
+
+        <!-- Success Message Container -->
+        <div id="login-success" style="display:none;padding:12px 16px;border-radius:var(--radius-lg);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#34d399;font-size:0.8125rem;margin-bottom:4px;">
+          <span id="login-success-text"></span>
+        </div>
+
+        <form id="login-form" style="display:flex;flex-direction:column;gap:20px;">
+          <div>
+            <label class="form-label" for="user-role">Login As</label>
+            <select class="form-input" required id="user-role">
+              <option value="configuration_manager">Super User (Configuration Manager)</option>
+              <option value="expense_submitter">Expense Submitter</option>
+              <option value="manager">Manager</option>
+              <option value="finance_officer">Finance Officer</option>
+              <option value="compliance_officer">Compliance Officer</option>
+            </select>
+            <p id="role-helper-text" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">
+              Use this portal to sign in to the Configuration Manager workspace.
+            </p>
+          </div>
+
+          <div>
+            <label class="form-label">Organization ID</label>
+            <div style="position:relative;">
+              <i data-lucide="building-2" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="text" class="form-input has-icon" placeholder="Enter organization ID" required id="org-id">
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="employee-id">Employee ID</label>
+            <div style="position:relative;">
+              <i data-lucide="user" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="text" class="form-input has-icon" placeholder="Enter employee ID" required id="employee-id">
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <label class="form-label" style="margin-bottom:0;">Password</label>
+              <a href="forgot-password.html" style="font-size:0.875rem;color:var(--purple);font-weight:500;">Forgot Password?</a>
+            </div>
+            <div style="position:relative;">
+              <i data-lucide="lock" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="password" class="form-input has-icon has-icon-right" placeholder="Enter password" required id="password-input">
+              <button type="button" class="input-icon-right" onclick="togglePassword()" style="cursor:pointer;background:none;border:none;">
+                <i data-lucide="eye" id="eye-icon" style="width:18px;height:18px;color:var(--text-secondary);"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" style="padding:12px;margin-top:4px;">
+            Login
+            <i data-lucide="arrow-right" style="width:18px;height:18px;"></i>
+          </button>
+        </form>
+
+        <div style="margin-top:24px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center;">
+          <div>
+            <span style="font-size:0.875rem;color:var(--text-secondary);">Don't have an account? </span>
+            <a href="register.html" style="font-size:0.875rem;color:var(--purple);font-weight:500;">Register Organization</a>
+          </div>
+          <div>
+            <span style="font-size:0.875rem;color:var(--text-secondary);">Join an existing org? </span>
+            <a href="account-request.html" style="font-size:0.875rem;color:var(--cyan);font-weight:500;">Request an Account</a>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border-default);">
+          <p style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">
+            Workspace Access
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <button type="button" class="btn btn-secondary role-shortcut" data-role="configuration_manager" style="justify-content:center;padding:10px 12px;font-size:0.8125rem;">Super User</button>
+            <button type="button" class="btn btn-secondary role-shortcut" data-role="expense_submitter" style="justify-content:center;padding:10px 12px;font-size:0.8125rem;">Submitter</button>
+            <button type="button" class="btn btn-secondary role-shortcut" data-role="manager" style="justify-content:center;padding:10px 12px;font-size:0.8125rem;">Manager</button>
+            <button type="button" class="btn btn-secondary role-shortcut" data-role="finance_officer" style="justify-content:center;padding:10px 12px;font-size:0.8125rem;">Finance</button>
+            <button type="button" class="btn btn-secondary role-shortcut" data-role="compliance_officer" style="grid-column:1 / -1;justify-content:center;padding:10px 12px;font-size:0.8125rem;">Compliance</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:32px;text-align:center;">
+        <a href="../../index.html" style="font-size:0.875rem;color:var(--text-secondary);transition:color 0.2s;">← Back to home</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/pages/shared/login.js"></script>
+</body>
+</html>

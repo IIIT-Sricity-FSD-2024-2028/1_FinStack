@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roles & Access - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Roles & Access</h1>
+          <p>Manage organizational roles and their permissions</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:24px;">
+        <!-- Roles List -->
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:20px;border-bottom:1px solid var(--border-default);">
+            <h3 style="font-size:0.875rem;font-weight:600;color:var(--text-primary);">Organization Roles</h3>
+          </div>
+          <div id="roles-list"></div>
+        </div>
+
+        <!-- Role Details -->
+        <div class="card" style="padding:24px;" id="role-details">
+          <div style="text-align:center;padding:48px 0;color:var(--text-secondary);">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:48px;height:48px;margin:0 auto 16px;opacity:0.3;display:block;" width="48px" height="48px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+            <p>Select a role to view its permissions</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/roles-access.js"></script>
+</body>
+</html>

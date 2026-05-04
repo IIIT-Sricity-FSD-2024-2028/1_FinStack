@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Officer Dashboard</title>  <link rel="stylesheet" href="../../css/actors/compliance.css" />
+  <script>
+    (function () {
+      const saved = localStorage.getItem('finstack-sidebar-collapsed');
+      if (saved === 'true') {
+        document.documentElement.classList.add('sidebar-collapsed-init');
+      }
+    })();
+  </script>
+</head>
+
+<body data-page="audit">
+
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;"></div>
+  <div id="overlay" class="overlay" onclick="closeAllPanels()"></div>
+
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon"><span>F</span></div>
+          <span class="sidebar-logo-text">FinStack</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button" aria-label="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-page="dashboard" onclick="Router.navigate('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="escalated" onclick="Router.navigate('escalated')" id="nav-escalated">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Escalated Expenses
+          <span id="escalated-nav-badge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 4px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span>
+        </button>
+        <button class="nav-item" data-page="policies" onclick="Router.navigate('policies')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Policies
+        </button>
+        <button class="nav-item" data-page="audit" onclick="Router.navigate('audit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Audit Logs
+        </button>
+        <button class="nav-item" data-page="compliance" onclick="Router.navigate('compliance')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Policy Violations
+        </button>
+        <button class="nav-item" data-page="communications" onclick="Router.navigate('communications')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            <circle cx="19" cy="7" r="3" fill="#22d3ee" stroke="#111827" stroke-width="2" />
+          </svg>
+          Notifications
+        </button>
+        <button class="nav-item" data-page="profile" onclick="Router.navigate('profile')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4" />
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          </svg>
+          Profile / Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logoutToSharedLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-wrap">
+      <header class="header">
+        <div class="header-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div class="header-brand">FinStack Workspace</div>
+        </div>
+        <div class="header-search-wrap">
+          <div class="header-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input type="text" placeholder="Search..." aria-label="Search workspace" />
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="Router.navigate('communications')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span class="badge"></span>
+          </button>
+          <div class="header-profile-wrap">
+            <button class="header-profile" type="button" data-profile-menu-trigger aria-haspopup="menu"
+              aria-expanded="false">
+              <span class="header-profile-avatar">HV</span>
+              <span class="header-profile-copy">
+                <span class="header-profile-name">Hari Vamsi</span>
+                <span class="header-profile-email">hari.vamsi@finstack.io</span>
+              </span>
+              <svg class="header-profile-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div class="header-profile-menu" data-profile-menu role="menu" aria-hidden="true">
+              <div class="header-profile-menu-head">
+                <div class="header-profile-menu-name">Hari Vamsi</div>
+                <div class="header-profile-menu-email">hari.vamsi@finstack.io</div>
+              </div>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Profile Settings</button>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Preferences</button>
+              <div class="header-profile-menu-divider"></div>
+              <button type="button" class="header-profile-menu-item logout" role="menuitem"
+                onclick="logoutToSharedLogin()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content audit-page-shell">
+
+        <div id="page-audit" class="page active audit-page">
+          <div class="audit-hero mb-8">
+            <div>
+              <h1 class="page-title audit-title">Audit Logs</h1>
+              <p class="page-subtitle audit-subtitle">Track all system activities and changes across your organization.
+              </p>
+            </div>
+          </div>
+
+          <div class="audit-toolbar mb-6">
+            <div class="audit-filter-row">
+              <div class="input-with-icon" style="width: 180px;">
+                <span class="input-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </span>
+                <select id="audit-date" class="form-control audit-filter" style="padding-left: 36px; width: 100%;">
+                  <option>Last 7 Days</option>
+                  <option>Today</option>
+                  <option>Yesterday</option>
+                  <option>Last 30 Days</option>
+                </select>
+              </div>
+              <select id="audit-user" class="form-control audit-filter">
+                <option value="All Users">All Users</option>
+                <option>Hari Vamsi</option>
+                <option>Michael Chen</option>
+                <option>Emily Davis</option>
+                <option>David Wilson</option>
+                <option>Lisa Anderson</option>
+                <option>Robert Taylor</option>
+              </select>
+              <select id="audit-action" class="form-control audit-filter">
+                <option value="All Actions">All Actions</option>
+                <option>Created</option>
+                <option>Updated</option>
+                <option>Deleted</option>
+                <option>Submitted</option>
+                <option>Approved</option>
+                <option>Rejected</option>
+                <option>Flagged</option>
+              </select>
+            </div>
+            <div class="input-with-icon audit-toolbar-search">
+              <span class="input-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg></span>
+              <input id="audit-search" class="form-control" type="text"
+                placeholder="Search logs by user, entity, or action..." />
+            </div>
+          </div>
+
+          <div class="audit-table-card">
+            <div class="table-wrap audit-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="audit-expand-col"></th>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /page-audit -->
+
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Audit Log Details Panel -->
+  <div id="log-panel" class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Audit Log Details</span>
+      <button class="btn-icon" onclick="closePanel('log-panel')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="panel-body" id="log-details-body"></div>
+  </div>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/compliance/dashboard.js"></script>
+  <script src="../../js/pages/compliance/audit.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Expense - FinStack</title>    <link rel="stylesheet" href="../../css/actors/submitter.css">
+    <script>
+        (function () {
+            const saved = localStorage.getItem('finstack-sidebar-collapsed');
+            if (saved === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed-init');
+            }
+        })();
+    </script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon"><span>F</span></div>
+                    <span class="sidebar-logo-text">FinStack</span>
+                </div>
+                <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button"
+                    aria-label="Collapse sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <rect width="7" height="9" x="3" y="3" rx="1" />
+                        <rect width="7" height="5" x="14" y="3" rx="1" />
+                        <rect width="7" height="9" x="14" y="12" rx="1" />
+                        <rect width="7" height="5" x="3" y="16" rx="1" />
+                    </svg><span>Dashboard</span></a>
+                <a href="submit.html" class="sidebar-link active"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v8" />
+                        <path d="M8 12h8" />
+                    </svg><span>Submit Expense</span></a>
+                <a href="expenses.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                        <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                        <path d="M12 17.5V6.5" />
+                    </svg><span>My Expenses</span></a>
+                <a href="status.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg><span>Track Expense Status</span></a>
+                <a href="reports.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18" />
+                        <path d="m19 9-5 5-4-4-3 3" />
+                    </svg><span>AI Validation &amp; Risk Reports</span></a>
+                <a href="notifications.html" class="sidebar-link" style="position:relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Notifications</span></a>
+                <a href="profile-settings.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="7" r="4" />
+                        <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                    </svg><span>Profile &amp; Settings</span></a>
+            </nav>
+            <div class="sidebar-footer"><button class="sidebar-logout" onclick="redirectToSharedLogin()"><svg width="20"
+                        height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg><span>Logout</span></button></div>
+        </aside>
+        <div class="main-wrapper">
+            <header class="topbar">
+                <div class="topbar-left"><span class="topbar-title" style="white-space:nowrap;">FinStack Workspace</span>
+                    <div class="topbar-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg><input type="text" placeholder="Search..."></div>
+                </div>
+                <div class="topbar-right">
+                    <button class="topbar-bell"><span class="dot"></span><svg width="20" height="20" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </svg></button>
+                    <div class="topbar-user">
+                        <div class="topbar-avatar">HR</div>
+                        <div class="topbar-user-info"><span class="topbar-user-name">Harshith Rekapalli</span><span
+                                class="topbar-user-role">expense submitter</span></div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="color:#71717a;flex-shrink:0;">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
+            </header>
+            <main class="main-content animate-in">
+                <div style="margin-bottom:24px;">
+                    <h1 class="text-2xl font-bold text-white">Submit Expense</h1>
+                    <p class="text-text-muted mt-1 text-sm">Upload receipt and enter expense details</p>
+                </div>
+                <form id="expenseForm">
+                    <div class="submit-grid">
+                        <!-- Left: Receipt Upload -->
+                        <div class="submit-left space-y-4">
+                            <div class="card">
+                                <div class="card-header"><span class="card-title">Receipt</span></div>
+                                <div class="card-content">
+                                    <div class="dropzone" id="dropzone">
+                                        <input type="file" id="fileInput" hidden accept="image/*,.pdf">
+                                        <div class="dropzone-empty" id="dropzoneEmpty">
+                                            <div class="dropzone-icon"><svg width="32" height="32" viewBox="0 0 24 24"
+                                                    fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                    <polyline points="17 8 12 3 7 8" />
+                                                    <line x1="12" x2="12" y1="3" y2="15" />
+                                                </svg></div>
+                                            <p class="text-sm font-medium text-white" style="margin-bottom:4px;">Click
+                                                to upload or drag and drop</p>
+                                            <p class="text-xs text-text-muted" style="margin-bottom:24px;">SVG, PNG, JPG
+                                                or PDF (max. 10MB)</p>
+                                            <button type="button" class="btn btn-secondary" id="selectFileBtn">Select
+                                                File</button>
+                                        </div>
+                                        <div class="dropzone-preview" id="dropzonePreview" style="display:none;">
+                                            <div class="preview-file-icon"><svg width="32" height="32"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path
+                                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                    <polyline points="14 2 14 8 20 8" />
+                                                </svg></div>
+                                            <p class="text-sm font-medium text-white" id="fileName"
+                                                style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                            </p>
+                                            <p class="text-xs text-text-muted" id="fileSize"></p>
+                                            <div style="display:flex;gap:8px;margin-top:16px;">
+                                                <button type="button" class="btn btn-outline btn-sm"
+                                                    id="replaceFileBtn">Replace</button>
+                                                <button type="button" class="btn btn-ghost btn-sm" id="removeFileBtn"
+                                                    style="color:#ef4444;">Remove</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs" id="fileError"
+                                        style="color:#ef4444;margin-top:8px;display:none;"></p>
+                                </div>
+                            </div>
+                            <div class="tip-card">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="flex-shrink:0;color:var(--accent);">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                                </svg>
+                                <p>Ensure your receipt clearly shows the merchant name, date, and total amount to avoid
+                                    delays.</p>
+                            </div>
+                        </div>
+                        <!-- Right: Details -->
+                        <div class="submit-right space-y-6">
+                            <div class="card">
+                                <div class="card-header"><span class="card-title">Expense Details</span></div>
+                                <div class="card-content space-y-6">
+                                    <div class="form-2col">
+                                        <div class="form-group"><label class="form-label" for="amount">Amount
+                                                (₹)</label><input class="form-input" id="amount" name="amount"
+                                                type="number" placeholder="0.00"></div>
+                                        <div class="form-group"><label class="form-label" for="date">Date</label><input
+                                                class="form-input" id="date" name="date" type="date"></div>
+                                        <div class="form-group"><label class="form-label" for="merchant">Merchant /
+                                                Vendor</label><input class="form-input" id="merchant" name="merchant"
+                                                placeholder="e.g. Uber, Starbucks"></div>
+                                        <div class="form-group"><label class="form-label"
+                                                for="category">Category</label><select class="form-select" id="category"
+                                                name="category">
+                                                <option value="none" disabled selected>Select category</option>
+                                                <option value="travel">Travel</option>
+                                                <option value="food">Meals & Food</option>
+                                                <option value="office">Office Supplies</option>
+                                                <option value="software">Software Subscriptions</option>
+                                                <option value="other">Other</option>
+                                            </select></div>
+                                        <div class="form-group" style="grid-column:span 2;"><label class="form-label"
+                                                for="payment-method">Payment Method</label><select class="form-select"
+                                                id="payment-method" name="payment-method">
+                                                <option value="corporate-card">Corporate Card (...4432)</option>
+                                                <option value="personal-card">Personal Card (Reimbursable)</option>
+                                                <option value="cash">Cash</option>
+                                            </select></div>
+                                        <div class="form-group" style="grid-column:span 2;"><label class="form-label"
+                                                for="notes">Description / Notes</label><textarea class="form-textarea"
+                                                id="notes" name="notes"
+                                                placeholder="Briefly describe the business purpose of this expense..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:16px;justify-content:flex-end;">
+                                <button type="reset" class="btn btn-outline" id="resetBtn">Reset</button>
+                                <button type="submit" class="btn btn-primary">Submit Expense</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </main>
+        </div>
+    </div>
+    <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+    <script src="../../js/auth.js"></script>
+    
+    <script src="../../js/pages/submitter/dashboard.js"></script>
+    <script src="../../js/pages/submitter/submit.js"></script>
+</body>
+
+</html>

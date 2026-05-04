@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organization Settings - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Organization Settings</h1>
+          <p>Manage your organization's profile and configuration</p>
+        </div>
+        <button class="btn btn-primary" id="save-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg> Save Changes
+        </button>
+        <span id="org-save-msg" style="display:none;margin-left:16px;font-size:0.875rem;color:var(--green);"></span>
+      </div>
+
+      <div class="space-y-6">
+        <!-- Organization Info -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-purple"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 12H4a2 2 0 0 0-2 2v8h4"/><path d="M18 9h2a2 2 0 0 1 2 2v11h-4"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></div>
+            <div><h2>Organization Information</h2><p style="font-size:0.875rem;color:var(--text-secondary);">Update your organization's basic details</p></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div><label class="form-label">Organization Name</label><input type="text" class="form-input" id="org-name" value="FinStack Technologies"></div>
+            <div><label class="form-label">Organization ID</label><input type="text" class="form-input" id="org-id" value="finstack-tech-01" disabled style="opacity:0.6;"></div>
+            <div><label class="form-label">Organization Email</label><input type="email" class="form-input" id="org-email" value="admin@finstack.io"></div>
+            <div><label class="form-label">Company Size</label>
+              <select class="form-input" id="org-size"><option>51-200 employees</option><option>1-10 employees</option><option>11-50 employees</option><option>201-500 employees</option><option>501+ employees</option></select>
+            </div>
+            <div style="grid-column:span 2;"><label class="form-label">Address</label><textarea class="form-input" id="org-address" rows="2">123 Finance Street, Suite 500, San Francisco, CA 94102</textarea></div>
+          </div>
+        </div>
+
+        <!-- Financial Settings -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-cyan"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2v12"/><path d="M2 8h12"/><circle cx="16" cy="16" r="6"/><path d="M16 10v12"/><path d="M10 16h12"/></svg></div>
+            <div><h2>Financial Settings</h2><p style="font-size:0.875rem;color:var(--text-secondary);">Configure currency and fiscal year preferences</p></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div><label class="form-label">Default Currency</label>
+              <select class="form-input" id="org-currency"><option>USD - US Dollar</option><option>EUR - Euro</option><option>GBP - British Pound</option><option>INR - Indian Rupee</option></select>
+            </div>
+            <div><label class="form-label">Fiscal Year Start</label>
+              <select class="form-input" id="org-fiscal-year"><option>January</option><option>April</option><option>July</option><option>October</option></select>
+            </div>
+            <div><label class="form-label">Tax ID / EIN</label><input type="text" class="form-input" id="org-tax-id" value="12-3456789"></div>
+            <div><label class="form-label">Default Payment Method</label>
+              <select class="form-input" id="org-payment-method"><option>Bank Transfer</option><option>Check</option><option>Direct Deposit</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notifications Preferences -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-green"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+            <div><h2>Notification Preferences</h2><p style="font-size:0.875rem;color:var(--text-secondary);">Configure how your organization receives notifications</p></div>
+          </div>
+          <div class="space-y-4">
+            <div class="settings-row">
+              <div class="settings-row-info"><h4>Email Notifications</h4><p>Send email notifications for expense submissions and approvals</p></div>
+              <div class="toggle-switch active" id="org-email-notifications" onclick="this.classList.toggle('active')"><span class="toggle-knob"></span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><h4>Slack Integration</h4><p>Post notifications to designated Slack channels</p></div>
+              <div class="toggle-switch" id="org-slack-notifications" onclick="this.classList.toggle('active')"><span class="toggle-knob"></span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><h4>Budget Alerts</h4><p>Notify when department budgets reach 80% threshold</p></div>
+              <div class="toggle-switch active" id="org-budget-alerts" onclick="this.classList.toggle('active')"><span class="toggle-knob"></span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><h4>Policy Violation Alerts</h4><p>Immediate notification for policy violations</p></div>
+              <div class="toggle-switch active" id="org-policy-alerts" onclick="this.classList.toggle('active')"><span class="toggle-knob"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card" style="padding:24px;border-color:rgba(239,68,68,0.3);">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-red"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+            <div><h2 style="color:var(--red);">Danger Zone</h2><p style="font-size:0.875rem;color:var(--text-secondary);">Irreversible actions for your organization</p></div>
+          </div>
+          <div class="space-y-4">
+            <div class="settings-row" style="border-color:rgba(239,68,68,0.2);">
+              <div class="settings-row-info"><h4>Export All Data</h4><p>Download all organization data in CSV format</p></div>
+              <button class="btn btn-secondary">Export</button>
+            </div>
+            <div class="settings-row" style="border-color:rgba(239,68,68,0.2);">
+              <div class="settings-row-info"><h4>Delete Organization</h4><p>Permanently delete this organization and all data</p></div>
+              <button class="btn btn-outline-red">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/org-settings.js"></script>
+</body>
+</html>

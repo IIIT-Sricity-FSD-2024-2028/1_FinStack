@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Settings - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Profile Settings</h1>
+          <p>Manage your personal information and account security</p>
+        </div>
+        <button class="btn btn-primary" id="btn-save-profile">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path
+              d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+            <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+            <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+          </svg> Save Changes
+        </button>
+        <div id="profile-msg" style="display:none;margin-left:16px;font-size:0.875rem;"></div>
+      </div>
+
+      <div class="space-y-6">
+        <!-- Profile Info -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-purple"><svg xmlns="http://www.w3.org/2000/svg"
+                style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg></div>
+            <div>
+              <h2>Personal Information</h2>
+              <p style="font-size:0.875rem;color:var(--text-secondary);">Update your personal details</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;margin-bottom:24px;">
+            <div class="avatar avatar-xl" id="profile-avatar-letters">PN</div>
+            <div>
+              <h3 style="font-size:1.125rem;color:var(--text-primary);" id="profile-display-name">Polasa Nikhil</h3>
+              <p style="font-size:0.875rem;color:var(--text-secondary);" id="profile-display-role">Configuration Manager</p>
+              <button class="btn btn-secondary" style="margin-top:8px;padding:6px 12px;font-size:0.75rem;">Change Avatar</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div><label class="form-label">Full Name</label><input type="text" id="profile-fullname" class="form-input">
+            </div>
+            <div><label class="form-label">Email Address</label><input type="email" id="profile-email" class="form-input"></div>
+            <div><label class="form-label">Employee ID</label><input type="text" id="profile-empid" class="form-input" disabled style="opacity:0.6;"></div>
+            <div><label class="form-label">Department</label><input type="text" id="profile-department" class="form-input">
+            </div>
+            <div><label class="form-label">Phone Number</label><input type="tel" id="profile-phone" class="form-input"></div>
+            <div><label class="form-label">Location</label><input type="text" id="profile-location" class="form-input"></div>
+          </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-cyan"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;"
+                width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="11" x="3" y="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg></div>
+            <div>
+              <h2>Change Password</h2>
+              <p style="font-size:0.875rem;color:var(--text-secondary);">Update your account password</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+            <div>
+              <label class="form-label">Current Password</label>
+              <div style="position:relative;">
+                <input type="password" class="form-input has-icon-right" placeholder="Enter current password"
+                  id="current-pw">
+                <button class="input-icon-right" onclick="togglePw('current-pw')"
+                  style="cursor:pointer;background:none;border:none;">
+                  <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;color:var(--text-secondary);"
+                    width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path
+                      d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">New Password</label>
+              <div style="position:relative;">
+                <input type="password" class="form-input has-icon-right" placeholder="Enter new password" id="new-pw">
+                <button class="input-icon-right" onclick="togglePw('new-pw')"
+                  style="cursor:pointer;background:none;border:none;">
+                  <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;color:var(--text-secondary);"
+                    width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path
+                      d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Confirm Password</label>
+              <div style="position:relative;">
+                <input type="password" class="form-input has-icon-right" placeholder="Confirm new password"
+                  id="confirm-pw">
+                <button class="input-icon-right" onclick="togglePw('confirm-pw')"
+                  style="cursor:pointer;background:none;border:none;">
+                  <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;color:var(--text-secondary);"
+                    width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path
+                      d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary" style="padding:10px 24px;" id="btn-update-pw">Update Password</button>
+            <span id="pw-msg" style="display:none;margin-left:16px;font-size:0.875rem;"></span>
+          </div>
+        </div>
+
+        <!-- Active Sessions -->
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+            <div class="icon-box icon-box-green"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;"
+                width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="20" height="14" x="2" y="3" rx="2" />
+                <path d="M8 21h8" />
+                <path d="M12 17v4" />
+              </svg></div>
+            <div>
+              <h2>Active Sessions</h2>
+              <p style="font-size:0.875rem;color:var(--text-secondary);">Manage your active login sessions</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div class="settings-row">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="icon-box icon-box-green" style="width:36px;height:36px;"><svg
+                    xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <rect width="20" height="14" x="2" y="3" rx="2" />
+                    <path d="M8 21h8" />
+                    <path d="M12 17v4" />
+                  </svg></div>
+                <div class="settings-row-info">
+                  <h4>Chrome on Windows <span class="badge badge-green" style="margin-left:8px;">Current</span></h4>
+                  <p>San Francisco, CA · Last active: Just now</p>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="icon-box icon-box-gray" style="width:36px;height:36px;"><svg
+                    xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <rect width="14" height="20" x="5" y="2" rx="2" />
+                    <path d="M12 18h.01" />
+                  </svg></div>
+                <div class="settings-row-info">
+                  <h4>Safari on iPhone</h4>
+                  <p>San Francisco, CA · Last active: 2 hours ago</p>
+                </div>
+              </div>
+              <button class="btn btn-outline-red" style="padding:6px 12px;font-size:0.75rem;">Revoke</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/profile-settings.js"></script>
+</body>
+
+</html>

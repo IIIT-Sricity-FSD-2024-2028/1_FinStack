@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Expenses - FinStack</title>    <link rel="stylesheet" href="../../css/actors/submitter.css">
+    <script>
+        (function () {
+            const saved = localStorage.getItem('finstack-sidebar-collapsed');
+            if (saved === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed-init');
+            }
+        })();
+    </script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon"><span>F</span></div>
+                    <span class="sidebar-logo-text">FinStack</span>
+                </div>
+                <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button"
+                    aria-label="Collapse sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <rect width="7" height="9" x="3" y="3" rx="1" />
+                        <rect width="7" height="5" x="14" y="3" rx="1" />
+                        <rect width="7" height="9" x="14" y="12" rx="1" />
+                        <rect width="7" height="5" x="3" y="16" rx="1" />
+                    </svg><span>Dashboard</span></a>
+                <a href="submit.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v8" />
+                        <path d="M8 12h8" />
+                    </svg><span>Submit Expense</span></a>
+                <a href="expenses.html" class="sidebar-link active"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                        <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                        <path d="M12 17.5V6.5" />
+                    </svg><span>My Expenses</span></a>
+                <a href="status.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg><span>Track Expense Status</span></a>
+                <a href="reports.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18" />
+                        <path d="m19 9-5 5-4-4-3 3" />
+                    </svg><span>AI Validation &amp; Risk Reports</span></a>
+                <a href="notifications.html" class="sidebar-link" style="position:relative;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Notifications</span></a>
+                <a href="profile-settings.html" class="sidebar-link"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="7" r="4" />
+                        <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                    </svg><span>Profile &amp; Settings</span></a>
+            </nav>
+            <div class="sidebar-footer"><button class="sidebar-logout" onclick="redirectToSharedLogin()"><svg width="20"
+                        height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg><span>Logout</span></button></div>
+        </aside>
+        <div class="main-wrapper">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <span class="topbar-title" style="white-space:nowrap;">FinStack Workspace</span>
+                    <div class="topbar-search">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <button class="topbar-bell">
+                        <span class="dot"></span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </svg>
+                    </button>
+                    <div class="topbar-user">
+                        <div class="topbar-avatar">HR</div>
+                        <div class="topbar-user-info"><span class="topbar-user-name">Harshith Rekapalli</span><span
+                                class="topbar-user-role">expense submitter</span></div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="color:#71717a;flex-shrink:0;">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
+            </header>
+            <main class="main-content animate-in">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">My Expenses</h1>
+                        <p class="text-text-muted mt-1 text-sm">Manage and track your submitted expenses</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="location.href='submit.html'">+ New Expense</button>
+                </div>
+                <div class="card">
+                    <div class="card-header expenses-filters">
+                        <div class="search-wrap">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg>
+                            <input type="text" class="form-input" id="searchInput" placeholder="Search expenses..."
+                                style="padding-left:36px;">
+                        </div>
+                        <div class="filter-row">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color:var(--text-muted);flex-shrink:0;">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                            </svg>
+                            <select class="form-select" id="statusFilter" style="width:140px;padding:8px 12px;">
+                                <option value="all">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <select class="form-select" id="categoryFilter" style="width:150px;padding:8px 12px;">
+                                <option value="all">All Categories</option>
+                                <option value="travel">Travel</option>
+                                <option value="meals">Meals</option>
+                                <option value="software">Software</option>
+                                <option value="office supplies">Office Supplies</option>
+                                <option value="equipment">Equipment</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-content p-0">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Expense ID</th>
+                                        <th>Employee</th>
+                                        <th>Category</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expensesBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="emptyState" style="display:none;" class="empty-state">
+                            <div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg></div>
+                            <h3>No expenses found</h3>
+                            <p>We couldn't find any expenses matching your current filters. Try adjusting them or submit
+                                a new expense.</p>
+                            <button class="btn btn-outline" id="clearFilters">Clear Filters</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="modal-overlay" id="viewModal">
+        <div class="modal-box" style="max-width:520px;">
+            <div class="modal-title">Expense Details</div>
+            <div id="viewContent" style="margin-top:16px;"></div>
+            <div class="modal-actions"><button class="btn btn-outline"
+                    onclick="document.getElementById('viewModal').classList.remove('active')">Close</button></div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box" style="max-width:520px;">
+            <div class="modal-title">Edit Expense</div>
+            <form id="editForm" style="margin-top:16px;" class="space-y-4">
+                <input type="hidden" id="editId">
+                <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input"
+                        id="editAmount" type="number" step="0.01"></div>
+                <div class="form-group"><label class="form-label">Category</label>
+                    <select class="form-select" id="editCategory">
+                        <option value="Travel">Travel</option>
+                        <option value="Meals">Meals</option>
+                        <option value="Software">Software</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Equipment">Equipment</option>
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">Merchant</label><input class="form-input"
+                        id="editMerchant"></div>
+                <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="editDate"
+                        type="date"></div>
+                <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea"
+                        id="editNotes"></textarea></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('editModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-title">Delete Expense</div>
+            <div class="modal-desc">Are you sure you want to delete this expense? This action cannot be undone.</div>
+            <input type="hidden" id="deleteId">
+            <div class="modal-actions">
+                <button class="btn btn-outline"
+                    onclick="document.getElementById('deleteModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-danger" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+    <script src="../../js/auth.js"></script>
+    
+    <script src="../../js/pages/submitter/dashboard.js"></script>
+    <script src="../../js/pages/submitter/expenses.js"></script>
+</body>
+
+</html>

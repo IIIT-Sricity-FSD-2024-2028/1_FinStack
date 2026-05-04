@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Categories - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Expense Categories</h1>
+          <p>Manage and configure expense categories for your organization</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('category-modal')">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Add Category
+        </button>
+      </div>
+
+      <div class="filters-bar">
+        <div class="search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" class="input-icon" style="width:18px;height:18px;" width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" class="form-input has-icon" placeholder="Search categories..." id="cat-search">
+        </div>
+        <select class="form-input" style="width:auto;" id="cat-status-filter">
+          <option value="all">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="overflow-x-auto">
+          <table class="data-table" id="cat-table">
+            <thead>
+              <tr><th>Category</th><th>Description</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="cat-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <div class="pagination-info" id="cat-page-info">Showing 1-8 of 8 categories</div>
+          <div class="pagination-buttons">
+            <button class="pagination-btn" data-action="prev" disabled>Previous</button>
+            <button class="pagination-btn active" data-page="1">1</button>
+            <button class="pagination-btn" data-action="next" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Category Modal -->
+  <div class="modal-overlay" id="category-modal">
+    <div class="modal-content" style="max-width:500px;">
+      <div class="modal-header">
+        <h2>Add Category</h2>
+        <button class="btn-icon" onclick="closeModal('category-modal')"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <form id="category-form" style="display:flex;flex-direction:column;gap:20px;">
+          <div><label class="form-label">Category Name</label><input type="text" class="form-input" id="category-name" placeholder="e.g. Travel Expenses" required></div>
+          <div><label class="form-label">Description</label><textarea class="form-input" id="category-description" placeholder="Brief description of this category..." rows="3"></textarea></div>
+          <div><label class="form-label">Requires Receipt</label>
+            <div class="toggle-switch active" id="category-requires-receipt" onclick="this.classList.toggle('active')"><span class="toggle-knob"></span></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('category-modal')">Cancel</button>
+        <button class="btn btn-primary" id="category-save-btn" type="submit" form="category-form">Save Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Category Modal -->
+  <div class="modal-overlay" id="edit-category-modal">
+    <div class="modal-content" style="max-width:500px;">
+      <div class="modal-header">
+        <h2>Edit Category</h2>
+        <button class="btn-icon" onclick="closeModal('edit-category-modal')"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-category-form" style="display:flex;flex-direction:column;gap:20px;">
+          <input type="hidden" id="edit-category-id">
+          <div><label class="form-label">Category Name</label><input type="text" class="form-input" id="edit-cat-name" required></div>
+          <div><label class="form-label">Description</label><textarea class="form-input" id="edit-cat-description" rows="3"></textarea></div>
+          <div><label class="form-label">Status</label>
+            <select class="form-input" id="edit-cat-status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('edit-category-modal')">Cancel</button>
+        <button class="btn btn-primary" type="submit" form="edit-category-form">Update Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="delete-confirm-modal">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h2 style="color:#EF4444;">Confirm Delete</h2>
+        <button class="btn-icon" onclick="closeModal('delete-confirm-modal')"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <p id="delete-confirm-msg" style="color:var(--text-secondary);font-size:0.9rem;line-height:1.5;"></p>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('delete-confirm-modal')">Cancel</button>
+        <button class="btn" id="delete-confirm-btn" style="background:#EF4444;color:#fff;">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/expense-categories.js"></script>
+</body>
+</html>

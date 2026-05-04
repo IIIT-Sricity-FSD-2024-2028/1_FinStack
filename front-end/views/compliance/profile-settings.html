@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Officer Profile &amp; Settings</title>
+  <link rel="stylesheet" href="../../css/actors/compliance.css" />
+  <script>
+    (function () {
+      const saved = localStorage.getItem('finstack-sidebar-collapsed');
+      if (saved === 'true') {
+        document.documentElement.classList.add('sidebar-collapsed-init');
+      }
+    })();
+  </script>
+</head>
+
+<body data-page="profile">
+
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;"></div>
+  <div id="overlay" class="overlay" onclick="closeAllPanels()"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon"><span>F</span></div>
+          <span class="sidebar-logo-text">FinStack</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button" aria-label="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-page="dashboard" onclick="Router.navigate('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="escalated" onclick="Router.navigate('escalated')" id="nav-escalated">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Escalated Expenses
+          <span id="escalated-nav-badge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 4px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span>
+        </button>
+        <button class="nav-item" data-page="policies" onclick="Router.navigate('policies')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Policies
+        </button>
+        <button class="nav-item" data-page="audit" onclick="Router.navigate('audit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Audit Logs
+        </button>
+        <button class="nav-item" data-page="compliance" onclick="Router.navigate('compliance')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Policy Violations
+        </button>
+        <button class="nav-item" data-page="communications" onclick="Router.navigate('communications')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            <circle cx="19" cy="7" r="3" fill="#22d3ee" stroke="#111827" stroke-width="2" />
+          </svg>
+          Notifications
+        </button>
+        <button class="nav-item" data-page="profile" onclick="Router.navigate('profile')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4" />
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          </svg>
+          Profile / Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logoutToSharedLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="main-wrap">
+      <header class="header">
+        <div class="header-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div class="header-brand">FinStack Workspace</div>
+        </div>
+        <div class="header-search-wrap">
+          <div class="header-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input type="text" placeholder="Search..." aria-label="Search workspace" />
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="Router.navigate('communications')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span class="badge"></span>
+          </button>
+          <div class="header-profile-wrap">
+            <button class="header-profile" type="button" data-profile-menu-trigger aria-haspopup="menu"
+              aria-expanded="false">
+              <span class="header-profile-avatar">HV</span>
+              <span class="header-profile-copy">
+                <span class="header-profile-name">Hari Vamsi</span>
+                <span class="header-profile-email">hari.vamsi@finstack.io</span>
+              </span>
+              <svg class="header-profile-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div class="header-profile-menu" data-profile-menu role="menu" aria-hidden="true">
+              <div class="header-profile-menu-head">
+                <div class="header-profile-menu-name">Hari Vamsi</div>
+                <div class="header-profile-menu-email">hari.vamsi@finstack.io</div>
+              </div>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Profile Settings</button>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Preferences</button>
+              <div class="header-profile-menu-divider"></div>
+              <button type="button" class="header-profile-menu-item logout" role="menuitem"
+                onclick="logoutToSharedLogin()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div id="page-profile" class="page active">
+          <section class="profile-hero">
+            <div>
+              <h1 class="page-title">Profile &amp; Settings</h1>
+              <p class="page-subtitle">Manage your compliance officer identity, notification preferences, and account security.</p>
+            </div>
+          </section>
+
+          <section class="profile-layout">
+            <div class="profile-sidebar-col">
+              <div class="card profile-card">
+                <div class="profile-avatar-wrap">
+                  <div class="profile-avatar" data-profile-avatar>HV</div>
+                  <button class="avatar-edit-btn" type="button" title="Profile managed by workspace data">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="profile-name" data-profile-name>Hari Vamsi</div>
+                <div class="profile-email" data-profile-email>hari.vamsi@finstack.io</div>
+                <div class="profile-tags">
+                  <span class="pill pill-accent" data-profile-role>Compliance Officer</span>
+                  <span class="pill pill-success" data-profile-status>Active</span>
+                </div>
+              </div>
+
+              <div class="card status-card">
+                <div class="card-header">Workspace Snapshot</div>
+                <div class="card-body">
+                  <div class="status-list">
+                    <div class="status-row">
+                      <span>Employee ID</span>
+                      <strong data-profile-employee-id>CMP-2001</strong>
+                    </div>
+                    <div class="status-row">
+                      <span>Organization</span>
+                      <strong data-profile-org-id>finstack-tech-01</strong>
+                    </div>
+                    <div class="status-row">
+                      <span>Reporting Manager</span>
+                      <strong data-profile-manager-id>Not assigned</strong>
+                    </div>
+                    <div class="status-row">
+                      <span>Last Login</span>
+                      <strong data-profile-last-login>Current session</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-main-col">
+              <div class="card form-card">
+                <div class="card-header">Personal Information</div>
+                <div class="card-body">
+                  <form id="personal-info-form">
+                    <div class="form-grid">
+                      <label class="field">
+                        <span class="field-label">Full Name</span>
+                        <input id="full-name" class="field-input" type="text" placeholder="Your full name" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Email Address</span>
+                        <input id="email-address" class="field-input" type="email" placeholder="name@company.com" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Employee ID</span>
+                        <input id="employee-id" class="field-input" type="text" disabled />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Department</span>
+                        <input id="department" class="field-input" type="text" placeholder="Compliance" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Phone Number</span>
+                        <input id="phone-number" class="field-input" type="text" placeholder="+91 90000 00000" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Location</span>
+                        <input id="location" class="field-input" type="text" placeholder="Hyderabad, India" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Organization ID</span>
+                        <input id="organization-id" class="field-input" type="text" disabled />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Reporting Manager</span>
+                        <input id="manager-id" class="field-input" type="text" placeholder="Manager employee ID" />
+                      </label>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+                      <button class="btn btn-primary" type="submit">Save Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <div class="card form-card">
+                <div class="card-header">Preferences</div>
+                <div class="card-body">
+                  <div class="form-grid" style="margin-bottom:20px;">
+                    <label class="field">
+                      <span class="field-label">Default Currency</span>
+                      <select id="default-currency" class="field-input">
+                        <option value="INR (₹)">INR (₹)</option>
+                        <option value="USD ($)">USD ($)</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Interface Theme</span>
+                      <select id="interface-theme" class="field-input">
+                        <option value="Dark Mode">Dark Mode</option>
+                        <option value="Light Mode">Light Mode</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Default Landing Page</span>
+                      <select id="default-landing-page" class="field-input">
+                        <option value="dashboard">Dashboard</option>
+                        <option value="policies">Policies</option>
+                        <option value="audit">Audit Logs</option>
+                        <option value="communications">Notifications</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Language</span>
+                      <select id="preference-language" class="field-input">
+                        <option value="English (US)">English (US)</option>
+                        <option value="English (India)">English (India)</option>
+                        <option value="Hindi">Hindi</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Time Zone</span>
+                      <select id="preference-timezone" class="field-input">
+                        <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="America/Los_Angeles">America/Los_Angeles</option>
+                        <option value="Europe/London">Europe/London</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="toggle-list">
+                    <label class="toggle-row">
+                      <div>
+                        <div class="toggle-title">Email Alerts</div>
+                        <div class="toggle-copy">Receive policy and risk notifications by email.</div>
+                      </div>
+                      <input id="notif-email" type="checkbox" />
+                    </label>
+                    <label class="toggle-row">
+                      <div>
+                        <div class="toggle-title">Push Notifications</div>
+                        <div class="toggle-copy">Show workspace alerts for escalations and review updates.</div>
+                      </div>
+                      <input id="notif-push" type="checkbox" />
+                    </label>
+                    <label class="toggle-row">
+                      <div>
+                        <div class="toggle-title">Weekly Digest</div>
+                        <div class="toggle-copy">Receive a weekly compliance summary covering alerts, drafts, and pending reviews.</div>
+                      </div>
+                      <input id="notif-weekly-digest" type="checkbox" />
+                    </label>
+                  </div>
+
+                  <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+                    <button id="save-preferences-btn" class="btn btn-secondary" type="button">Save Preferences</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card form-card password-card">
+                <div class="card-header">Security</div>
+                <div class="card-body">
+                  <form id="password-form">
+                    <div class="password-grid">
+                      <label class="field">
+                        <span class="field-label">Current Password</span>
+                        <input id="current-password" class="field-input" type="password" placeholder="Current password" />
+                      </label>
+                      <div></div>
+                      <label class="field">
+                        <span class="field-label">New Password</span>
+                        <input id="new-password" class="field-input" type="password" placeholder="Minimum 8 characters" />
+                      </label>
+                      <label class="field">
+                        <span class="field-label">Confirm Password</span>
+                        <input id="confirm-password" class="field-input" type="password" placeholder="Repeat new password" />
+                      </label>
+                    </div>
+                    <div class="section-divider"></div>
+                    <div>
+                      <div class="warning-title">Password guidance</div>
+                      <p class="toggle-copy">Use a unique password with a mix of uppercase, lowercase, numbers, and special characters.</p>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;">
+                      <button class="btn btn-primary" type="submit">Update Password</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/compliance/dashboard.js"></script>
+</body>
+
+</html>

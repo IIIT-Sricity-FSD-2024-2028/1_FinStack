@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="FinStack - Enterprise Expense Management Platform. Automate compliance, streamline approvals, and gain real-time financial insights.">
+  <title>FinStack - Enterprise Expense Management</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <script src="js/app.js"></script>
+</head>
+
+<body>
+  <div class="landing-page">
+    <nav class="landing-nav">
+      <div class="landing-nav-logo">
+        <div class="sidebar-logo-icon">
+          <span>F</span>
+        </div>
+        <span class="sidebar-logo-text" style="color: white; font-size: 1.25rem;">FinStack</span>
+      </div>
+      <div class="landing-nav-links">
+        <a href="#features">Features</a>
+        <a href="#stats">Stats</a>
+        <a href="#contact">Contact</a>
+      </div>
+      <div class="landing-nav-actions">
+        <a href="login.html" class="btn btn-secondary" style="padding: 8px 20px; font-size: 0.875rem;">Login</a>
+        <a href="views/shared/register.html" class="btn btn-primary"
+          style="padding: 8px 20px; font-size: 0.875rem;">Get Started</a>
+      </div>
+    </nav>
+
+    <section class="landing-hero">
+      <div class="landing-hero-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;" width="16px" height="16px"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M9.9 2.1 12 7l4.9 2.1L12 11.2 9.9 16 7.8 11.2 3 9.1 7.8 7z" />
+          <path d="m19 14 1 2.5 2.5 1L20 18.5 19 21l-1-2.5-2.5-1L18 16.5z" />
+        </svg>
+        Enterprise-Grade Financial Management
+      </div>
+      <h1>
+        Intelligent<br>
+        <span class="gradient-text">Expense Management</span><br>
+        for Modern Teams
+      </h1>
+      <p>
+        Automate compliance validation, streamline approval workflows, and gain real-time financial insights.
+        Built for enterprises that demand precision and transparency.
+      </p>
+      <div class="landing-hero-actions">
+        <a href="views/shared/register.html" class="landing-hero-btn landing-hero-btn-primary">
+          Start Free Trial
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px" height="18px"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
+        </a>
+        <a href="login.html" class="landing-hero-btn landing-hero-btn-secondary">
+          View Demo
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px" height="18px"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="m8 5 11 7-11 7z" />
+          </svg>
+        </a>
+      </div>
+    </section>
+
+    <section class="landing-features" style="padding-top:0;">
+      <div class="landing-features-header">
+        <h2>Role-Based Login Access</h2>
+        <p>Choose the right FinStack workspace for your responsibilities and sign in from one shared entry point.</p>
+      </div>
+      <div class="landing-features-grid">
+        <a href="login.html?role=expense_submitter" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 17.5V6.5" />
+            </svg>
+          </div>
+          <h3>Expense Submitter</h3>
+          <p>Employees can submit claims, track approvals, and manage reimbursement activity.</p>
+        </a>
+        <a href="login.html?role=manager" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-green" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <rect width="20" height="14" x="2" y="7" rx="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              <path d="M2 12h20" />
+            </svg>
+          </div>
+          <h3>Manager</h3>
+          <p>Team leads can review requests, approve budgets, and monitor their reporting structure.</p>
+        </a>
+        <a href="login.html?role=finance_officer" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-orange" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+              <path d="M16 12h.01" />
+              <path d="M4 7V5a2 2 0 0 1 2-2h12" />
+            </svg>
+          </div>
+          <h3>Finance Officer</h3>
+          <p>Finance teams can reconcile payments, monitor transactions, and manage controls.</p>
+        </a>
+        <a href="login.html?role=compliance_officer" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-pink" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+            </svg>
+          </div>
+          <h3>Compliance Officer</h3>
+          <p>Compliance staff can audit activity, enforce policies, and review risk signals.</p>
+        </a>
+        <a href="login.html?role=configuration_manager" class="feature-card"
+          style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-purple" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 7h-9" />
+              <path d="M14 17H5" />
+              <circle cx="17" cy="17" r="3" />
+              <circle cx="7" cy="7" r="3" />
+            </svg>
+          </div>
+          <h3>Configuration Manager</h3>
+          <p>Full system control across all platform modules, roles, and organization-wide environment setup.</p>
+        </a>
+        <a href="views/shared/register.html" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 21h18" />
+              <path d="M5 21V7l8-4v18" />
+              <path d="M19 21V11l-6-4" />
+              <path d="M9 9v.01" />
+              <path d="M9 12v.01" />
+              <path d="M9 15v.01" />
+              <path d="M13 9v.01" />
+              <path d="M13 12v.01" />
+              <path d="M13 15v.01" />
+              <path d="M17 13v.01" />
+              <path d="M17 16v.01" />
+            </svg>
+          </div>
+          <h3>New Organization</h3>
+          <p>Create your company workspace, onboard admins, and enable role-based access for teams.</p>
+        </a>
+        <a href="views/shared/account-request.html" class="feature-card" style="text-decoration:none;color:inherit;">
+          <div class="icon-box icon-box-green" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" x2="19" y1="8" y2="14" />
+              <line x1="22" x2="16" y1="11" y2="11" />
+            </svg>
+          </div>
+          <h3>Request an Account</h3>
+          <p>Join an existing organization. Your request will be reviewed and approved by the admin.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="landing-features" id="features">
+      <div class="landing-features-header">
+        <h2>Everything You Need</h2>
+        <p>Comprehensive tools to manage, track, and optimize your organization's expenses</p>
+      </div>
+      <div class="landing-features-grid">
+        <div class="feature-card">
+          <div class="icon-box icon-box-purple" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <h3>Automated Compliance</h3>
+          <p>AI-powered validation ensures every expense meets your policy requirements before submission.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 3v12" />
+              <path d="M18 9a3 3 0 1 0-3-3" />
+              <path d="M6 15a3 3 0 1 0 3 3" />
+              <path d="M18 6a6 6 0 0 0-6 6v3" />
+              <path d="M6 15h6" />
+            </svg>
+          </div>
+          <h3>Smart Workflows</h3>
+          <p>Configurable multi-level approval chains with automatic routing and escalation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon-box icon-box-pink" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 3v18h18" />
+              <path d="M18 17V9" />
+              <path d="M13 17V5" />
+              <path d="M8 17v-3" />
+            </svg>
+          </div>
+          <h3>Real-time Analytics</h3>
+          <p>Interactive dashboards with drill-down capabilities for complete financial visibility.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon-box icon-box-green" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3>Role-Based Access</h3>
+          <p>Granular permissions system with customizable roles for secure data management.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon-box icon-box-orange" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
+              <path d="M10 9H8" />
+            </svg>
+          </div>
+          <h3>Audit Trails</h3>
+          <p>Complete, tamper-proof audit logs for every transaction and system action.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" width="24px" height="24px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <rect width="20" height="14" x="2" y="5" rx="2" />
+              <path d="M2 10h20" />
+            </svg>
+          </div>
+          <h3>Bank Integration</h3>
+          <p>Seamless integration with major banking platforms for automated reconciliation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-stats" id="stats">
+      <div class="landing-stats-grid">
+        <div class="landing-stat">
+          <div class="stat-number">99.9%</div>
+          <div class="stat-text">Uptime Guarantee</div>
+        </div>
+        <div class="landing-stat">
+          <div class="stat-number">500+</div>
+          <div class="stat-text">Enterprise Clients</div>
+        </div>
+        <div class="landing-stat">
+          <div class="stat-number">$2.5B</div>
+          <div class="stat-text">Expenses Processed</div>
+        </div>
+        <div class="landing-stat">
+          <div class="stat-number">85%</div>
+          <div class="stat-text">Time Saved</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-cta" id="contact">
+      <div class="landing-cta-card">
+        <h2>Ready to Transform Your Expense Management?</h2>
+        <p>Join hundreds of organizations that trust FinStack for their financial operations.</p>
+        <div style="display: flex; gap: 16px; justify-content: center;">
+          <a href="views/shared/register.html" class="landing-hero-btn landing-hero-btn-primary">
+            Get Started Now
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px" height="18px"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <p>© 2026 FinStack. All rights reserved. Built for modern enterprise teams.</p>
+    </footer>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Request an account to join an existing organization on FinStack">
+  <title>Request Account - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-glow auth-glow-purple"></div>
+    <div class="auth-glow auth-glow-cyan"></div>
+
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:32px;">
+        <div class="sidebar-logo-icon" style="width:40px;height:40px;">
+          <span style="font-size:1.125rem;">F</span>
+        </div>
+        <span style="font-size:1.5rem;font-weight:600;color:white;">FinStack</span>
+      </div>
+
+      <!-- Request Form View -->
+      <div class="auth-card-inner" id="request-form-view">
+        <div style="text-align:center;margin-bottom:32px;">
+          <h1 style="font-size:1.5rem;margin-bottom:8px;">Request an Account</h1>
+          <p style="font-size:0.875rem;color:var(--text-secondary);">Join an existing organization. Your request will be reviewed by the Configuration Manager.</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="request-error" style="display:none;padding:12px 16px;border-radius:var(--radius-lg);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.8125rem;margin-bottom:16px;">
+          <span id="request-error-text"></span>
+        </div>
+
+        <form id="account-request-form" style="display:flex;flex-direction:column;gap:20px;">
+          <div>
+            <label class="form-label" for="req-org-id">Organization ID</label>
+            <div style="position:relative;">
+              <i data-lucide="building-2" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="text" class="form-input has-icon" placeholder="Enter your organization ID" required id="req-org-id">
+            </div>
+            <p id="org-status" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;"></p>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-employee-id">Employee ID</label>
+            <div style="position:relative;">
+              <i data-lucide="hash" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="text" class="form-input has-icon" placeholder="Your employee ID (e.g., EMP-1004)" required id="req-employee-id">
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-full-name">Full Name</label>
+            <div style="position:relative;">
+              <i data-lucide="user" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="text" class="form-input has-icon" placeholder="Enter your full name" required id="req-full-name">
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-email">Email</label>
+            <div style="position:relative;">
+              <i data-lucide="mail" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="email" class="form-input has-icon" placeholder="you@company.com" required id="req-email">
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-role">Requested Role</label>
+            <select class="form-input" required id="req-role">
+              <option value="">-- Select a role --</option>
+              <option value="expense_submitter">Expense Submitter</option>
+              <option value="manager">Manager</option>
+              <option value="finance_officer">Finance Officer</option>
+              <option value="compliance_officer">Compliance Officer</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-password">Password</label>
+            <div style="position:relative;">
+              <i data-lucide="lock" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="password" class="form-input has-icon" placeholder="Create a password" required id="req-password">
+            </div>
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">Min 8 characters, 1 uppercase, 1 special character.</p>
+          </div>
+
+          <div>
+            <label class="form-label" for="req-confirm-password">Confirm Password</label>
+            <div style="position:relative;">
+              <i data-lucide="lock" class="input-icon" style="width:18px;height:18px;"></i>
+              <input type="password" class="form-input has-icon" placeholder="Confirm your password" required id="req-confirm-password">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" style="padding:12px;margin-top:4px;">
+            Submit Request
+            <i data-lucide="send" style="width:18px;height:18px;"></i>
+          </button>
+        </form>
+
+        <div style="margin-top:24px;text-align:center;">
+          <span style="font-size:0.875rem;color:var(--text-secondary);">Already have an account? </span>
+          <a href="login.html" style="font-size:0.875rem;color:var(--purple);font-weight:500;">Login</a>
+        </div>
+      </div>
+
+      <!-- Success View -->
+      <div class="auth-card-inner" id="request-success-view" style="display:none;">
+        <div style="text-align:center;">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <h2 style="font-size:1.5rem;margin-bottom:12px;color:var(--text-primary);">Request Submitted!</h2>
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:24px;">Your account request has been submitted and is pending approval by the Configuration Manager. You will be able to login once approved.</p>
+          <div style="background:var(--bg-secondary);border-radius:var(--radius-lg);padding:16px;margin-bottom:24px;text-align:left;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:0.8125rem;color:var(--text-secondary);">Organization</span>
+              <span style="font-size:0.8125rem;color:var(--text-primary);font-weight:500;" id="success-org-id"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:0.8125rem;color:var(--text-secondary);">Employee ID</span>
+              <span style="font-size:0.8125rem;color:var(--text-primary);font-weight:500;" id="success-emp-id"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:0.8125rem;color:var(--text-secondary);">Status</span>
+              <span class="badge badge-orange">Pending Approval</span>
+            </div>
+          </div>
+          <a href="login.html" class="btn btn-primary btn-full" style="padding:12px;text-decoration:none;">Go to Login</a>
+        </div>
+      </div>
+
+      <div style="margin-top:32px;text-align:center;">
+        <a href="../../index.html" style="font-size:0.875rem;color:var(--text-secondary);transition:color 0.2s;">← Back to home</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/pages/shared/account-request.js"></script>
+</body>
+</html>

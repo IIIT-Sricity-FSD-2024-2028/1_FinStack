@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Officer Dashboard</title>  <link rel="stylesheet" href="../../css/actors/compliance.css" />
+  <script>
+    (function () {
+      const saved = localStorage.getItem('finstack-sidebar-collapsed');
+      if (saved === 'true') {
+        document.documentElement.classList.add('sidebar-collapsed-init');
+      }
+    })();
+  </script>
+</head>
+
+<body data-page="dashboard">
+
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;"></div>
+  <div id="overlay" class="overlay" onclick="closeAllPanels()"></div>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon"><span>F</span></div>
+          <span class="sidebar-logo-text">FinStack</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button" aria-label="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-page="dashboard" onclick="Router.navigate('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="escalated" onclick="Router.navigate('escalated')" id="nav-escalated">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Escalated Expenses
+          <span id="escalated-nav-badge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 4px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span>
+        </button>
+        <button class="nav-item" data-page="policies" onclick="Router.navigate('policies')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Policies
+        </button>
+        <button class="nav-item" data-page="audit" onclick="Router.navigate('audit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Audit Logs
+        </button>
+        <button class="nav-item" data-page="compliance" onclick="Router.navigate('compliance')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Policy Violations
+        </button>
+        <button class="nav-item" data-page="communications" onclick="Router.navigate('communications')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            <circle cx="19" cy="7" r="3" fill="#22d3ee" stroke="#111827" stroke-width="2" />
+          </svg>
+          Notifications
+        </button>
+        <button class="nav-item" data-page="profile" onclick="Router.navigate('profile')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4" />
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          </svg>
+          Profile / Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logoutToSharedLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-wrap">
+      <header class="header">
+        <div class="header-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div class="header-brand">FinStack Workspace</div>
+        </div>
+        <div class="header-search-wrap">
+          <div class="header-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input type="text" placeholder="Search..." aria-label="Search workspace" />
+          </div>
+        </div>
+        <div class="header-actions">
+          <div style="position:relative;">
+            <button class="header-btn" id="compliance-bell-btn" type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span class="badge"></span>
+            </button>
+            <div class="compliance-notif-dropdown" id="compliance-notif-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:340px;background:var(--bg-card-solid,#111827);border:1px solid var(--border-base,#1f2937);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);z-index:200;overflow:hidden;"></div>
+          </div>
+          <div class="header-profile-wrap">
+            <button class="header-profile" type="button" data-profile-menu-trigger aria-haspopup="menu"
+              aria-expanded="false">
+              <span class="header-profile-avatar">HV</span>
+              <span class="header-profile-copy">
+                <span class="header-profile-name">Hari Vamsi</span>
+                <span class="header-profile-email">hari.vamsi@finstack.io</span>
+              </span>
+              <svg class="header-profile-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div class="header-profile-menu" data-profile-menu role="menu" aria-hidden="true">
+              <div class="header-profile-menu-head">
+                <div class="header-profile-menu-name">Hari Vamsi</div>
+                <div class="header-profile-menu-email">hari.vamsi@finstack.io</div>
+              </div>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Profile Settings</button>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Preferences</button>
+              <div class="header-profile-menu-divider"></div>
+              <button type="button" class="header-profile-menu-item logout" role="menuitem"
+                onclick="logoutToSharedLogin()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content dashboard-page">
+
+        <div id="page-dashboard" class="page active">
+          <section class="dashboard-hero">
+            <div style="flex: 1;">
+              <h1 class="page-title">Compliance Dashboard</h1>
+              <p class="page-subtitle dashboard-subtitle">Monitor policy health, review operational drift, and respond
+                to alerts from one workspace.</p>
+            </div>
+            <div class="flex gap-3" style="align-items: flex-start; margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="Router.navigate('audit')"
+                style="border-radius: 10px; padding: 10px 18px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                View Audit
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="Router.navigate('policies')"
+                style="border-radius: 10px; padding: 10px 18px; background: var(--primary); color: #fff; border: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                Review Policies
+              </button>
+            </div>
+          </section>
+
+          <div class="grid grid-4 mb-8 dashboard-kpi-grid">
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Policies Defined</div>
+                  <div class="kpi-value" id="kpi-policies">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-violet">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row">
+                <span class="kpi-inline-trend positive">+4 this week</span>
+                <span class="kpi-desc">Active and submitted policy packages</span>
+              </div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Anomalies Detected</div>
+                  <div class="kpi-value" id="kpi-anomalies">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-cyan">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row">
+                <span class="kpi-inline-trend positive">2 new today</span>
+                <span class="kpi-desc">Violations requiring review or action</span>
+              </div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Pending Reviews</div>
+                  <div class="kpi-value" id="kpi-pending">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-amber">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row">
+                <span class="kpi-inline-trend warning">Needs attention</span>
+                <span class="kpi-desc">Items awaiting compliance decision</span>
+              </div>
+            </div>
+            <div class="card card-accent kpi-card kpi-card-premium">
+              <div class="kpi-card-head">
+                <div>
+                  <div class="kpi-label">Active Alerts</div>
+                  <div class="kpi-value" id="kpi-alerts">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-rose">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-meta-row">
+                <span class="kpi-inline-trend negative">1 critical</span>
+                <span class="kpi-desc">Recent system and workflow alerts</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-7-3 mb-8 dashboard-chart-grid">
+            <div class="card dashboard-chart-card">
+              <div class="panel-topline">Trend Analytics</div>
+              <div class="section-title">Policy Activity</div>
+              <div class="section-subtitle">Policies defined, revised, or activated over time</div>
+              <div class="chart-wrap"><canvas id="policyActivityChart"></canvas></div>
+            </div>
+            <div class="card dashboard-chart-card">
+              <div class="panel-topline">Risk Monitoring</div>
+              <div class="section-title">Anomaly Detection</div>
+              <div class="section-subtitle">Compliance violations over time</div>
+              <div class="chart-wrap"><canvas id="anomalyDetectionChart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Operational Panels -->
+          <!-- Row 3: Audit Log Review (Full Width) -->
+          <!-- Operational Grid: Side-by-side Layout (2:1 Ratio) -->
+          <div class="grid grid-2-1 mb-8 dashboard-operational-grid">
+
+            <!-- Left Panel: Audit Log Review (Spans 2/3) -->
+            <div class="card dashboard-table-card">
+              <div class="flex items-center justify-between mb-6">
+                <div>
+                  <div class="panel-topline">Live Operations</div>
+                  <div class="section-title">Audit Log Review</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="Router.navigate('audit')">
+                  View Full Audit Logs
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Action</th>
+                      <th>Actor</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboard-audit-preview"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right Column: Operational Sidebar (Stacked) -->
+            <div class="flex flex-col gap-6">
+
+              <!-- Policies Needing Revision (Top) -->
+              <div class="card dashboard-list-card">
+                <div class="panel-topline">Policy Health</div>
+                <div class="section-title mb-4">Policies Needing Revision</div>
+                <div id="dashboard-policy-preview"></div>
+              </div>
+
+              <!-- Notifications (Bottom) -->
+              <div class="card dashboard-list-card" style="flex:1;">
+                <div class="panel-topline">Workflow Queue</div>
+                <div class="section-title mb-4">Notifications</div>
+                <div id="dashboard-notification-preview"></div>
+              </div>
+
+            </div>
+          </div>
+
+
+          <!-- Footer -->
+          <footer class="dashboard-footer"
+            style="margin-top:48px;padding:24px 0;border-top:1px solid var(--border-deep);">
+            <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:16px;">
+              <p style="font-size:.8rem;color:var(--text-muted);">© 2026 FinStack. Expense, Reconciliation &amp;
+                Compliance Management System.</p>
+              <div class="flex gap-4">
+                <a href="#" class="dashboard-footer-link">Privacy Policy</a>
+                <a href="#" class="dashboard-footer-link">Terms of Service</a>
+                <a href="#" class="dashboard-footer-link">Support</a>
+              </div>
+            </div>
+          </footer>
+        </div><!-- /page-dashboard -->
+
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Policy Quick-View Popup Modal -->
+  <!-- Policy Popup Overlay -->
+  <div id="policy-popup-backdrop"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.65);z-index:9000;"
+    onclick="closePolicyPopup()"></div>
+  <!-- Policy Popup Card -->
+  <div id="policy-popup"
+    style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9001;width:calc(100% - 32px);max-width:440px;background:var(--bg-deep);border:1px solid var(--border-base);border-radius:16px;box-shadow:0 32px 80px rgba(0,0,0,.7);overflow:hidden;">
+    <div
+      style="padding:18px 22px 14px;border-bottom:1px solid var(--border-deep);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <div
+          style="width:38px;height:38px;min-width:38px;background:rgba(245,158,11,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="#f59e0b" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </div>
+        <div style="min-width:0;">
+          <p
+            style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">
+            Policy Alert</p>
+          <h3 id="popup-title"
+            style="font-size:.95rem;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          </h3>
+        </div>
+      </div>
+      <button onclick="closePolicyPopup()"
+        style="width:28px;height:28px;min-width:28px;border-radius:6px;background:var(--bg-card-solid);border:1px solid var(--border-base);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div style="padding:18px 22px 14px;">
+      <div
+        style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:8px;margin-bottom:16px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b"
+          stroke-width="2" style="flex-shrink:0;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <p id="popup-issue" style="font-size:.82rem;color:#f59e0b;font-weight:500;"></p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div
+          style="padding:11px 13px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;">
+          <p
+            style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">
+            Category</p>
+          <p id="popup-category" style="font-size:.875rem;font-weight:500;color:var(--text-primary);"></p>
+        </div>
+        <div
+          style="padding:11px 13px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;">
+          <p
+            style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">
+            Status</p>
+          <p id="popup-status" style="font-size:.875rem;font-weight:500;"></p>
+        </div>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:4px;">Click <strong
+          style="color:var(--text-secondary);">Go to Policy in Table</strong> to jump to this row in the Policies table.
+      </p>
+    </div>
+    <div style="padding:0 22px 18px;display:flex;gap:10px;">
+      <button onclick="goToPolicyAndHighlight()"
+        style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;background:var(--accent-dark);color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+        Go to Policy in Table
+      </button>
+      <button onclick="closePolicyPopup()"
+        style="padding:10px 16px;background:var(--bg-card-solid);color:var(--text-secondary);border:1px solid var(--border-base);border-radius:8px;font-size:.875rem;font-weight:500;cursor:pointer;">
+        Dismiss
+      </button>
+    </div>
+  </div>
+
+
+  <!-- Notification Popup Overlay -->
+  <div id="notif-popup-backdrop"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.65);z-index:9000;"
+    onclick="closeNotifPopup()"></div>
+  <!-- Notification Popup Card -->
+  <div id="notif-popup"
+    style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9001;width:calc(100% - 32px);max-width:440px;background:var(--bg-deep);border:1px solid var(--border-base);border-radius:16px;box-shadow:0 32px 80px rgba(0,0,0,.7);overflow:hidden;">
+    <!-- Header -->
+    <div
+      style="padding:18px 22px 14px;border-bottom:1px solid var(--border-deep);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <div id="notif-popup-icon"
+          style="width:38px;height:38px;min-width:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        </div>
+        <div style="min-width:0;">
+          <p style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;"
+            id="notif-popup-type-label">Notification</p>
+          <h3 id="notif-popup-title"
+            style="font-size:.95rem;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          </h3>
+        </div>
+      </div>
+      <button onclick="closeNotifPopup()"
+        style="width:28px;height:28px;min-width:28px;border-radius:6px;background:var(--bg-card-solid);border:1px solid var(--border-base);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <!-- Body -->
+    <div style="padding:18px 22px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div
+          style="padding:11px 13px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;">
+          <p
+            style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">
+            From</p>
+          <p id="notif-popup-sender" style="font-size:.875rem;font-weight:500;color:var(--text-primary);"></p>
+        </div>
+        <div
+          style="padding:11px 13px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;">
+          <p
+            style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">
+            Time</p>
+          <p id="notif-popup-time" style="font-size:.875rem;font-weight:500;color:var(--text-primary);"></p>
+        </div>
+      </div>
+      <div id="notif-popup-preview"
+        style="padding:12px 14px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;font-size:.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.55;">Click <strong
+          style="color:var(--text-secondary);">Open in Communicate</strong> to view and respond to this message.</p>
+    </div>
+    <!-- Footer -->
+    <div style="padding:0 22px 18px;display:flex;gap:10px;">
+      <button onclick="goToNotifAndHighlight()"
+        style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;background:var(--accent-dark);color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+        Open in Communicate
+      </button>
+      <button onclick="closeNotifPopup()"
+        style="padding:10px 16px;background:var(--bg-card-solid);color:var(--text-secondary);border:1px solid var(--border-base);border-radius:8px;font-size:.875rem;font-weight:500;cursor:pointer;">
+        Dismiss
+      </button>
+    </div>
+  </div>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/compliance/dashboard.js"></script>
+  <script src="../../js/pages/compliance/audit.js"></script>
+  <script src="../../js/pages/compliance/policies.js"></script>
+  <script src="../../js/pages/compliance/communications.js"></script>
+
+</body>
+
+</html>

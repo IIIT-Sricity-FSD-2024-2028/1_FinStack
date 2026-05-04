@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance Officer Dashboard</title>  <link rel="stylesheet" href="../../css/actors/compliance.css" />
+  <script>
+    (function () {
+      const saved = localStorage.getItem('finstack-sidebar-collapsed');
+      if (saved === 'true') {
+        document.documentElement.classList.add('sidebar-collapsed-init');
+      }
+    })();
+  </script>
+</head>
+
+<body data-page="policies">
+
+  <div id="sidebar-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;"></div>
+  <div id="overlay" class="overlay" onclick="closeAllPanels()"></div>
+
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon"><span>F</span></div>
+          <span class="sidebar-logo-text">FinStack</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button" aria-label="Collapse sidebar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-page="dashboard" onclick="Router.navigate('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="escalated" onclick="Router.navigate('escalated')" id="nav-escalated">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Escalated Expenses
+          <span id="escalated-nav-badge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 4px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span>
+        </button>
+        <button class="nav-item" data-page="policies" onclick="Router.navigate('policies')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Policies
+        </button>
+        <button class="nav-item" data-page="audit" onclick="Router.navigate('audit')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Audit Logs
+        </button>
+        <button class="nav-item" data-page="compliance" onclick="Router.navigate('compliance')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Policy Violations
+        </button>
+        <button class="nav-item" data-page="communications" onclick="Router.navigate('communications')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            <circle cx="19" cy="7" r="3" fill="#22d3ee" stroke="#111827" stroke-width="2" />
+          </svg>
+          Notifications
+        </button>
+        <button class="nav-item" data-page="profile" onclick="Router.navigate('profile')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4" />
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          </svg>
+          Profile / Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logoutToSharedLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-wrap">
+      <header class="header">
+        <div class="header-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div class="header-brand">FinStack Workspace</div>
+        </div>
+        <div class="header-search-wrap">
+          <div class="header-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input type="text" placeholder="Search..." aria-label="Search workspace" />
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="Router.navigate('communications')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span class="badge"></span>
+          </button>
+          <div class="header-profile-wrap">
+            <button class="header-profile" type="button" data-profile-menu-trigger aria-haspopup="menu"
+              aria-expanded="false">
+              <span class="header-profile-avatar">HV</span>
+              <span class="header-profile-copy">
+                <span class="header-profile-name">Hari Vamsi</span>
+                <span class="header-profile-email">hari.vamsi@finstack.io</span>
+              </span>
+              <svg class="header-profile-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div class="header-profile-menu" data-profile-menu role="menu" aria-hidden="true">
+              <div class="header-profile-menu-head">
+                <div class="header-profile-menu-name">Hari Vamsi</div>
+                <div class="header-profile-menu-email">hari.vamsi@finstack.io</div>
+              </div>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Profile Settings</button>
+              <button type="button" class="header-profile-menu-item" role="menuitem"
+                onclick="Router.navigate('profile')">Preferences</button>
+              <div class="header-profile-menu-divider"></div>
+              <button type="button" class="header-profile-menu-item logout" role="menuitem"
+                onclick="logoutToSharedLogin()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-content">
+
+        <div id="page-policies" class="page active">
+          <div class="mb-8">
+            <h1 class="page-title">Policies Management</h1>
+            <p class="page-subtitle">Define, update, and submit expense policies for configuration approval.</p>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex items-center justify-between mb-6" style="flex-wrap:wrap;gap:16px;">
+            <button class="btn btn-primary" onclick="openCreatePolicy()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Define Policy
+            </button>
+            <div class="flex gap-3" style="flex-wrap:wrap;">
+              <div class="input-with-icon" style="width:220px;">
+                <span class="input-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg></span>
+                <input id="pol-search" class="form-control" type="text" placeholder="Search policies" />
+              </div>
+              <select id="pol-status" class="form-control" style="width:auto;">
+                <option value="All">All Status</option>
+                <option>Draft</option>
+                <option>Needs Revision</option>
+                <option>Submitted</option>
+                <option>Approved</option>
+                <option>Active</option>
+              </select>
+              <select id="pol-category" class="form-control" style="width:auto;">
+                <option value="All">All Categories</option>
+                <option>Travel</option>
+                <option>Meals</option>
+                <option>Accommodation</option>
+                <option>Vendor</option>
+                <option>Office Supplies</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Policies Table -->
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Policy Name</th>
+                    <th>Category</th>
+                    <th>Limit / Rule</th>
+                    <th>Last Updated</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="policies-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /page-policies -->
+
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Policy Details Panel -->
+  <div id="details-panel" class="panel modal-details">
+    <div class="panel-header">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <span class="panel-title" id="details-panel-title">Policy Details</span>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Detailed review of policy rules, metadata, and
+          handoff configurations.</p>
+      </div>
+      <button class="btn-icon" onclick="closePanel('details-panel')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="panel-body" id="details-panel-body"></div>
+  </div>
+
+  <!-- Policy Editor Panel -->
+  <div id="editor-panel" class="panel modal-editor">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="policy-editor-panel-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+            <line x1="9" y1="11" x2="15" y2="11" />
+          </svg>
+        </div>
+        <div>
+          <span class="panel-title" id="editor-panel-title">Policy Submission Editor</span>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Authored policy definition routed to
+            Configuration Manager.</p>
+        </div>
+      </div>
+      <button class="btn-icon" onclick="closePanel('editor-panel')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="panel-body">
+      <form id="policy-editor-form" onsubmit="saveDraft(event)">
+        <div class="policy-editor-banner">
+          <div>
+            <p class="policy-editor-banner-title">Configuration Handoff Workflow</p>
+            <p class="policy-editor-banner-copy">This submission will be sent to the Configuration Manager for system
+              implementation. Activation happens only after configuration, validation, and deployment controls are
+              completed.</p>
+          </div>
+          <div id="policy-editor-status"></div>
+        </div>
+
+        <div class="policy-editor-validation" id="policy-validation-results">
+          <p class="policy-helper-copy">Validation checks will surface missing controls, metadata gaps, and weak handoff
+            information before submission.</p>
+        </div>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Policy Identification</h3>
+              <p>Define ownership, applicability, lifecycle dates, and priority for the policy package.</p>
+            </div>
+          </div>
+          <div class="policy-editor-grid policy-editor-grid-2">
+            <div class="form-group">
+              <label class="form-label">Policy ID</label>
+              <input id="pol-id" class="form-control" type="text" readonly />
+              <p class="policy-helper-copy">Auto-generated and reserved for audit, approval, and implementation
+                tracking.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Priority Level <span class="required">*</span></label>
+              <select id="pol-priority" class="form-control" required>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+                <option>Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Policy Name <span class="required">*</span></label>
+              <input id="pol-name" class="form-control" type="text"
+                placeholder="e.g., Cross-Border Travel Spend Control" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Policy Type <span class="required">*</span></label>
+              <select id="pol-type" class="form-control" required>
+                <option>Expense Control</option>
+                <option>Reconciliation Rule</option>
+                <option>Vendor Governance</option>
+                <option>Budget Control</option>
+                <option>Fraud Prevention</option>
+                <option>Regulatory Compliance</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expense Category <span class="required">*</span></label>
+              <select id="pol-cat" class="form-control" required>
+                <option>Travel</option>
+                <option>Meals</option>
+                <option>Accommodation</option>
+                <option>Vendor</option>
+                <option>Office Supplies</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Applies To <span class="required">*</span></label>
+              <select id="pol-applies" class="form-control" required>
+                <option>Department</option>
+                <option>Employee Group</option>
+                <option>Organization-wide</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Effective Date <span class="required">*</span></label>
+              <input id="pol-date" class="form-control" type="date" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Review Date / Expiry Date</label>
+              <input id="pol-review-date" class="form-control" type="date" />
+            </div>
+          </div>
+        </section>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Rule Definition</h3>
+              <p>Capture the core compliance logic that will be configured into the expense and reconciliation engine.
+              </p>
+            </div>
+          </div>
+          <div class="policy-editor-grid policy-editor-grid-2">
+            <div class="form-group">
+              <label class="form-label">Maximum Allowed Amount (₹) <span class="required">*</span></label>
+              <input id="pol-amount" class="form-control" type="number" placeholder="e.g., 5000" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Receipt Requirement</label>
+              <select id="pol-receipt" class="form-control">
+                <option>Required</option>
+                <option>Optional</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Approval Requirement</label>
+              <select id="pol-approval" class="form-control">
+                <option>Line Manager Approval</option>
+                <option>Manager Approval</option>
+                <option>Manager + Finance Approval</option>
+                <option>Procurement + Compliance Approval</option>
+                <option>Department Head Approval</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Duplicate Detection Rule</label>
+              <input id="pol-duplicate" class="form-control" type="text"
+                placeholder="e.g., Exact match within 30 days" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">OCR Cross-Validation Rule</label>
+              <input id="pol-ocr" class="form-control" type="text"
+                placeholder="e.g., Validate merchant, GST, date, and amount" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Escalation Conditions</label>
+              <input id="pol-escalation" class="form-control" type="text"
+                placeholder="Define trigger thresholds and repeated-breach conditions" />
+            </div>
+            <div class="form-group policy-editor-grid-span-2">
+              <label class="form-label">Exception Handling Conditions</label>
+              <textarea id="pol-exceptions" class="form-control"
+                placeholder="Specify exception scenarios, waivers, or emergency overrides."></textarea>
+            </div>
+            <div class="form-group policy-editor-grid-span-2">
+              <label class="form-label">Rule Description / Notes <span class="required">*</span></label>
+              <textarea id="pol-desc" class="form-control policy-editor-textarea-lg"
+                placeholder="Document the policy intent, thresholds, exceptions, and any reconciliation behavior."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Compliance &amp; Risk Settings</h3>
+              <p>Configure the operational risk response and audit posture for violations.</p>
+            </div>
+          </div>
+          <div class="policy-editor-grid policy-editor-grid-2">
+            <div class="form-group">
+              <label class="form-label">Violation Action</label>
+              <select id="pol-violation-action" class="form-control">
+                <option>Warn</option>
+                <option>Flag</option>
+                <option>Escalate</option>
+                <option>Block</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Risk Score Weight</label>
+              <div class="policy-range-head">
+                <span class="policy-helper-copy">Higher values increase routing sensitivity for review and
+                  escalation.</span>
+                <strong id="pol-risk-weight-value">70/100</strong>
+              </div>
+              <input id="pol-risk-weight" type="range" min="0" max="100" value="70" oninput="syncRiskWeightLabel()" />
+            </div>
+          </div>
+          <div class="policy-toggle-list">
+            <div class="policy-toggle-item">
+              <div>
+                <p>Manual Review Required</p>
+                <span>Route flagged claims to compliance operations before reimbursement posting.</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="pol-manual-review" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="policy-toggle-item">
+              <div>
+                <p>Notify Stakeholders</p>
+                <span>Send workflow notifications to requestors, approvers, and relevant oversight teams.</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="pol-notify" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="policy-toggle-item">
+              <div>
+                <p>Audit Logging Enabled</p>
+                <span>Capture every implementation and subsequent edit for immutable audit review.</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="pol-audit-logging" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Supporting Documents</h3>
+              <p>Attach policy circulars, SOPs, implementation notes, internal memos, or evidence required by the
+                Configuration Manager.</p>
+            </div>
+          </div>
+          <label class="policy-upload-drop" for="policy-file-upload">
+            <input id="policy-file-upload" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+              onchange="handlePolicyUploads(this)">
+            <div class="policy-upload-copy">
+              <strong>Upload policy evidence package</strong>
+              <span>Supports multiple PDF, DOC, DOCX, XLSX, and image attachments.</span>
+            </div>
+          </label>
+          <div id="policy-attachments-list" class="policy-attachments-list"></div>
+        </section>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Change / Submission Metadata</h3>
+              <p>Provide the audit trail and implementation context required for configuration handoff.</p>
+            </div>
+          </div>
+          <div class="policy-editor-grid policy-editor-grid-3">
+            <div class="form-group">
+              <label class="form-label">Version Number</label>
+              <input id="pol-version" class="form-control" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Created By</label>
+              <input id="pol-created-by" class="form-control" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Updated By</label>
+              <input id="pol-updated-by" class="form-control" type="text" readonly />
+            </div>
+          </div>
+          <div class="policy-editor-grid policy-editor-grid-1">
+            <div class="form-group">
+              <label class="form-label">Reason for Policy Creation or Update <span class="required">*</span></label>
+              <textarea id="pol-reason" class="form-control"
+                placeholder="Describe the business, compliance, or regulatory reason for this submission."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Change Summary <span class="required">*</span></label>
+              <textarea id="pol-change-summary" class="form-control"
+                placeholder="Summarize the control changes, new thresholds, and impacted workflows."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes for Configuration Manager <span class="required">*</span></label>
+              <textarea id="pol-config-notes" class="form-control policy-editor-textarea-lg"
+                placeholder="Document mapping logic, routing dependencies, required validations, or deployment sequencing."></textarea>
+              <p id="policy-editor-status-note" class="policy-helper-copy">This submission will be sent to the
+                Configuration Manager for system implementation after approval.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="policy-editor-section">
+          <div class="policy-section-head">
+            <div>
+              <h3>Workflow / Submission</h3>
+              <p>Validate the policy package, preview system impact, and route it for implementation.</p>
+            </div>
+          </div>
+          <div class="policy-preview-shell" id="policy-preview-output">
+            <p class="policy-helper-copy">Preview Impact summarizes how this policy will behave once routed to the
+              Configuration Manager.</p>
+          </div>
+          <div class="policy-action-row">
+            <button type="submit" class="btn btn-secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              Save as Draft
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="validatePolicyForm()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Validate Policy
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="previewPolicyImpact()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Preview Impact
+            </button>
+            <button type="button" class="btn btn-primary" onclick="submitForApproval()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+              Submit for Implementation
+            </button>
+          </div>
+        </section>
+      </form>
+    </div>
+  </div>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/compliance/dashboard.js"></script>
+  <script src="../../js/pages/compliance/policies.js"></script>
+
+</body>
+
+</html>

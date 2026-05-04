@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FinStack — AI-powered expense management, reconciliation, and compliance platform for enterprises.">
+  <meta name="theme-color" content="#0B0F19">
+  <title>FinStack — Expense Management Platform</title>
+
+  <!-- Stylesheets -->  <link rel="stylesheet" href="../../css/actors/manager.css">
+
+  <!-- Favicon (inline SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237C3AED'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='18' font-weight='700' font-family='Inter,sans-serif'>F</text></svg>">
+</head>
+<body>
+
+  <!-- ============================================= -->
+  <!--  APP SHELL (sidebar + topnav + content)       -->
+  <!--  Visible on authenticated/dashboard views     -->
+  <!-- ============================================= -->
+  <div id="app-shell" class="app-shell">
+
+    <!-- ---- Sidebar ---- -->
+    <aside id="sidebar" class="sidebar" role="navigation" aria-label="Main navigation">
+      <!-- Rendered by sidebar.js -->
+    </aside>
+
+    <!-- ---- Main Column (topnav + page) ---- -->
+    <div class="main-column">
+
+      <!-- Top Navigation Bar -->
+      <header id="top-nav" class="top-nav" role="banner">
+        <!-- Rendered by topnav.js -->
+      </header>
+
+      <!-- Page Content Area -->
+      <main id="page-content" class="page-content" role="main">
+        <!-- Active page rendered here by app.js router -->
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!--  STANDALONE VIEW                              -->
+  <!--  Used for auth pages (no sidebar / topnav)    -->
+  <!-- ============================================= -->
+  <div id="standalone-view" class="standalone-view" style="display:none;">
+    <!-- Auth pages rendered here (registration, forgot-password, etc.) -->
+  </div>
+
+  <!-- ============================================= -->
+  <!--  MODAL ROOT                                   -->
+  <!--  Global overlay container for modals          -->
+  <!-- ============================================= -->
+  <div id="modal-root" class="modal-root" role="dialog" aria-hidden="true"></div>
+
+  <!-- ============================================= -->
+  <!--  SCRIPTS                                      -->
+  <!--  Load order: icons → sidebar → topnav → app   -->
+  <!--  All JS files loaded in sequence via module    -->
+  <!-- ============================================= -->
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/manager/dashboard.js"></script>
+  <script src="../../js/pages/manager/expense-review.js"></script>
+  <script src="../../js/pages/manager/approval-history.js"></script>
+  <script src="../../js/pages/manager/notifications.js"></script>
+  <script>window.location.hash = "#approval-history";</script>
+
+</body>
+</html>

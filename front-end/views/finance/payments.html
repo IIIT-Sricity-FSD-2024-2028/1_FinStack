@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FinStack • Payments</title>    <link rel="stylesheet" href="../../css/actors/finance.css" />
+  </head>
+  <body data-page="payments-page">
+<div class="app">
+<aside class="sidebar">
+<div class="sidebar-top">
+<div class="logo-row">
+<div class="logo-brand">
+<div class="logo-box">F</div>
+<div class="logo-text">FinStack</div>
+</div>
+<button class="sidebar-toggle-btn" id="sidebarToggleBtn" type="button" title="Collapse sidebar" aria-label="Collapse sidebar"></button>
+</div>
+</div>
+<div class="nav-group">
+<button class="nav-btn active" data-target="dashboard-page"><span class="nav-icon">▦</span><span>Dashboard</span></button>
+<button class="nav-btn" data-target="finance-review-page"><span class="nav-icon">✓</span><span>Finance Review</span></button>
+<button class="nav-btn" data-target="reconciliation-page"><span class="nav-icon">⇄</span><span>Reconciliation</span></button>
+<button class="nav-btn" data-target="transactions-page"><span class="nav-icon">≣</span><span>Transactions</span></button>
+<button class="nav-btn" data-target="flagged-page"><span class="nav-icon">⚠</span><span>Flagged Expenses</span></button>
+<button class="nav-btn" data-target="payments-page"><span class="nav-icon">₹</span><span>Payments</span></button>
+<button class="nav-btn" data-target="reports-page"><span class="nav-icon">▤</span><span>Reports</span></button>
+<button class="nav-btn" data-target="settings-page"><span class="nav-icon">⚙</span><span>Settings</span></button>
+</div>
+<div class="sidebar-footer">
+<button class="logout-btn" id="logoutBtn"><span class="nav-icon">↪</span><span>Logout</span></button>
+</div>
+</aside>
+<main class="main">
+<header class="topbar">
+<div class="topbar-left">
+<button class="sidebar-expand-btn" id="sidebarExpandBtn" type="button" title="Expand sidebar" aria-label="Expand sidebar" aria-hidden="true"></button>
+<div class="workspace-title" id="workspaceTitle">Finance Officer Dashboard</div>
+</div>
+<div class="search-wrap">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+<input class="search-input" id="globalSearch" placeholder="Search pages, IDs, employees, reports..." type="text"/>
+</div>
+<div class="topbar-right">
+<button class="icon-btn" id="notificationBtn" title="Notifications">
+<span class="dot"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+</button>
+<div class="user-menu" id="userMenuBtn">
+<div class="avatar" id="userAvatar">RK</div>
+<div>
+<div class="user-name" id="userNameTop">Rajesh Kumar</div>
+<div class="user-email" id="userEmailTop">Finance Officer</div>
+</div>
+<div class="muted" aria-hidden="true"></div>
+</div>
+</div>
+</header>
+<div class="content">
+<section class="page active" id="dashboard-page">
+<div class="hero">
+<div>
+<h1>Dashboard</h1>
+<p>Welcome back, manage your workspace with faster reviews, reconciliations, and compliance actions.</p>
+</div>
+<div class="hero-actions">
+<button class="action-btn btn-primary" id="addUserBtn">Add User</button>
+<button class="action-btn btn-outline" id="addPolicyBtn">Add Policy</button>
+</div>
+</div>
+<div class="grid-4">
+<div class="stats-card"><div><div class="stats-label">Total Expenses</div><div class="stats-value" id="metricTotalExpenses">0</div><div class="stats-sub" id="metricExpenseAmount">₹0 under management</div></div><div class="stats-icon">💳</div></div>
+<div class="stats-card"><div><div class="stats-label">Active Reviews</div><div class="stats-value" id="metricActiveReviews">0</div><div class="stats-sub">Finance queue live</div></div><div class="stats-icon">🛡</div></div>
+<div class="stats-card"><div><div class="stats-label">Expense Categories</div><div class="stats-value" id="metricCategories">0</div><div class="stats-sub">Dynamic categories</div></div><div class="stats-icon">📂</div></div>
+<div class="stats-card"><div><div class="stats-label">Policies Configured</div><div class="stats-value" id="metricPolicies">0</div><div class="stats-sub">Updated in real time</div></div><div class="stats-icon">📑</div></div>
+</div>
+<div class="two-col">
+<div class="panel">
+<div class="panel-head"><h3>Recent Activity</h3><p>Latest finance and compliance events</p></div>
+<div class="table-wrap"><table><thead><tr><th>User</th><th>Action</th><th>Entity</th><th>Time</th><th>Action</th></tr></thead><tbody id="activityTableBody"></tbody></table></div>
+</div>
+<div class="panel">
+<div class="panel-head"><h3>Alerts</h3><p>Priority items that need attention</p></div>
+<div class="alert-list" id="alertList"></div>
+</div>
+</div>
+</section>
+<section class="page" id="expenses-page" style="display:none !important;"></section>
+<section class="page" id="finance-review-page">
+<div class="page-toolbar"><h2>Finance Review</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="reviewNextBtn">Review Next</button><button class="mini-btn btn-outline" id="reviewRefreshBtn">Refresh Queue</button></div></div>
+<div class="sub-card"><div class="table-wrap"><table><thead><tr><th>Expense ID</th><th>Submitted By</th><th>Amount</th><th>Manager Status</th><th>Actions</th></tr></thead><tbody id="reviewTableBody"></tbody></table></div></div>
+</section>
+<section class="page" id="reconciliation-page">
+<div class="page-toolbar"><h2>Reconciliation</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="runReconciliationBtn">Run Reconciliation</button><button class="mini-btn btn-outline" id="autoMatchBtn">Auto Match</button></div></div>
+<div class="form-grid">
+<div class="sub-card"><h3>Pending Matches</h3><div class="kv-list" id="reconciliationList"></div></div>
+<div class="sub-card"><h3>Status Metrics</h3><div class="kv-list"><div class="kv"><span>Last run</span><span id="reconciliationStatus">Not executed today</span></div><div class="kv"><span>Auto match</span><span id="autoMatchStatus">Disabled</span></div><div class="kv"><span>Matched items</span><span id="matchedItems">0</span></div><div class="kv"><span>Mismatches</span><span id="mismatchItems">0</span></div></div></div>
+</div>
+</section>
+<section class="page" id="transactions-page">
+<div class="page-toolbar"><h2>Transactions</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="syncTransactionsBtn">Sync Transactions</button><button class="mini-btn btn-outline" id="downloadTxnBtn">Download CSV</button></div></div>
+<div class="sub-card"><div class="table-wrap"><table><thead><tr><th>Transaction ID</th><th>Bank</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody id="transactionTableBody"></tbody></table></div></div>
+</section>
+<section class="page" id="flagged-page">
+<div class="page-toolbar"><h2>Flagged Expenses</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="scanFraudBtn">Run Fraud Scan</button><button class="mini-btn btn-outline" id="bulkEscalateBtn">Bulk Escalate</button></div></div>
+<div class="sub-card"><div class="table-wrap"><table><thead><tr><th>Expense ID</th><th>Reason</th><th>Risk</th><th>Action</th></tr></thead><tbody id="flaggedTableBody"></tbody></table></div></div>
+</section>
+<section class="page" id="payments-page">
+<div class="page-toolbar"><h2>Payments</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="releasePaymentsBtn">Release Batch</button><button class="mini-btn btn-outline" id="schedulePaymentBtn">Schedule Payment</button></div></div>
+<div class="sub-card"><div class="table-wrap"><table><thead><tr><th>Batch ID</th><th>Count</th><th>Total Amount</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentTableBody"></tbody></table></div></div>
+</section>
+<section class="page" id="reports-page">
+<div class="page-toolbar"><h2>Reports &amp; Intelligence</h2><div class="toolbar-actions"><button class="mini-btn btn-primary" id="generateReportBtn">Generate Report</button><button class="mini-btn btn-outline" id="downloadAllReportsBtn">Download All</button><button class="mini-btn btn-outline" id="compareReportsBtn">Compare</button><button class="mini-btn btn-outline" id="generateExecPackBtn">Exec Pack</button></div></div>
+<div class="report-top-grid">
+<div class="sub-card">
+<h3>Report Center</h3>
+<p class="muted" style="margin-bottom:14px;">Build, pin, schedule, compare, preview, and export operational intelligence without leaving the workspace.</p>
+<div class="report-toolbar-advanced">
+<input class="field" id="reportSearch" placeholder="Search reports, tags, owners..." type="text"/>
+<select class="select" id="reportTypeFilter"><option value="all">All Types</option><option value="finance">Finance</option><option value="risk">Risk</option><option value="compliance">Compliance</option><option value="ops">Operations</option></select>
+<select class="select" id="reportSort"><option value="priority">Sort: Priority</option><option value="runs">Sort: Most Runs</option><option value="fresh">Sort: Freshest</option><option value="name">Sort: Name</option></select>
+<button class="mini-btn btn-outline" id="applyReportFilterBtn">Apply</button>
+<button class="mini-btn btn-outline" id="resetReportFilterBtn">Reset</button>
+</div>
+<div class="chip-row" id="reportChipRow">
+<button class="chip active" data-chip="all">All</button>
+<button class="chip" data-chip="pinned">Pinned</button>
+<button class="chip" data-chip="scheduled">Scheduled</button>
+<button class="chip" data-chip="generated">Generated Today</button>
+</div>
+</div>
+<div class="sub-card">
+<h3>Report Pulse</h3>
+<div class="soft-list" id="reportPulseList"></div>
+</div>
+</div>
+<div class="report-metrics" id="reportMetrics"></div>
+<div class="report-grid" id="reportsGrid"></div>
+<div class="sub-card wide-table-card">
+<div class="page-toolbar" style="margin-bottom:12px;"><h2 style="font-size:22px;">Recent Report Runs</h2><div class="toolbar-actions"><button class="mini-btn btn-outline" id="clearReportRunsBtn">Clear History</button><button class="mini-btn btn-outline" id="scheduleAnyReportBtn">Schedule Report</button></div></div>
+<div class="table-wrap"><table><thead><tr><th>Time</th><th>Report</th><th>Action</th><th>Owner</th><th>Status</th><th>Open</th></tr></thead><tbody id="reportRunsTableBody"></tbody></table></div>
+</div>
+</section>
+<section class="page" id="settings-page">
+<div class="page-toolbar settings-toolbar">
+<div>
+<h2>Profile &amp; Settings</h2>
+<p class="muted">Manage your profile details, workspace preferences, and account security.</p>
+</div>
+<div class="toolbar-actions">
+<button class="mini-btn btn-primary" id="saveSettingsBtn">Save Changes</button>
+<button class="mini-btn btn-outline" id="resetSettingsBtn">Reset</button>
+</div>
+</div>
+<div class="settings-layout">
+<div class="settings-main-stack">
+<div class="settings-panel settings-profile-card">
+<div class="settings-panel-head between">
+<div>
+<div class="settings-icon-title"><span class="settings-symbol">◔</span><h3>Personal Information</h3></div>
+<p class="muted">Primary account details used across the FinStack workspace.</p>
+</div>
+<button class="mini-btn btn-outline" id="editProfileBtn">Edit Profile</button>
+</div>
+<div class="profile-card-body">
+<div class="profile-avatar-large" id="settingsAvatarLarge">RK</div>
+<div class="profile-info-grid">
+<div class="profile-info-item">
+<label>Full Name</label>
+<input class="field" id="officerName" placeholder="Full Name" type="text" value="Rajesh Kumar"/>
+</div>
+<div class="profile-info-item">
+<label>Email Address</label>
+<input class="field" id="officerEmail" placeholder="Email Address" type="email" value="rajesh.kumar@finstack.io"/>
+</div>
+<div class="profile-info-item">
+<label>Role</label>
+<div class="pill-row"><span class="role-pill">Finance Officer</span><span class="muted">System access: full finance operations</span></div>
+</div>
+<div class="profile-info-item">
+<label>Department</label>
+<input class="field" id="departmentSetting" placeholder="Department" type="text" value="Finance Operations"/>
+</div>
+<div class="profile-info-item">
+<label>Employee ID</label>
+<input class="field" id="employeeIdSetting" placeholder="Employee ID" type="text" value="FIN-2001" disabled=""/>
+</div>
+<div class="profile-info-item">
+<label>Phone Number</label>
+<input class="field" id="phoneSetting" placeholder="+91 90000 00000" type="text" value="+91 90000 33333"/>
+</div>
+<div class="profile-info-item">
+<label>Location</label>
+<input class="field" id="locationSetting" placeholder="Chennai, India" type="text" value="Chennai, India"/>
+</div>
+<div class="profile-info-item">
+<label>Organization ID</label>
+<input class="field" id="organizationIdSetting" placeholder="Organization ID" type="text" value="finstack-tech-01" disabled=""/>
+</div>
+<div class="profile-info-item">
+<label>Reporting Manager</label>
+<input class="field" id="managerEmployeeIdSetting" placeholder="Reporting manager employee ID" type="text" value=""/>
+</div>
+</div>
+</div>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">⌘</span><h3>Security</h3></div>
+<p class="muted">Use a strong password with at least 8 characters.</p>
+</div>
+<div class="password-grid">
+<div class="password-field-wrap">
+<label>Current Password</label>
+<div class="password-input-wrap"><input class="field password-field" id="currentPassword" placeholder="Enter current password" type="password"/><button class="password-toggle" data-toggle-password="currentPassword" type="button">◉</button></div>
+</div>
+<div class="password-field-wrap">
+<label>New Password</label>
+<div class="password-input-wrap"><input class="field password-field" id="newPassword" placeholder="Enter new password" type="password"/><button class="password-toggle" data-toggle-password="newPassword" type="button">◉</button></div>
+<span class="field-hint">Use letters, numbers, and one special character.</span>
+</div>
+<div class="password-field-wrap">
+<label>Confirm New Password</label>
+<div class="password-input-wrap"><input class="field password-field" id="confirmPassword" placeholder="Confirm new password" type="password"/><button class="password-toggle" data-toggle-password="confirmPassword" type="button">◉</button></div>
+</div>
+<button class="action-btn btn-primary settings-save-wide" id="updatePasswordBtn">Update Password</button>
+</div>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">⛨</span><h3>Additional Security Controls</h3></div>
+<p class="muted">Strengthen account access and approval safety for expense workflows.</p>
+</div>
+<div class="settings-grid-two">
+<label class="toggle-card"><div><strong>Two-factor authentication</strong><span>Require OTP verification before login.</span></div><input checked="" class="switch-input" id="twoFactorSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Login alerts</strong><span>Notify when a new device signs in.</span></div><input checked="" class="switch-input" id="loginAlertsSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Approve-on-risk confirmation</strong><span>Ask for reconfirmation before approving flagged claims.</span></div><input checked="" class="switch-input" id="riskConfirmSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Session timeout</strong><span>Automatically sign out inactive sessions.</span></div><input checked="" class="switch-input" id="sessionTimeoutEnabled" type="checkbox"/><span class="switch-ui"></span></label>
+</div>
+<div class="settings-grid-two compact-top">
+<div>
+<label>Session timeout duration</label>
+<select class="select" id="sessionTimeoutSetting">
+<option>15 minutes</option>
+<option selected="">30 minutes</option>
+<option>45 minutes</option>
+<option>60 minutes</option>
+</select>
+</div>
+<div>
+<label>Default approval confirmation level</label>
+<select class="select" id="approvalConfirmSetting">
+<option>Standard</option>
+<option selected="">High</option>
+<option>Strict</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+<div class="settings-side-stack">
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">◎</span><h3>Workspace Snapshot</h3></div>
+<p class="muted">Reference details for your finance workspace account.</p>
+</div>
+<div class="settings-actions-col">
+<div class="session-item"><div><strong>Employee ID</strong><span id="settingsEmployeeIdCard">FIN-2001</span></div><span class="status approved">Active</span></div>
+<div class="session-item"><div><strong>Organization</strong><span id="settingsOrganizationIdCard">finstack-tech-01</span></div><span class="status approved">Workspace</span></div>
+<div class="session-item"><div><strong>Reporting Manager</strong><span id="settingsManagerIdCard">Not assigned</span></div><span class="status approved">Routing</span></div>
+<div class="session-item"><div><strong>Last Login</strong><span id="settingsLastLoginCard">Current session</span></div><span class="status approved">Recent</span></div>
+</div>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">◌</span><h3>Preferences</h3></div>
+<p class="muted">Manage your workspace preferences and notification defaults.</p>
+</div>
+<div class="settings-switch-stack">
+<label class="toggle-card"><div><strong>Email Alerts</strong><span>Receive email notifications for approvals, escalations, and payment updates.</span></div><input checked="" class="switch-input" id="emailNotificationsSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Push Notifications</strong><span>Show workspace alerts for approvals, escalations, and payment updates.</span></div><input checked="" class="switch-input" id="highRiskAlertsSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Weekly Digest</strong><span>Get a weekly summary of approvals, escalations, and payment activity.</span></div><input checked="" class="switch-input" id="weeklyDigestSetting" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card"><div><strong>Desktop Alerts</strong><span>Show additional alert cues for urgent finance activity.</span></div><input class="switch-input" id="soundAlertsSetting" type="checkbox"/><span class="switch-ui"></span></label>
+</div>
+<div class="settings-grid-one compact-top">
+<div>
+<label>Language</label>
+<select class="select" id="languageSetting">
+<option selected="">English (US)</option>
+<option>English (India)</option>
+<option>Hindi</option>
+</select>
+</div>
+<div>
+<label>Summary Delivery Time</label>
+<select class="select" id="summaryTimeSetting">
+<option>08:00 AM</option>
+<option selected="">09:00 AM</option>
+<option>06:00 PM</option>
+</select>
+</div>
+</div>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">◫</span><h3>Workspace Preferences</h3></div>
+<p class="muted">Manage your workspace defaults and appearance settings.</p>
+</div>
+<div class="settings-grid-one">
+<div>
+<label>Interface Theme</label>
+<select class="select" id="themeSetting"><option>Dark</option><option>Midnight</option><option>System</option></select>
+</div>
+<div>
+<label>Time Zone</label>
+<select class="select" id="timezoneSetting">
+<option selected="" value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+<option value="UTC">UTC</option>
+<option value="America/Los_Angeles">America/Los_Angeles</option>
+<option value="Europe/London">Europe/London</option>
+</select>
+</div>
+<div>
+<label>Default Currency</label>
+<select class="select" id="currencySetting"><option selected="">INR</option><option>USD</option><option>EUR</option></select>
+</div>
+<div>
+<label>Date format</label>
+<select class="select" id="dateFormatSetting"><option selected="">DD MMM, YYYY</option><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option></select>
+</div>
+<div>
+<label>Default Landing Page</label>
+<select class="select" id="landingPageSetting"><option selected="">Dashboard</option><option>Finance Review</option><option>Payments</option><option>Reports</option></select>
+</div>
+<label class="toggle-card compact"><div><strong>Collapsed sidebar by default</strong><span>Open the workspace with the sidebar closed.</span></div><input class="switch-input" id="sidebarDefaultCollapsed" type="checkbox"/><span class="switch-ui"></span></label>
+<label class="toggle-card compact"><div><strong>Compact density</strong><span>Show tighter spacing in tables and cards.</span></div><input class="switch-input" id="compactDensitySetting" type="checkbox"/><span class="switch-ui"></span></label>
+</div>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">⚖</span><h3>Compliance &amp; Legal</h3></div>
+<p class="muted">Access policy documents, privacy controls, and data exports.</p>
+</div>
+<div class="settings-actions-col">
+<button class="mini-btn btn-outline" id="downloadPolicyBtn">Download Policy (PDF)</button>
+<button class="mini-btn btn-outline" id="openPrivacyBtn">Privacy Notice</button>
+<button class="mini-btn btn-outline" id="exportMyDataBtn">Export My Data</button>
+</div>
+<textarea class="text-area" id="notesSetting">Enable dual verification for flagged reimbursements before release. Review duplicate claim thresholds every Friday.</textarea>
+</div>
+<div class="settings-panel">
+<div class="settings-panel-head">
+<div class="settings-icon-title"><span class="settings-symbol">◎</span><h3>Active Sessions</h3></div>
+<p class="muted">Monitor signed-in devices and current access sessions.</p>
+</div>
+<div class="session-list">
+<div class="session-item"><div><strong>Chrome on Windows</strong><span>Current session • Chennai, India</span></div><span class="status approved">Active</span></div>
+<div class="session-item"><div><strong>Android App</strong><span>Last active 2 hours ago • Hyderabad, India</span></div><button class="mini-btn btn-outline session-revoke-btn">Revoke</button></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="notificationDrawer">
+<div class="drawer-head"><h3>Notifications</h3><button class="close-btn" data-close-drawer="">✕</button></div>
+<div class="drawer-body" id="notificationDrawerBody"></div>
+</aside>
+<aside class="drawer" id="profileDrawer">
+<div class="drawer-head"><h3>Profile</h3><button class="close-btn" data-close-drawer="">✕</button></div>
+<div class="drawer-body">
+<div class="drawer-card"><h4 id="profileName">Rajesh Kumar</h4><p id="profileEmail">Manager • Finance Operations</p><div class="inline-actions"><button class="mini-btn btn-outline" id="openSettingsFromProfile">Open Settings</button><button class="mini-btn btn-primary" id="simulatePresenceBtn">Set Available</button></div></div>
+<div class="drawer-card"><h4>Workspace Role</h4><p>Finance Officer • Reviews, reconciliation, payments, and reports.</p></div>
+<div class="drawer-card"><h4>Quick Actions</h4><div class="inline-actions"><button class="mini-btn btn-outline" id="quickReviewQueueBtn">Open Review Queue</button><button class="mini-btn btn-outline" id="quickReportBtn">Generate Report</button></div></div>
+</div>
+</aside>
+<div class="modal-backdrop" id="modalBackdrop"></div>
+<div class="modal" id="mainModal">
+<div class="modal-head">
+<div class="modal-title-wrap">
+<div class="modal-icon" id="modalIcon">◫</div>
+<div>
+<h3 id="modalTitle">Modal</h3>
+<p id="modalSubtitle">Workspace detail</p>
+</div>
+</div>
+<button class="modal-close-btn" id="closeModalBtn">✕</button>
+</div>
+<div class="modal-body" id="modalBody"></div>
+<div class="modal-footer" id="modalFooter"></div>
+</div>
+<div class="toast" id="toast"></div>
+    <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+    <script src="../../js/auth.js"></script>
+    <script src="../../js/pages/finance/payments.js"></script>
+    <script src="../../js/pages/finance/dashboard.js"></script>
+  </body>
+</html>

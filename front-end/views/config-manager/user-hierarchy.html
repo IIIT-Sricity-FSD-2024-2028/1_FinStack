@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Hierarchy - FinStack</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/layout.css">
+  <script src="../../js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar"></aside>
+  <header class="topnav"></header>
+  <main class="main-content">
+    <div class="page-content" style="display:flex;gap:0;padding:0;">
+      <!-- Main Tree Area -->
+      <div style="flex:1;padding:32px;overflow-y:auto;">
+        <div class="page-header">
+          <div class="page-header-text">
+            <h1>User Hierarchy</h1>
+            <p>View and manage organizational reporting structure</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;color:var(--text-secondary);" width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <select class="form-input" style="width:auto;" id="dept-filter">
+              <option value="All">Department: All</option>
+              <option value="IT">Department: IT</option>
+              <option value="Finance">Department: Finance</option>
+              <option value="HR">Department: HR</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Filter badge -->
+        <div id="filter-badge" style="display:none;margin-bottom:24px;">
+          <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-lg);background:var(--purple-bg);border:1px solid rgba(124,58,237,0.25);">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;color:var(--purple);" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <span style="font-size:0.875rem;color:var(--text-primary);">Showing <span id="filter-dept" style="font-weight:500;color:var(--purple);"></span> department</span>
+            <button onclick="clearFilter()" style="margin-left:8px;font-size:0.75rem;color:var(--text-secondary);cursor:pointer;background:none;border:none;">Clear filter</button>
+          </div>
+        </div>
+
+        <!-- Org Tree -->
+        <div class="card" style="padding:24px;">
+          <div style="margin-bottom:16px;">
+            <h2>Organization Structure</h2>
+            <p style="font-size:0.875rem;color:var(--text-secondary);margin-top:4px;">Click on any user to view details and manage reporting</p>
+          </div>
+          <div id="hierarchy-tree"></div>
+        </div>
+
+        <!-- Unassigned Users -->
+        <div class="card" style="padding:24px;margin-top:24px;" id="unassigned-section">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <div class="icon-box" style="background:var(--yellow-bg);color:var(--yellow);"><svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px" height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div><h2>Unassigned Users</h2><p style="font-size:0.875rem;color:var(--text-secondary);">Users without a manager assignment</p></div>
+          </div>
+          <div id="unassigned-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;"></div>
+        </div>
+      </div>
+
+      <!-- Details Panel -->
+      <div id="details-panel" class="side-panel">
+        <div class="side-panel-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2>User Details</h2>
+            <button class="btn-icon" onclick="closePanel()"><svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+          </div>
+        </div>
+        <div class="side-panel-body" id="panel-body"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/state.js"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/pages/config-manager/user-hierarchy.js"></script>
+</body>
+</html>
