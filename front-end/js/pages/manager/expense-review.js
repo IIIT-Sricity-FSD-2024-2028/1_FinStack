@@ -34,6 +34,34 @@
     return userMap[expense.employeeId] || expense.employeeId || expense.employee || '-';
   }
 
+  function getFinanceOfficers(expense) {
+    var users = window.FinStackStore && window.FinStackStore.getUsers ? window.FinStackStore.getUsers() : [];
+    return users.filter(function(user) {
+      return user &&
+        user.organizationId === expense.organizationId &&
+        user.status !== 'Inactive' &&
+        Array.isArray(user.roles) &&
+        user.roles.indexOf('finance_officer') !== -1;
+    });
+  }
+
+  function buildFinanceOfficerSelect(expense) {
+    var options = getFinanceOfficers(expense).map(function(user) {
+      return '<option value="' + esc(user.id) + '">' + esc(user.fullName || user.employeeId) + ' (' + esc(user.employeeId) + ')</option>';
+    }).join('');
+
+    return '' +
+      '<div class="card">' +
+        '<h3 class="card-section-title mb-4" style="display:flex; align-items:center; gap:var(--sp-2);"><span style="color:var(--primary);">' + icons.briefcase(20) + '</span> Finance Assignment</h3>' +
+        '<label class="form-label" for="finance-officer-select">Finance Officer</label>' +
+        '<select class="form-input" id="finance-officer-select" required>' +
+          '<option value="">Select finance officer</option>' +
+          options +
+        '</select>' +
+        '<p id="finance-officer-error" style="display:none;color:var(--danger);font-size:0.8125rem;margin-top:8px;">Select a finance officer before approving.</p>' +
+      '</div>';
+  }
+
   function getFilteredQueue() {
     return getQueue().filter(function(expense) {
       var risk = getRiskLabel(expense.risk_score);
@@ -166,6 +194,7 @@
                 '<h3 class="card-section-title mb-4" style="display:flex; align-items:center; gap:var(--sp-2);"><span style="color:var(--primary);">' + icons.messageSquare(20) + '</span> Manager Note</h3>' +
                 '<textarea class="form-textarea" id="manager-action-note" rows="4" placeholder="Add approval, return, or rejection context...">' + esc(expense.managerDecisionNote || '') + '</textarea>' +
               '</div>' +
+              buildFinanceOfficerSelect(expense) +
               '<div class="flex items-center justify-end gap-3" style="padding-top:var(--sp-2);">' +
                 '<button class="btn btn-secondary" id="modal-return" type="button">' + icons.arrowLeft(18) + ' Return</button>' +
                 '<button class="btn btn-danger-outline" id="modal-reject" type="button">' + icons.xCircle(18) + ' Reject</button>' +
@@ -191,10 +220,34 @@
       return field && field.value.trim() ? field.value.trim() : '';
     }
 
+    function selectedFinanceOfficerId() {
+      var field = document.getElementById('finance-officer-select');
+      return field && field.value ? field.value : '';
+    }
+
+    function showFinanceOfficerError() {
+      var field = document.getElementById('finance-officer-select');
+      var error = document.getElementById('finance-officer-error');
+      if (error) error.style.display = 'block';
+      if (field) field.focus();
+    }
+
     root.querySelector('#detail-backdrop').addEventListener('click', closeModal);
     root.querySelector('#detail-close').addEventListener('click', closeModal);
     root.querySelector('#modal-approve').addEventListener('click', function() {
-      window.FinStackStore.managerApprove(expense.id, noteValue());
+      var financeOfficerId = selectedFinanceOfficerId();
+      if (!financeOfficerId) {
+        showFinanceOfficerError();
+        return;
+      }
+      var result = window.FinStackStore.managerApprove(expense.id, noteValue(), financeOfficerId);
+      if (result && result.success === false) {
+        showFinanceOfficerError();
+        return;
+      }
+      if (window.FinStackStore && typeof window.FinStackStore.refresh === 'function') {
+        window.FinStackStore.refresh();
+      }
       closeModal();
       reRender();
     });

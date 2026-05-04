@@ -75,6 +75,61 @@ document.addEventListener('DOMContentLoaded', function () {
     if (successBox) successBox.style.display = 'none';
   }
 
+  function getApiBaseUrl() {
+    return window.FinStackApi && window.FinStackApi.baseUrl
+      ? window.FinStackApi.baseUrl
+      : 'http://localhost:3000';
+  }
+
+  function getErrorMessage(payload, fallback) {
+    if (!payload) return fallback;
+    var message = payload.message || payload.error;
+    if (Array.isArray(message)) return message.join(', ');
+    return message || fallback;
+  }
+
+  function unwrapUsersResponse(payload) {
+    if (payload && payload.success === false) {
+      throw new Error(getErrorMessage(payload, 'Unable to validate login.'));
+    }
+    return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+  }
+
+  function fetchLatestUsers() {
+    return fetch(getApiBaseUrl() + '/users', {
+      method: 'GET',
+      headers: {
+        role: 'superuser',
+        'Content-Type': 'application/json'
+      }
+    }).then(function (response) {
+      return response.text().then(function (text) {
+        var payload = text ? JSON.parse(text) : null;
+        if (!response.ok) {
+          throw new Error(getErrorMessage(payload, 'Unable to validate login.'));
+        }
+        var users = unwrapUsersResponse(payload);
+        return Array.isArray(users) ? users : [];
+      });
+    });
+  }
+
+  function findMatchingUser(users, credentials) {
+    return users.find(function (user) {
+      return String(user.employeeId || '') === credentials.employeeId &&
+        String(user.organizationId || '') === credentials.organizationId &&
+        String(user.password || '') === credentials.password;
+    }) || null;
+  }
+
+  function resolveRole(user, selectedRole) {
+    var roles = user.roles || [];
+    if (!Array.isArray(roles)) roles = [roles];
+
+    if (roles.indexOf(selectedRole) !== -1) return selectedRole;
+    return user.role || roles[0] || selectedRole;
+  }
+
   /* Toggle password visibility */
   window.togglePassword = function () {
     if (!passwordInput) return;
@@ -117,41 +172,42 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!password) { showError('Password is required.'); return; }
       if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
 
-      /* Check FinStackStore availability */
-      if (typeof window.FinStackStore === 'undefined') {
-        showError('System is still loading. Please refresh and try again.');
-        return;
-      }
+      var credentials = {
+        employeeId: employeeId,
+        organizationId: orgId,
+        password: password
+      };
 
-      /* Wait for FinStackStore to be ready, then authenticate */
-      window.FinStackStore.ready
-        .then(function () {
-          var result = window.FinStackStore.authenticateUser(orgId, employeeId, password, role);
-
-          if (!result.success) {
-            showError(result.error);
+      fetchLatestUsers()
+        .then(function (users) {
+          var user = findMatchingUser(users, credentials);
+          if (!user) {
+            showError('Invalid employee ID, organization ID, or password.');
             return;
           }
 
-          /* Create session in sessionStorage */
+          var resolvedRole = resolveRole(user, role);
+
           var session = {
-            employeeId: result.user.employeeId,
-            fullName: result.user.fullName,
-            email: result.user.email,
-            role: role,
-            organizationId: orgId,
+            id: user.id || '',
+            employeeId: user.employeeId || employeeId,
+            fullName: user.fullName || user.name || '',
+            email: user.email || '',
+            role: resolvedRole,
+            roles: Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : [resolvedRole]),
+            organizationId: user.organizationId || orgId,
             loginAt: new Date().toISOString()
           };
+
           sessionStorage.setItem('finstackUserSession', JSON.stringify(session));
           localStorage.setItem('currentUser', JSON.stringify(session));
+          window.FinStackCurrentUser = user;
 
-          /* Remember role user for persistence */
-          if (typeof window.FinStackStore.rememberRoleUser === 'function') {
-            window.FinStackStore.rememberRoleUser(role, result.user.employeeId, orgId);
+          if (window.FinStackStore && typeof window.FinStackStore.rememberRoleUser === 'function') {
+            window.FinStackStore.rememberRoleUser(resolvedRole, session.employeeId, session.organizationId);
           }
 
-          /* Redirect to the role workspace */
-          var route = roleRoutes[role];
+          var route = roleRoutes[resolvedRole];
           if (route) {
             showSuccess('Login successful! Redirecting...');
             setTimeout(function () {
@@ -163,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(function (err) {
           console.error('[LOGIN] Error:', err);
-          showError('Login failed: ' + (err.message || 'Unknown error. Please refresh and try again.'));
+          showError(err.message || 'Login failed. Please try again.');
         });
     });
   }

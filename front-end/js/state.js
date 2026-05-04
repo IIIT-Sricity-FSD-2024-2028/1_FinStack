@@ -97,10 +97,12 @@
         var session = getSession();
         if (!session || session.employeeId !== user.employeeId) return;
         var nextSession = {
+            id: user.id || session.id || '',
             employeeId: user.employeeId,
             fullName: user.fullName,
             email: user.email,
             role: session.role || (user.roles && user.roles[0]) || '',
+            roles: Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : []),
             organizationId: user.organizationId,
             loginAt: session.loginAt || nowIso()
         };
@@ -140,7 +142,8 @@
         if (workspaceRole) {
             if (session && session.role === workspaceRole) {
                 rememberRoleUser(workspaceRole, session.employeeId, session.organizationId);
-                return getUserByEmployeeId(session.employeeId) || getUserByRole(workspaceRole) || getUserByEmployeeId(DEFAULT_ROLE_EMPLOYEE[workspaceRole]);
+                var sessionUser = getUserByEmployeeId(session.employeeId) || getUserByRole(workspaceRole) || getUserByEmployeeId(DEFAULT_ROLE_EMPLOYEE[workspaceRole]);
+                return sessionUser ? Object.assign({}, sessionUser) : session;
             }
             return getRememberedRoleUser(workspaceRole) || getUserByEmployeeId(DEFAULT_ROLE_EMPLOYEE[workspaceRole]);
         }
@@ -154,7 +157,7 @@
         if (!user) {
             user = getUserByRole(role);
         }
-        return user;
+        return user ? Object.assign({}, user) : session;
     }
 
     function normalizeState(nextState) {
@@ -187,6 +190,7 @@
             if (!expense.organizationId) {
                 expense.organizationId = userOrgByEmployeeId[expense.employeeId] || defaultOrgId;
             }
+            if (expense.assignedFinanceOfficerId === undefined) expense.assignedFinanceOfficerId = null;
             var category = nextState.categories.find(function (item) { return item.id === expense.categoryId; });
             var employee = nextState.users.find(function (item) { return item.employeeId === expense.employeeId; });
             expense.category = expense.category || (category ? category.name : expense.categoryId);
@@ -229,6 +233,27 @@
         if (!state || !roleId) return null;
         return state.users.find(function (user) {
             return Array.isArray(user.roles) && user.roles.indexOf(roleId) !== -1;
+        }) || null;
+    }
+
+    function getFinanceOfficerById(id, organizationId) {
+        if (!state || !id) return null;
+        return state.users.find(function (user) {
+            return user.id === id &&
+                (!organizationId || user.organizationId === organizationId) &&
+                user.status !== 'Inactive' &&
+                Array.isArray(user.roles) &&
+                user.roles.indexOf('finance_officer') !== -1;
+        }) || null;
+    }
+
+    function getDefaultFinanceOfficer(organizationId) {
+        if (!state) return null;
+        return state.users.find(function (user) {
+            return (!organizationId || user.organizationId === organizationId) &&
+                user.status !== 'Inactive' &&
+                Array.isArray(user.roles) &&
+                user.roles.indexOf('finance_officer') !== -1;
         }) || null;
     }
 
@@ -427,8 +452,14 @@
     }
 
     function getFinanceReviewQueue() {
+        var user = getCurrentUser();
+        var expenses = state.expenses || [];
+        console.log("Current User:", user);
+        console.log("Expenses:", expenses);
         return state.expenses.filter(function (expense) {
-            return expense.workflowStatus === 'finance_review';
+            return user &&
+                expense.workflowStatus === 'finance_review' &&
+                expense.assignedFinanceOfficerId === user.id;
         });
     }
 
@@ -1015,6 +1046,7 @@
                 employee: user ? user.fullName : 'Expense Submitter',
                 organizationId: user ? user.organizationId : '',
                 managerEmployeeId: user ? user.managerEmployeeId : 'MGR-2001',
+                assignedFinanceOfficerId: null,
                 amount: Number(payload.amount),
                 category: category ? category.name : payload.category,
                 categoryId: category ? category.id : payload.categoryId,
@@ -1096,21 +1128,25 @@
             writeStoredState(state);
             return true;
         },
-        managerApprove: function (id, note) {
+        managerApprove: function (id, note, assignedFinanceOfficerId) {
             var manager = getCurrentUser();
+            var financeOfficer = getFinanceOfficerById(assignedFinanceOfficerId, manager ? manager.organizationId : '');
+            if (!financeOfficer) return { success: false, error: 'Please select a finance officer before approving.' };
             var expense = updateExpenseInternal(id, function (item) {
                 item.managerDecision = 'Approved';
                 item.managerDecisionAt = nowIso();
                 item.managerDecisionNote = note || 'Approved by manager.';
+                item.assignedFinanceOfficerId = financeOfficer.id;
                 item.workflowStatus = 'finance_review';
                 item.status = 'pending';
                 pushHistoryEntryOnce(item, 'manager_approved', 'Manager Approved', item.managerDecisionNote);
             });
             if (!expense) return null;
-            addNotification({ recipientEmployeeId: 'FIN-2001', recipientRole: 'finance_officer', title: 'Expense Ready for Finance Review', message: 'Expense approved by Manager and ready for finance review', type: 'info', relatedExpenseId: expense.id, actionType: 'manager_approved_finance' });
+            addNotification({ recipientEmployeeId: financeOfficer.employeeId, recipientRole: 'finance_officer', title: 'Expense Ready for Finance Review', message: 'Expense approved by Manager and ready for finance review', type: 'info', relatedExpenseId: expense.id, actionType: 'manager_approved_finance' });
             addNotification({ recipientEmployeeId: expense.employeeId, recipientRole: 'expense_submitter', title: 'Your Expense Was Approved', message: 'Your expense has been approved by Manager', type: 'success', relatedExpenseId: expense.id, actionType: 'manager_approved_submitter' });
             addAuditLog(manager, 'Manager Approved Expense', 'Expense', expense.id, 'Success');
             writeStoredState(state);
+            refreshFromBackendSync();
             return deepClone(expense);
         },
         managerEscalate: function (id, note) {
@@ -1119,6 +1155,7 @@
                 item.managerDecision = 'Escalated';
                 item.managerDecisionAt = nowIso();
                 item.managerDecisionNote = note || 'Escalated to compliance officer for review.';
+                item.assignedFinanceOfficerId = null;
                 item.workflowStatus = 'compliance_review';
                 item.status = 'pending';
                 item.escalatedByManager = true;
@@ -1230,15 +1267,17 @@
         complianceApprove: function (id, note) {
             var complianceUser = getCurrentUser();
             var expense = updateExpenseInternal(id, function (item) {
+                var financeOfficer = getFinanceOfficerById(item.assignedFinanceOfficerId, item.organizationId) || getDefaultFinanceOfficer(item.organizationId);
                 item.complianceDecision = 'Approved';
                 item.complianceDecisionAt = nowIso();
                 item.complianceDecisionNote = note || 'Approved by compliance officer. Forwarded to finance for payment.';
+                item.assignedFinanceOfficerId = financeOfficer ? financeOfficer.id : item.assignedFinanceOfficerId;
                 item.workflowStatus = 'finance_review';
                 item.status = 'pending';
                 pushHistoryEntryOnce(item, 'compliance_approved', 'Compliance Approved — Sent to Finance', item.complianceDecisionNote);
             });
             if (!expense) return null;
-            addNotification({ recipientEmployeeId: 'FIN-2001', recipientRole: 'finance_officer', title: 'Compliance-Reviewed Expense Ready', message: 'Compliance approved escalated expense and sent it for finance review', type: 'success', relatedExpenseId: expense.id, actionType: 'compliance_approved_finance' });
+            addNotification({ recipientEmployeeId: expense.assignedFinanceOfficerId || DEFAULT_ROLE_EMPLOYEE.finance_officer, recipientRole: 'finance_officer', title: 'Compliance-Reviewed Expense Ready', message: 'Compliance approved escalated expense and sent it for finance review', type: 'success', relatedExpenseId: expense.id, actionType: 'compliance_approved_finance' });
             addNotification({ recipientEmployeeId: expense.employeeId, recipientRole: 'expense_submitter', title: 'Compliance Approved Your Expense', message: 'Your escalated expense has been approved by Compliance Officer', type: 'success', relatedExpenseId: expense.id, actionType: 'compliance_approved_submitter' });
             addAuditLog(complianceUser, 'Compliance Approved Expense', 'Expense', expense.id, 'Success');
             writeStoredState(state);
@@ -1445,6 +1484,7 @@
                 employeeId: payload.employeeId || (existing && existing.employeeId) || user.employeeId || 'EMP-1001',
                 organizationId: payload.organizationId || (existing && existing.organizationId) || user.organizationId || currentOrgId(payload),
                 managerEmployeeId: payload.managerEmployeeId || (existing && existing.managerEmployeeId) || user.managerEmployeeId || 'MGR-2001',
+                assignedFinanceOfficerId: payload.assignedFinanceOfficerId !== undefined ? payload.assignedFinanceOfficerId : ((existing && existing.assignedFinanceOfficerId) || null),
                 amount: Number(payload.amount !== undefined ? payload.amount : (existing ? existing.amount : 0)),
                 currency: payload.currency || (existing && existing.currency) || 'INR',
                 categoryId: payload.categoryId || (existing && existing.categoryId),
@@ -1540,11 +1580,12 @@
         storeApi.deleteExpense = function (id) {
             return !!tryApi('/expenses/' + encodeURIComponent(id), 'DELETE', undefined, false);
         };
-        storeApi.managerApprove = function (id, note) {
-            return transitionExpense(id, { managerDecision: 'Approved', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Approved by manager.', workflowStatus: 'finance_review', status: 'pending' }, 'manager_approved', 'Manager Approved', note || 'Approved by manager.');
+        storeApi.managerApprove = function (id, note, assignedFinanceOfficerId) {
+            if (!assignedFinanceOfficerId) return { success: false, error: 'Please select a finance officer before approving.' };
+            return transitionExpense(id, { managerDecision: 'Approved', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Approved by manager.', assignedFinanceOfficerId: assignedFinanceOfficerId, workflowStatus: 'finance_review', status: 'pending' }, 'manager_approved', 'Manager Approved', note || 'Approved by manager.');
         };
         storeApi.managerEscalate = function (id, note) {
-            return transitionExpense(id, { managerDecision: 'Escalated', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Escalated to compliance officer for review.', workflowStatus: 'compliance_review', status: 'pending', escalatedByManager: true }, 'manager_escalated', 'Escalated to Compliance', note || 'Escalated to compliance officer for review.');
+            return transitionExpense(id, { managerDecision: 'Escalated', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Escalated to compliance officer for review.', assignedFinanceOfficerId: null, workflowStatus: 'compliance_review', status: 'pending', escalatedByManager: true }, 'manager_escalated', 'Escalated to Compliance', note || 'Escalated to compliance officer for review.');
         };
         storeApi.managerReturn = function (id, note) {
             return transitionExpense(id, { managerDecision: 'Returned', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Returned for clarification.', workflowStatus: 'returned', status: 'pending' }, 'manager_returned', 'Returned by Manager', note || 'Returned for clarification.');
@@ -1565,7 +1606,9 @@
             return transitionExpense(id, { financeDecision: 'Flagged', financeDecisionAt: nowIso(), financeDecisionNote: note || 'Flagged for compliance review.', workflowStatus: 'compliance_review', status: 'pending' }, 'finance_flagged', 'Flagged by Finance', note || 'Flagged for compliance review.');
         };
         storeApi.complianceApprove = function (id, note) {
-            return transitionExpense(id, { complianceDecision: 'Approved', complianceDecisionAt: nowIso(), complianceDecisionNote: note || 'Approved by compliance officer. Forwarded to finance for payment.', workflowStatus: 'finance_review', status: 'pending' }, 'compliance_approved', 'Compliance Approved - Sent to Finance', note || 'Approved by compliance officer.');
+            var expense = storeApi.getExpenseById(id);
+            var financeOfficer = expense ? (getFinanceOfficerById(expense.assignedFinanceOfficerId, expense.organizationId) || getDefaultFinanceOfficer(expense.organizationId)) : null;
+            return transitionExpense(id, { complianceDecision: 'Approved', complianceDecisionAt: nowIso(), complianceDecisionNote: note || 'Approved by compliance officer. Forwarded to finance for payment.', assignedFinanceOfficerId: financeOfficer ? financeOfficer.id : (expense ? expense.assignedFinanceOfficerId : null), workflowStatus: 'finance_review', status: 'pending' }, 'compliance_approved', 'Compliance Approved - Sent to Finance', note || 'Approved by compliance officer.');
         };
         storeApi.complianceReject = function (id, note) {
             return transitionExpense(id, { complianceDecision: 'Rejected', complianceDecisionAt: nowIso(), complianceDecisionNote: note || 'Rejected during compliance review.', workflowStatus: 'rejected', status: 'rejected' }, 'compliance_rejected', 'Rejected by Compliance', note || 'Rejected during compliance review.');

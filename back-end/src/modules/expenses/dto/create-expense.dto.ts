@@ -18,6 +18,11 @@ export class CreateExpenseDto {
   @IsNotEmpty()
   managerEmployeeId: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  assignedFinanceOfficerId?: string | null;
+
   @ApiProperty()
   @IsNumber()
   @Min(0.01)

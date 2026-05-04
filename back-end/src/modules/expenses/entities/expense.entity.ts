@@ -5,6 +5,7 @@ export class Expense implements ExpenseRecord {
   employeeId: string;
   organizationId: string;
   managerEmployeeId: string;
+  assignedFinanceOfficerId: string | null;
   amount: number;
   currency: string;
   categoryId: string;

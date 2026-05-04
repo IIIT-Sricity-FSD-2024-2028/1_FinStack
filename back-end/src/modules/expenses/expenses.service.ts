@@ -31,11 +31,13 @@ export class ExpensesService {
   create(dto: CreateExpenseDto): ExpenseRecord {
     this.ensureUser(dto.employeeId, dto.organizationId);
     this.ensureUser(dto.managerEmployeeId, dto.organizationId);
+    if (dto.assignedFinanceOfficerId) this.ensureFinanceOfficer(dto.assignedFinanceOfficerId, dto.organizationId);
     this.ensureCategory(dto.categoryId, dto.organizationId);
     const expense = this.expensesRepository.create({
       employeeId: dto.employeeId,
       organizationId: dto.organizationId,
       managerEmployeeId: dto.managerEmployeeId,
+      assignedFinanceOfficerId: dto.assignedFinanceOfficerId || null,
       amount: dto.amount,
       currency: dto.currency || 'INR',
       categoryId: dto.categoryId,
@@ -72,6 +74,16 @@ export class ExpensesService {
     const organizationId = dto.organizationId || current.organizationId;
     if (dto.employeeId) this.ensureUser(dto.employeeId, organizationId);
     if (dto.managerEmployeeId) this.ensureUser(dto.managerEmployeeId, organizationId);
+    if (dto.assignedFinanceOfficerId !== undefined && dto.assignedFinanceOfficerId !== null) {
+      this.ensureFinanceOfficer(dto.assignedFinanceOfficerId, organizationId);
+    }
+    if (
+      dto.workflowStatus === 'finance_review' &&
+      dto.managerDecision === 'Approved' &&
+      !((dto.assignedFinanceOfficerId !== undefined ? dto.assignedFinanceOfficerId : current.assignedFinanceOfficerId))
+    ) {
+      throw new BadRequestException('A finance officer assignment is required for manager approval.');
+    }
     if (dto.categoryId) this.ensureCategory(dto.categoryId, organizationId);
     const updated = this.expensesRepository.update(id, dto);
     if (!updated) throw new NotFoundException('Expense not found.');
@@ -99,6 +111,13 @@ export class ExpensesService {
   private ensureUser(employeeId: string, organizationId: string): void {
     const user = this.usersRepository.findById(employeeId);
     if (!user || user.organizationId !== organizationId) throw new BadRequestException('Referenced user not found for this organization.');
+  }
+
+  private ensureFinanceOfficer(employeeId: string, organizationId: string): void {
+    const user = this.usersRepository.findById(employeeId);
+    if (!user || user.organizationId !== organizationId || !user.roles.includes('finance_officer')) {
+      throw new BadRequestException('Assigned finance officer not found for this organization.');
+    }
   }
 
   private ensureCategory(categoryId: string, organizationId: string): void {

@@ -1647,6 +1647,10 @@
           "managerEmployeeId": {
             "type": "string"
           },
+          "assignedFinanceOfficerId": {
+            "type": "object",
+            "nullable": true
+          },
           "amount": {
             "type": "number"
           },
@@ -1723,6 +1727,10 @@
           },
           "managerEmployeeId": {
             "type": "string"
+          },
+          "assignedFinanceOfficerId": {
+            "type": "object",
+            "nullable": true
           },
           "amount": {
             "type": "number"

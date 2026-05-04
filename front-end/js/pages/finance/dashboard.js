@@ -328,9 +328,19 @@
           .map(user => user.employeeId));
         const allExpenses = uniqueById(window.FinStackStore.getExpenses())
           .filter(expense => recordBelongsToOrganization(expense, organizationId, organizationEmployeeIds));
-        const expenseIds = new Set(allExpenses.map(expense => expense.id));
+        console.log("Current User:", financeUser);
+        console.log("Expenses:", allExpenses);
+        const financeReviewExpenses = allExpenses.filter(e =>
+          e.workflowStatus === "finance_review" &&
+          e.assignedFinanceOfficerId === financeUser.id
+        );
+        const expenseIds = new Set(financeReviewExpenses.map(expense => expense.id));
         const reviewQueue = window.FinStackStore.getFinanceReviewQueue()
-          .filter(expense => expenseIds.has(expense.id));
+          .filter(expense =>
+            expenseIds.has(expense.id) &&
+            expense.workflowStatus === "finance_review" &&
+            expense.assignedFinanceOfficerId === financeUser.id
+          );
         const flaggedQueue = window.FinStackStore.getFinanceFlaggedQueue()
           .filter(expense => expenseIds.has(expense.id));
         const payments = scopePaymentBatchesToExpenses(window.FinStackStore.getPaymentBatches(), allExpenses);
@@ -348,10 +358,11 @@
           .filter(isConfigurationManagerPolicy)
           .length;
 
-        state.expenses = allExpenses.map(expense => ({
+        state.expenses = financeReviewExpenses.map(expense => ({
           id: expense.id,
           employeeId: expense.employeeId,
           organizationId: expense.organizationId || organizationId,
+          assignedFinanceOfficerId: expense.assignedFinanceOfficerId || null,
           employee: expense.employee,
           category: expense.category,
           amount: Number(expense.amount || 0),

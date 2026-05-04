@@ -54,10 +54,12 @@
 
   function setSession(sessionData) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    localStorage.setItem('currentUser', JSON.stringify(sessionData));
   }
 
   function clearSession() {
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('currentUser');
   }
 
   function guard() {
@@ -76,32 +78,6 @@
       return;
     }
 
-    // Verify account status via FinStackStore if available
-    if (typeof window.FinStackStore !== 'undefined' && window.FinStackStore.ready) {
-      window.FinStackStore.ready.then(function () {
-        var users = window.FinStackStore.getUsers();
-        var user = users.find(function (u) {
-          return u.employeeId === session.employeeId &&
-                 u.organizationId === session.organizationId;
-        });
-        if (!user) {
-          redirect('User account not found.');
-          return;
-        }
-        if (user.accountStatus === 'pending') {
-          redirect('Your account is pending approval.');
-          return;
-        }
-        if (user.accountStatus === 'rejected') {
-          redirect('Your account request was rejected.');
-          return;
-        }
-        if (user.status === 'Inactive') {
-          redirect('Your account has been deactivated.');
-          return;
-        }
-      });
-    }
   }
 
   // Export the guard utilities
