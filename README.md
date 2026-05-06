@@ -163,7 +163,7 @@ Bank Reconciliation
 ↓  
 Expense Closure
 
-Each stage of the workflow is recorded in the audit log to ensure transparency and traceability.
+Each stage of the workflow is recorded in the audit log to ensure transparency and also traceability.
 
 ---
 
