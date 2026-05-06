@@ -642,6 +642,14 @@ function loadRecentActivity() {
   if (!tbody) return;
 
   var logs = (window.FinStackStore.getAuditLogs() || []).slice().reverse().slice(0, 8);
+  var users = window.FinStackStore.getUsers ? window.FinStackStore.getUsers() : [];
+  var userMap = {};
+
+  users.forEach(function(user) {
+    if (user && user.employeeId) {
+      userMap[user.employeeId] = user.fullName;
+    }
+  });
 
   if (!logs.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">No recent activity yet.</td></tr>';
@@ -666,8 +674,12 @@ function loadRecentActivity() {
     return key ? actionColors[key] : { bg: '#6B728020', text: '#9CA3AF', border: '#6B7280' };
   }
 
-  function getInitials(name) {
-    return String(name || 'SY').split(' ').map(function(n) { return n[0]; }).join('').slice(0, 2).toUpperCase();
+  function getUserName(log) {
+    return userMap[log.userEmployeeId] || 'Unknown User';
+  }
+
+  function getInitial(name) {
+    return String(name || 'Unknown User').charAt(0).toUpperCase();
   }
 
   function formatTimeAgo(ts) {
@@ -682,7 +694,8 @@ function loadRecentActivity() {
   }
 
   tbody.innerHTML = logs.map(function(log) {
-    var initials = getInitials(log.user);
+    var userName = getUserName(log);
+    var initial = getInitial(userName);
     var resource = [log.entityType, log.entityName].filter(Boolean).join(' • ') || '—';
     var color = getActionColor(log.action);
     var timeAgo = formatTimeAgo(log.timestamp);
@@ -691,9 +704,9 @@ function loadRecentActivity() {
     return '<tr>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
-          '<div class="avatar avatar-lg">' + initials + '</div>' +
+          '<div class="avatar avatar-lg">' + initial + '</div>' +
           '<div>' +
-            '<div style="font-weight:500;color:var(--text-primary);font-size:0.875rem;">' + (log.user || '—') + '</div>' +
+            '<div style="font-weight:500;color:var(--text-primary);font-size:0.875rem;">' + userName + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-secondary);">' + (log.action || '—') + '</div>' +
           '</div>' +
         '</div>' +

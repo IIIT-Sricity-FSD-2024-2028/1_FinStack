@@ -36,6 +36,25 @@ function statusBadge(status) {
     : '<span class="badge" style="background:#EF444420;color:#EF4444;border-color:#EF444440;">Failed</span>';
 }
 
+function buildUserMap() {
+  const users = window.FinStackStore && typeof window.FinStackStore.getUsers === 'function'
+    ? window.FinStackStore.getUsers()
+    : [];
+  const userMap = {};
+
+  users.forEach(user => {
+    if (user && user.employeeId) {
+      userMap[user.employeeId] = user.fullName;
+    }
+  });
+
+  return userMap;
+}
+
+function resolveLogUserName(log, userMap) {
+  return (userMap || {})[log.userEmployeeId] || 'Unknown User';
+}
+
 /* ── State ───────────────────────────────────────── */
 let allLogs     = [];
 let currentPage = 1;
@@ -46,11 +65,13 @@ let filterSearch= '';
 /* ── Render ──────────────────────────────────────── */
 function renderLogs() {
   const query = filterSearch.toLowerCase();
+  const userMap = buildUserMap();
   const filtered = allLogs.filter(log => {
+    const userName = resolveLogUserName(log, userMap);
     const sev = getSeverity(log.action);
     const matchSev = filterSev === 'all' || sev === filterSev;
     const matchQ   = !query ||
-      String(log.user || '').toLowerCase().includes(query) ||
+      String(userName).toLowerCase().includes(query) ||
       String(log.action || '').toLowerCase().includes(query) ||
       String(log.entityType || '').toLowerCase().includes(query) ||
       String(log.entityName || '').toLowerCase().includes(query);
@@ -67,11 +88,12 @@ function renderLogs() {
   if (!tbody) return;
 
   tbody.innerHTML = page.map(log => {
+    const userName = resolveLogUserName(log, userMap);
     const sev = getSeverity(log.action);
     const resource = [log.entityType, log.entityName].filter(Boolean).join(' • ') || '—';
     return `<tr>
       <td style="color:var(--text-secondary);white-space:nowrap;">${escLog(formatLogTime(log.timestamp))}</td>
-      <td style="color:var(--text-primary);font-weight:500;">${escLog(log.user || '—')}</td>
+      <td style="color:var(--text-primary);font-weight:500;">${escLog(userName)}</td>
       <td style="color:var(--text-secondary);">${escLog(log.userRole || '—')}</td>
       <td style="color:var(--text-primary);">${escLog(log.action || '—')}</td>
       <td style="color:var(--text-secondary);">${escLog(resource)}</td>
@@ -104,9 +126,10 @@ function renderLogs() {
 /* ── Export ──────────────────────────────────────── */
 function exportLogs() {
   const header  = ['Timestamp', 'User', 'Role', 'Action', 'Resource', 'Severity', 'Status'].join('\t');
+  const userMap = buildUserMap();
   const rows    = allLogs.map(log => [
     formatLogTime(log.timestamp),
-    log.user || '',
+    resolveLogUserName(log, userMap),
     log.userRole || '',
     log.action || '',
     [log.entityType, log.entityName].filter(Boolean).join(' > '),

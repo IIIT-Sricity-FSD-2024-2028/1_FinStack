@@ -1588,6 +1588,15 @@ window.FinStack = FinStack;
 
   // ── Build Helpers ────────────────────────────────
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function getActivityIcon(type) {
     switch (type) {
       case 'approved':  return '<span style="color:var(--success);">' + icons.checkCircle(14) + '</span>';
