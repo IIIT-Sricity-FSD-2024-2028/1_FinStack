@@ -12,8 +12,8 @@ import { PoliciesModule } from './modules/policies/policies.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
-import { PlatformHealthModule } from './platform/health/platform-health.module';
 import { PlatformModule } from './platform/platform.module';
+import { platformRoutes } from './platform/platform.routes';
 
 @Module({
   imports: [
@@ -31,12 +31,7 @@ import { PlatformModule } from './platform/platform.module';
     ReportsModule,
     DashboardModule,
     PlatformModule,
-    RouterModule.register([
-      {
-        path: 'api/v1/platform',
-        module: PlatformHealthModule,
-      },
-    ]),
+    RouterModule.register(platformRoutes),
   ],
   providers: [
     {

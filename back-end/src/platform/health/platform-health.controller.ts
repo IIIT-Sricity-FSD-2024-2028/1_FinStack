@@ -4,8 +4,10 @@ import {
   PlatformHealth,
   PlatformHealthService,
 } from './platform-health.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Platform health')
+@Public()
 @Controller('health')
 export class PlatformHealthController {
   constructor(private readonly healthService: PlatformHealthService) {}

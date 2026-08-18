@@ -18,35 +18,45 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message = this.getMessage(exception);
+    const error = this.getError(exception, status);
 
     response.status(status).json({
       success: false,
-      message,
+      error,
+      message: error.message,
     });
   }
 
-  private getMessage(exception: unknown): string {
+  private getError(
+    exception: unknown,
+    status: number,
+  ): { code: string; message: string } {
+    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      return {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred.',
+      };
+    }
+
     if (exception instanceof HttpException) {
       const response = exception.getResponse();
 
       if (typeof response === 'string') {
-        return response;
+        return { code: `HTTP_${status}`, message: response };
       }
 
       if (typeof response === 'object' && response !== null) {
-        const body = response as { message?: string | string[]; error?: string };
-        if (Array.isArray(body.message)) {
-          return body.message.join(', ');
-        }
-        return body.message || body.error || exception.message;
+        const body = response as {
+          code?: string;
+          message?: string | string[];
+          error?: string;
+        };
+        const message = Array.isArray(body.message)
+          ? body.message.join(', ')
+          : body.message || body.error || exception.message;
+        return { code: body.code || `HTTP_${status}`, message };
       }
     }
-
-    if (exception instanceof Error) {
-      return exception.message || 'Internal server error';
-    }
-
-    return 'Internal server error';
+    return { code: `HTTP_${status}`, message: 'Request failed.' };
   }
 }

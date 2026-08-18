@@ -12,18 +12,20 @@ describe('HealthPage', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({
-          success: true,
-          data: {
-            status: 'healthy',
-            api: { status: 'available' },
-            database: {
-              status: 'available',
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            success: true,
+            data: {
+              status: 'healthy',
+              api: { status: 'available' },
+              database: {
+                status: 'available',
+                checkedAt: '2026-08-18T00:00:00.000Z',
+              },
               checkedAt: '2026-08-18T00:00:00.000Z',
             },
-            checkedAt: '2026-08-18T00:00:00.000Z',
-          },
-        }),
+          }),
       }),
     );
 
