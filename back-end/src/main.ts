@@ -4,6 +4,8 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -16,7 +18,10 @@ async function bootstrap() {
     origin: configuredOrigins
       ? configuredOrigins.split(',').map((origin) => origin.trim())
       : true,
+    credentials: Boolean(configuredOrigins),
   });
+  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -40,6 +45,10 @@ async function bootstrap() {
         description: 'RBAC role: superuser, admin, or user',
       },
       'role',
+    )
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'platform-access-token',
     )
     .build();
 

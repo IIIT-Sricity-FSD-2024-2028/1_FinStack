@@ -1,6 +1,8 @@
-import { Outlet } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
 
 export function AdminLayout() {
+  const { auth, logout } = useAuth();
   return (
     <div className="admin-shell">
       <aside className="sidebar">
@@ -12,18 +14,26 @@ export function AdminLayout() {
           </span>
         </div>
         <nav aria-label="Admin navigation">
-          <a className="nav-item nav-item-active" href="/health">
+          <NavLink className="nav-item nav-item-active" to="/health">
             <span className="nav-indicator" aria-hidden="true" />
             System health
-          </a>
+          </NavLink>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>
 
       <div className="shell-main">
         <header className="topbar">
-          <span>Internal administration</span>
-          <span className="environment-badge">Foundation</span>
+          <span>
+            {auth?.staff.firstName} {auth?.staff.lastName}
+          </span>
+          <button
+            className="button button-secondary button-compact"
+            type="button"
+            onClick={() => void logout()}
+          >
+            Sign out
+          </button>
         </header>
         <main className="page-content">
           <Outlet />

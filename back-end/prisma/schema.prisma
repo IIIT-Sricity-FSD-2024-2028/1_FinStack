@@ -6,3 +6,90 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum PlatformStaffStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model PlatformStaff {
+  id            String                @id @default(uuid()) @db.Uuid
+  firstName     String                @db.VarChar(100)
+  lastName      String                @db.VarChar(100)
+  email         String                @unique @db.VarChar(320)
+  passwordHash  String                @db.VarChar(255)
+  status        PlatformStaffStatus   @default(ACTIVE)
+  lastLoginAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  roles         PlatformStaffRole[]   @relation("PlatformStaffRoles")
+  assignedRoles PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
+  authSessions  PlatformAuthSession[]
+
+  @@index([status, createdAt])
+}
+
+model PlatformRole {
+  id               String                   @id @default(uuid()) @db.Uuid
+  key              String                   @unique @db.VarChar(100)
+  name             String                   @unique @db.VarChar(150)
+  description      String?                  @db.Text
+  isSystemPreset   Boolean                  @default(false)
+  isActive         Boolean                  @default(true)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  rolePermissions  PlatformRolePermission[]
+  staffAssignments PlatformStaffRole[]
+
+  @@index([isActive])
+}
+
+model Permission {
+  id              String                   @id @default(uuid()) @db.Uuid
+  key             String                   @unique @db.VarChar(150)
+  description     String                   @db.VarChar(255)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  roleAssignments PlatformRolePermission[]
+}
+
+model PlatformRolePermission {
+  roleId       String       @db.Uuid
+  permissionId String       @db.Uuid
+  assignedAt   DateTime     @default(now())
+  role         PlatformRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model PlatformStaffRole {
+  staffId           String         @db.Uuid
+  roleId            String         @db.Uuid
+  assignedAt        DateTime       @default(now())
+  assignedByStaffId String?        @db.Uuid
+  staff             PlatformStaff  @relation("PlatformStaffRoles", fields: [staffId], references: [id], onDelete: Cascade)
+  role              PlatformRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy        PlatformStaff? @relation("PlatformStaffRoleAssigner", fields: [assignedByStaffId], references: [id], onDelete: SetNull)
+
+  @@id([staffId, roleId])
+  @@index([roleId])
+  @@index([assignedByStaffId])
+}
+
+model PlatformAuthSession {
+  id               String        @id @default(uuid()) @db.Uuid
+  staffId          String        @db.Uuid
+  refreshTokenHash String        @unique @db.Char(64)
+  expiresAt        DateTime
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  staff            PlatformStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, revokedAt])
+  @@index([expiresAt])
+}

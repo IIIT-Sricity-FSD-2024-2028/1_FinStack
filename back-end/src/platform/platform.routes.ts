@@ -1,0 +1,8 @@
+import { Routes } from '@nestjs/core';
+import { PlatformAuthModule } from './auth/platform-auth.module';
+import { PlatformHealthModule } from './health/platform-health.module';
+
+export const platformRoutes: Routes = [
+  { path: 'api/v1/platform', module: PlatformHealthModule },
+  { path: 'api/v1/platform', module: PlatformAuthModule },
+];
