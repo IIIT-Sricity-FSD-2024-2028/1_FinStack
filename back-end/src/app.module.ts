@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD, APP_INTERCEPTOR, RouterModule } from '@nestjs/core';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AuditModule } from './modules/audit/audit.module';
@@ -11,9 +12,15 @@ import { PoliciesModule } from './modules/policies/policies.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
+import { PlatformHealthModule } from './platform/health/platform-health.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      cache: true,
+      isGlobal: true,
+    }),
     UsersModule,
     ExpensesModule,
     CategoriesModule,
@@ -23,6 +30,13 @@ import { UsersModule } from './modules/users/users.module';
     TransactionsModule,
     ReportsModule,
     DashboardModule,
+    PlatformModule,
+    RouterModule.register([
+      {
+        path: 'api/v1/platform',
+        module: PlatformHealthModule,
+      },
+    ]),
   ],
   providers: [
     {

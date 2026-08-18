@@ -15,6 +15,18 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
+
+    // Platform endpoints will receive their own authentication and permission
+    // guard in the next vertical slice. The legacy role-header contract must
+    // never become the platform security boundary.
+    const requestPath = request.path.toLowerCase();
+    if (
+      requestPath === '/api/v1/platform' ||
+      requestPath.startsWith('/api/v1/platform/')
+    ) {
+      return true;
+    }
+
     const roleHeader = request.header('role');
     const role = this.normalizeRole(roleHeader);
 
@@ -35,7 +47,9 @@ export class RolesGuard implements CanActivate {
       if (requiredRoles.includes(role)) {
         return true;
       }
-      throw new ForbiddenException('You are not authorized to access this resource.');
+      throw new ForbiddenException(
+        'You are not authorized to access this resource.',
+      );
     }
 
     if (role === Role.ADMIN) {
