@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
@@ -8,8 +9,14 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  app.enableCors();
+  const configuredOrigins = configService.get<string>('CORS_ORIGIN');
+  app.enableCors({
+    origin: configuredOrigins
+      ? configuredOrigins.split(',').map((origin) => origin.trim())
+      : true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -21,7 +28,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('FinStack API')
-    .setDescription('REST API for FinStack expense, policy, audit, reporting, and dashboard workflows.')
+    .setDescription(
+      'REST API for FinStack expense, policy, audit, reporting, and dashboard workflows.',
+    )
     .setVersion('1.0.0')
     .addApiKey(
       {
@@ -44,7 +53,7 @@ async function bootstrap() {
   }
   writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
 
-  await app.listen(process.env.PORT || 3000);
+  await app.listen(configService.get<number>('PORT', 3000));
 }
 
 void bootstrap();
