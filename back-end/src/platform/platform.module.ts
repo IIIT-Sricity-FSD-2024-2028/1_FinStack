@@ -4,6 +4,7 @@ import { DatabaseModule } from '../database/database.module';
 import { PlatformAuthModule } from './auth/platform-auth.module';
 import { PlatformAuthenticationGuard } from './auth/guards/platform-authentication.guard';
 import { PlatformHealthModule } from './health/platform-health.module';
+import { PlatformOrganizationsModule } from './organizations/platform-organizations.module';
 import { PlatformPermissionGuard } from './rbac/guards/platform-permission.guard';
 import { PlatformRbacModule } from './rbac/platform-rbac.module';
 
@@ -13,6 +14,7 @@ import { PlatformRbacModule } from './rbac/platform-rbac.module';
     PlatformRbacModule,
     PlatformAuthModule,
     PlatformHealthModule,
+    PlatformOrganizationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: PlatformAuthenticationGuard },
