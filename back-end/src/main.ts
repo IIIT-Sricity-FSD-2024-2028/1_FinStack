@@ -1,23 +1,24 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { configureHttpApplication } from './common/config/configure-http-application';
+import { AppConfiguration } from './common/config/configuration';
+import { AppLoggerService } from './common/logging/app-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.enableShutdownHooks();
 
-  app.enableCors();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
+  const appLogger = app.get(AppLoggerService);
+  const configService = app.get<ConfigService<AppConfiguration, true>>(
+    ConfigService,
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
+
+  app.useLogger(appLogger);
+  configureHttpApplication(app);
 
   const config = new DocumentBuilder()
     .setTitle('FinStack API')
@@ -44,7 +45,7 @@ async function bootstrap() {
   }
   writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
 
-  await app.listen(process.env.PORT || 3000);
+  await app.listen(configService.get('port', { infer: true }));
 }
 
 void bootstrap();
