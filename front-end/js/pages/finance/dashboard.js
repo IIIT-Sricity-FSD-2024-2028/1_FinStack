@@ -940,6 +940,7 @@
             <td>${escapeHtml(item.manager)}</td>
             <td>
               <div class="inline-actions">
+                <button class="table-btn view" onclick="viewExpense('${item.id}')">View</button>
                 <button class="table-btn approve" onclick="approveReview('${item.id}')">Approve</button>
                 <button class="table-btn reject" onclick="rejectReview('${item.id}')">Reject</button>
                 <button class="table-btn escalate" onclick="flagReview('${item.id}')">Flag</button>
@@ -1328,7 +1329,7 @@
               <div>
                 <div class="expense-panel">
                   <h4><span class="panel-ico">▤</span>Receipt</h4>
-                  <div class="receipt-download">⇩ Download Receipt</div>
+                  <button type="button" class="receipt-download" onclick="downloadReceipt('${expense.id}')">⇩ Download Receipt</button>
                 </div>
 
                 <div class="expense-panel" style="margin-top:22px;">
@@ -1357,6 +1358,25 @@
             { label: 'Close', variant: 'btn-primary', onClick: closeModal }
           ]
         });
+      }
+      async function downloadReceipt(id) {
+        const expense = getExpenseById(id) || state.expenses.find(item => item.id === id);
+        const recordedName = expense && expense.receiptFileName ? expense.receiptFileName : `receipt-${id}`;
+        const fileName = recordedName.split(/[\\/]/).pop().replace(/[\r\n]/g, '') || `receipt-${id}`;
+        try {
+          const blob = await window.FinStackApi.downloadReceipt(id);
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+          showToast(`Receipt downloaded for ${id}.`, 'success');
+        } catch (error) {
+          showToast(error && error.message ? error.message : `Receipt is unavailable for ${id}.`, 'error');
+        }
       }
       function reviewExpense(id) {
         syncSharedFinanceState();
@@ -1601,7 +1621,7 @@
                   <h4><span class="panel-ico">▭</span>Case Actions</h4>
                   <div class="popup-inline-actions">
                     <button class="mini-btn btn-outline" onclick="requestInfo('${id}')">Request Info</button>
-                    <button class="mini-btn btn-outline" onclick="showToast('Receipt downloaded for ${id}.')">Download Receipt</button>
+                    <button class="mini-btn btn-outline" onclick="downloadReceipt('${id}')">Download Receipt</button>
                   </div>
                   <div class="popup-inline-actions" style="margin-top:14px;">
                     <button class="mini-btn btn-outline" onclick="showToast('Audit note added for ${id}.')">Add Audit Note</button>

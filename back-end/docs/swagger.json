@@ -373,7 +373,38 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateExpenseDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseDto"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "receipt": {
+                        "type": "string",
+                        "format": "binary"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseDto"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "receipt": {
+                        "type": "string",
+                        "format": "binary"
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
@@ -510,6 +541,47 @@
         "responses": {
           "200": {
             "description": ""
+          }
+        },
+        "security": [
+          {
+            "role": []
+          }
+        ],
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/expenses/{id}/receipt": {
+      "get": {
+        "operationId": "ExpensesController_downloadReceipt",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stored expense receipt file."
           }
         },
         "security": [

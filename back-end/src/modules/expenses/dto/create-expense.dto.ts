@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { WorkflowStatus } from '../../../data/store';
 
@@ -24,6 +25,9 @@ export class CreateExpenseDto {
   assignedFinanceOfficerId?: string | null;
 
   @ApiProperty()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() !== '' ? Number(value) : value,
+  )
   @IsNumber()
   @Min(0.01)
   amount: number;
@@ -74,6 +78,9 @@ export class CreateExpenseDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() !== '' ? Number(value) : value,
+  )
   @IsNumber()
   extraction_confidence?: number;
 
@@ -84,6 +91,9 @@ export class CreateExpenseDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() !== '' ? Number(value) : value,
+  )
   @IsNumber()
   @Min(0)
   risk_score?: number;

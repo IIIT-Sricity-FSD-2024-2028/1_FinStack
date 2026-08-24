@@ -92,6 +92,16 @@ export interface ExpenseRecord {
   history: ExpenseHistoryRecord[];
 }
 
+export interface ReceiptRecord {
+  id: string;
+  expenseId: string;
+  originalName: string;
+  storageName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface PolicyRecord {
   id: string;
   name: string;
@@ -159,6 +169,7 @@ export interface TransactionRecord {
 export interface Store {
   users: UserRecord[];
   expenses: ExpenseRecord[];
+  receipts: ReceiptRecord[];
   categories: CategoryRecord[];
   policies: PolicyRecord[];
   auditLogs: AuditRecord[];
@@ -307,6 +318,7 @@ export const store: Store = {
     },
   ],
   expenses: [],
+  receipts: [],
   categories: [
     {
       id: travelCategoryId,

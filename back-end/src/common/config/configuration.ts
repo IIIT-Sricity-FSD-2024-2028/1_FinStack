@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from 'path';
+
 const LOG_LEVELS = [
   'error',
   'warn',
@@ -23,6 +25,11 @@ export interface AppConfiguration {
     ttlSeconds: number;
     limit: number;
   };
+  upload: {
+    directory: string;
+    maxSizeBytes: number;
+    maxSizeMb: number;
+  };
 }
 
 const DEFAULT_CORS_ORIGINS = [
@@ -33,6 +40,33 @@ const DEFAULT_CORS_ORIGINS = [
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function positiveNumber(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+): number {
+  if (value === undefined || value.trim() === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  throw new Error(`Invalid ${name} "${value}". Expected a positive number.`);
+}
+
+function uploadDirectory(value: string | undefined): string {
+  const configured = value?.trim() || 'uploads/receipts';
+  if (isAbsolute(configured)) {
+    return resolve(configured);
+  }
+
+  const applicationRoot = resolve(__dirname, '../../..');
+  return resolve(applicationRoot, configured);
 }
 
 function corsOrigins(value: string | undefined): string[] {
@@ -78,17 +112,30 @@ function logMaxSize(value: string | undefined): string {
   );
 }
 
-export default (): AppConfiguration => ({
-  port: positiveInteger(process.env.PORT, 3000),
-  corsOrigins: corsOrigins(process.env.CORS_ORIGINS),
-  log: {
-    level: logLevel(process.env.LOG_LEVEL),
-    directory: process.env.LOG_DIRECTORY?.trim() || 'logs',
-    retentionDays: positiveInteger(process.env.LOG_RETENTION_DAYS, 14),
-    maxSize: logMaxSize(process.env.LOG_MAX_SIZE),
-  },
-  throttle: {
-    ttlSeconds: positiveInteger(process.env.THROTTLE_TTL_SECONDS, 60),
-    limit: positiveInteger(process.env.THROTTLE_LIMIT, 120),
-  },
-});
+export default (): AppConfiguration => {
+  const maxSizeMb = positiveNumber(
+    process.env.UPLOAD_MAX_SIZE_MB,
+    5,
+    'UPLOAD_MAX_SIZE_MB',
+  );
+
+  return {
+    port: positiveInteger(process.env.PORT, 3000),
+    corsOrigins: corsOrigins(process.env.CORS_ORIGINS),
+    log: {
+      level: logLevel(process.env.LOG_LEVEL),
+      directory: process.env.LOG_DIRECTORY?.trim() || 'logs',
+      retentionDays: positiveInteger(process.env.LOG_RETENTION_DAYS, 14),
+      maxSize: logMaxSize(process.env.LOG_MAX_SIZE),
+    },
+    throttle: {
+      ttlSeconds: positiveInteger(process.env.THROTTLE_TTL_SECONDS, 60),
+      limit: positiveInteger(process.env.THROTTLE_LIMIT, 120),
+    },
+    upload: {
+      directory: uploadDirectory(process.env.UPLOAD_DIRECTORY),
+      maxSizeBytes: Math.floor(maxSizeMb * 1024 * 1024),
+      maxSizeMb,
+    },
+  };
+};
