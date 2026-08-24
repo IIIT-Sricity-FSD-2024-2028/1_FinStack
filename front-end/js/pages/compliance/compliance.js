@@ -4,8 +4,6 @@
 
 'use strict';
 
-const SHARED_STATE_KEY = 'finstack-prototype-state';
-
 const POLICY_VIOLATION_DEFINITIONS = {
   'Travel Expense Limit': {
     limit: '₹5,000 per trip',
@@ -25,140 +23,15 @@ const POLICY_VIOLATION_DEFINITIONS = {
   },
 };
 
-const FALLBACK_VIOLATIONS = [
-  {
-    id: 'VIO-101',
-    policyId: 1,
-    policyCode: 'POL-001',
-    policy: 'Travel Expense Limit',
-    amount: '₹6,250.00',
-    severity: 'High',
-    detectedTime: '10:15 AM',
-    status: 'Open',
-    description: 'Travel claim exceeded the approved trip cap and the attached itinerary does not justify the excess amount.',
-    expenseId: 'EXP-DEMO-1',
-    employee: 'Demo User',
-    merchant: 'Demo Merchant',
-    riskScore: 82,
-  }
-];
-
 let violations = [];
 let selectedViolation = null;
 let showCorrectiveOptions = false;
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function makeId(prefix) {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-}
-
-function readSharedState() {
-  try {
-    const raw = localStorage.getItem(SHARED_STATE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function writeSharedState(state) {
-  localStorage.setItem(SHARED_STATE_KEY, JSON.stringify(state));
-}
-
-function getComplianceUser(state) {
-  return (state?.users || []).find(user => (user.roles || []).includes('compliance_officer')) || {
-    employeeId: 'CMP-2001',
-    fullName: 'Compliance Officer',
-    roles: ['compliance_officer']
-  };
-}
 
 function getPolicyMetadata(policyName) {
   return POLICY_VIOLATION_DEFINITIONS[policyName] || {
     limit: 'Not configured',
     summary: 'No policy metadata available.',
   };
-}
-
-function formatTimeAgo(isoString) {
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return 'Yesterday';
-  return `${diffDays} days ago`;
-}
-
-function createHistoryEntry(code, label, note) {
-  return {
-    code,
-    label,
-    at: nowIso(),
-    note: note || ''
-  };
-}
-
-function addAuditLog(state, user, action, entityType, entityName, status) {
-  state.auditLogs = Array.isArray(state.auditLogs) ? state.auditLogs : [];
-  state.auditLogs.unshift({
-    id: makeId('AUD'),
-    timestamp: nowIso(),
-    user: user.fullName,
-    userRole: 'Compliance Officer',
-    action,
-    entityType,
-    entityName,
-    status: status || 'Success'
-  });
-}
-
-function addNotification(state, payload) {
-  state.notifications = Array.isArray(state.notifications) ? state.notifications : [];
-  state.notifications.unshift({
-    id: makeId('NTF'),
-    unread: true,
-    createdAt: nowIso(),
-    type: payload.type || 'info',
-    recipientEmployeeId: payload.recipientEmployeeId || '',
-    recipientRole: payload.recipientRole || '',
-    title: payload.title,
-    message: payload.message,
-    relatedExpenseId: payload.relatedExpenseId || ''
-  });
-}
-
-function deriveViolationsFromState(state) {
-  if (!state || !Array.isArray(state.expenses)) {
-    return FALLBACK_VIOLATIONS.slice();
-  }
-
-  const policies = Array.isArray(state.policies) ? state.policies : [];
-  const flaggedExpenses = state.expenses.filter(expense => expense.workflowStatus === 'compliance_review');
-
-  return flaggedExpenses.map((expense, index) => {
-    const policy = policies.find(item => item.categoryId === expense.categoryId) || null;
-    return {
-      id: `VIO-${index + 101}`,
-      policyId: policy ? policy.id : 0,
-      policyCode: policy ? `POL-${String(policy.id).padStart(3, '0')}` : 'POL-000',
-      policy: policy ? policy.name : `${expense.category} Review`,
-      amount: `₹${Number(expense.amount || 0).toLocaleString('en-IN')}`,
-      severity: (expense.risk_score || 0) >= 70 ? 'High' : (expense.risk_score || 0) >= 40 ? 'Medium' : 'Low',
-      detectedTime: formatTimeAgo(expense.updatedAt || expense.created),
-      status: expense.complianceDecision === 'Corrective Action' ? 'Corrective Action Initiated' : 'Open',
-      description: expense.financeDecisionNote || expense.notes || 'Flagged by finance for compliance investigation.',
-      expenseId: expense.id,
-      employee: expense.employee,
-      merchant: expense.merchant,
-      riskScore: expense.risk_score || 0,
-    };
-  });
 }
 
 function getSeverityBadge(sev) {
@@ -293,68 +166,14 @@ window.toggleCorrectiveOptions = function() {
   if (el) el.style.display = showCorrectiveOptions ? 'block' : 'none';
 };
 
-function updateExpenseInSharedState(expenseId, updater) {
-  const state = readSharedState();
-  if (!state || !Array.isArray(state.expenses)) return false;
-  const expense = state.expenses.find(item => item.id === expenseId);
-  if (!expense) return false;
-  updater(state, expense);
-  expense.updatedAt = nowIso();
-  writeSharedState(state);
-  return true;
-}
-
 window.handleViolationAction = function(type) {
   if (!selectedViolation) return;
   const expenseId = selectedViolation.expenseId;
-  const success = updateExpenseInSharedState(expenseId, (state, expense) => {
-    const complianceUser = getComplianceUser(state);
-    if (type === 'approve') {
-      expense.complianceDecision = 'Approved';
-      expense.complianceDecisionAt = nowIso();
-      expense.complianceDecisionNote = `Approved by compliance officer. Forwarded to finance for payment.`;
-      expense.workflowStatus = 'finance_review';
-      expense.status = 'pending';
-      expense.history = Array.isArray(expense.history) ? expense.history : [];
-      expense.history.push(createHistoryEntry('compliance_approved', 'Compliance Approved — Sent to Finance', expense.complianceDecisionNote));
-      addNotification(state, {
-        recipientEmployeeId: 'FIN-2001',
-        recipientRole: 'finance_officer',
-        title: 'Compliance-Reviewed Expense Ready',
-        message: `${expense.id} from ${expense.employee} has been approved by compliance and is now in your finance review queue.`,
-        type: 'success',
-        relatedExpenseId: expense.id
-      });
-      addNotification(state, {
-        recipientEmployeeId: expense.employeeId,
-        recipientRole: 'expense_submitter',
-        title: 'Compliance Approved Your Expense',
-        message: `${expense.id} was approved by compliance and is now in finance review for reimbursement.`,
-        type: 'success',
-        relatedExpenseId: expense.id
-      });
-      addAuditLog(state, complianceUser, 'Compliance Approved Expense', 'Expense', expense.id, 'Success');
-    } else {
-      expense.complianceDecision = 'Rejected';
-      expense.complianceDecisionAt = nowIso();
-      expense.complianceDecisionNote = `Rejected by compliance officer after review.`;
-      expense.workflowStatus = 'rejected';
-      expense.status = 'rejected';
-      expense.history = Array.isArray(expense.history) ? expense.history : [];
-      expense.history.push(createHistoryEntry('compliance_rejected', 'Rejected by Compliance', expense.complianceDecisionNote));
-      addNotification(state, {
-        recipientEmployeeId: expense.employeeId,
-        recipientRole: 'expense_submitter',
-        title: 'Expense Rejected by Compliance',
-        message: `${expense.id} was reviewed by the compliance officer and rejected. Reason: ${expense.complianceDecisionNote}`,
-        type: 'danger',
-        relatedExpenseId: expense.id
-      });
-      addAuditLog(state, complianceUser, 'Compliance Rejected Expense', 'Expense', expense.id, 'Success');
-    }
-  });
+  const result = type === 'approve'
+    ? window.FinStackStore.complianceApprove(expenseId, 'Approved by compliance officer. Forwarded to finance for payment.')
+    : window.FinStackStore.complianceReject(expenseId, 'Rejected by compliance officer after review.');
 
-  if (!success) {
+  if (!result || result.success === false) {
     Toast.error('Unable to update this compliance case.');
     return;
   }
@@ -369,17 +188,9 @@ window.handleViolationAction = function(type) {
 window.handleCorrectiveAction = function(action) {
   if (!selectedViolation) return;
   const expenseId = selectedViolation.expenseId;
-  const success = updateExpenseInSharedState(expenseId, (state, expense) => {
-    const complianceUser = getComplianceUser(state);
-    expense.complianceDecision = 'Corrective Action';
-    expense.complianceDecisionAt = nowIso();
-    expense.complianceDecisionNote = action;
-    expense.history = Array.isArray(expense.history) ? expense.history : [];
-    expense.history.push(createHistoryEntry('compliance_corrective_action', 'Corrective Action Initiated', action));
-    addAuditLog(state, complianceUser, 'Initiated Corrective Action', 'Expense', expense.id, 'Success');
-  });
+  const result = window.FinStackStore.complianceCorrectiveAction(expenseId, action);
 
-  if (!success) {
+  if (!result || result.success === false) {
     Toast.error('Unable to start corrective action for this case.');
     return;
   }
@@ -393,18 +204,31 @@ window.handleCorrectiveAction = function(action) {
 };
 
 function syncViolations() {
-  violations = deriveViolationsFromState(readSharedState());
+  violations = window.FinStackStore && typeof window.FinStackStore.getComplianceViolations === 'function'
+    ? window.FinStackStore.getComplianceViolations()
+    : [];
 }
 
 function initCompliance() {
-  try {
+  function renderFromStore() {
     syncViolations();
     renderViolationsTable();
-  } catch (error) {
-    violations = FALLBACK_VIOLATIONS.slice();
-    renderViolationsTable();
-    Toast.warning('Loaded fallback compliance data.');
   }
+
+  if (!window.FinStackStore || !window.FinStackStore.ready) {
+    violations = [];
+    renderViolationsTable();
+    Toast.error('Unable to load compliance expense state.');
+    return;
+  }
+
+  window.FinStackStore.ready
+    .then(renderFromStore)
+    .catch(function() {
+      violations = [];
+      renderViolationsTable();
+      Toast.error('Unable to load compliance expense state.');
+    });
 }
 
 window.initCompliance = initCompliance;
