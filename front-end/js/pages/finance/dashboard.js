@@ -328,21 +328,23 @@
           .map(user => user.employeeId));
         const allExpenses = uniqueById(window.FinStackStore.getExpenses())
           .filter(expense => recordBelongsToOrganization(expense, organizationId, organizationEmployeeIds));
-        console.log("Current User:", financeUser);
-        console.log("Expenses:", allExpenses);
+        const scopedExpenseIds = new Set(allExpenses.map(expense => expense.id));
         const financeReviewExpenses = allExpenses.filter(e =>
           e.workflowStatus === "finance_review" &&
           e.assignedFinanceOfficerId === financeUser.id
         );
-        const expenseIds = new Set(financeReviewExpenses.map(expense => expense.id));
+        const reviewExpenseIds = new Set(financeReviewExpenses.map(expense => expense.id));
         const reviewQueue = window.FinStackStore.getFinanceReviewQueue()
           .filter(expense =>
-            expenseIds.has(expense.id) &&
+            reviewExpenseIds.has(expense.id) &&
             expense.workflowStatus === "finance_review" &&
             expense.assignedFinanceOfficerId === financeUser.id
           );
         const flaggedQueue = window.FinStackStore.getFinanceFlaggedQueue()
-          .filter(expense => expenseIds.has(expense.id));
+          .filter(expense =>
+            scopedExpenseIds.has(expense.id) &&
+            expense.assignedFinanceOfficerId === financeUser.id
+          );
         const payments = scopePaymentBatchesToExpenses(window.FinStackStore.getPaymentBatches(), allExpenses);
         const auditLogs = window.FinStackStore.getAuditLogs();
 
@@ -2177,11 +2179,14 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
       }
 
       // Notifications page – Mark All Read
-      document.getElementById('foMarkAllReadBtn').addEventListener('click', () => {
-        if (window.FinStackStore) window.FinStackStore.markAllNotificationsRead();
-        renderAlerts();
-        showToast('All notifications marked as read.');
-      });
+      const markAllReadButton = document.getElementById('foMarkAllReadBtn');
+      if (markAllReadButton) {
+        markAllReadButton.addEventListener('click', () => {
+          if (window.FinStackStore) window.FinStackStore.markAllNotificationsRead();
+          renderAlerts();
+          showToast('All notifications marked as read.');
+        });
+      }
 
       document.getElementById('saveSettingsBtn').addEventListener('click', () => {
         const fullName = document.getElementById('officerName').value.trim() || state.settings.officerName;

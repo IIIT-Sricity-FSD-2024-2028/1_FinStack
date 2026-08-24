@@ -10,11 +10,26 @@
         compliance_officer: 'CMP-2001',
         configuration_manager: 'CFG-1001'
     };
-    var currentScript = document.currentScript;
-    var rootPath = currentScript && currentScript.src
-        ? currentScript.src.replace(/js\/state\.js(?:\?.*)?$/, '')
-        : '/';
-    var seedUrl = rootPath + 'data/mock-data.json';
+    var CLIENT_BASELINE_STATE = {
+        version: 0,
+        organization: {
+            organizationId: 'finstack-tech-01',
+            name: 'FinStack Technologies'
+        },
+        organizations: [{
+            organizationId: 'finstack-tech-01',
+            name: 'FinStack Technologies',
+            enabledRoles: ['expense_submitter', 'manager', 'finance_officer', 'compliance_officer', 'configuration_manager']
+        }],
+        accountRequests: [],
+        roles: [
+            { id: 'expense_submitter', name: 'Expense Submitter' },
+            { id: 'manager', name: 'Manager' },
+            { id: 'finance_officer', name: 'Finance Officer' },
+            { id: 'compliance_officer', name: 'Compliance Officer' },
+            { id: 'configuration_manager', name: 'Configuration Manager' }
+        ]
+    };
     var state = null;
 
     function deepClone(value) {
@@ -453,9 +468,6 @@
 
     function getFinanceReviewQueue() {
         var user = getCurrentUser();
-        var expenses = state.expenses || [];
-        console.log("Current User:", user);
-        console.log("Expenses:", expenses);
         return state.expenses.filter(function (expense) {
             return user &&
                 expense.workflowStatus === 'finance_review' &&
@@ -512,62 +524,37 @@
             });
     }
 
-    function seedOrLoad(seedState) {
-        var storedState = readStoredState();
-        if (!storedState || storedState.version !== seedState.version) {
-            writeStoredState(normalizeState(seedState));
-            return;
+    function useClientFallbackState() {
+        var stored = readStoredState();
+        if (stored) {
+            console.warn('[FinStackStore] Using cached localStorage state as fallback.');
+            writeStoredState(normalizeState(stored));
+            return state;
         }
-        writeStoredState(normalizeState(storedState));
+
+        console.warn('[FinStackStore] No cached state found. Using the Client baseline.');
+        writeStoredState(normalizeState(deepClone(CLIENT_BASELINE_STATE)));
+        return state;
     }
 
-    var ready = fetch(seedUrl)
-        .then(function (response) {
-            if (!response.ok) throw new Error('Unable to load shared mock data. Status: ' + response.status);
-            return response.json();
-        })
-        .then(function (seedState) {
-            writeStoredState(normalizeState(deepClone(seedState)));
-            if (window.FinStackApi && window.FinStackApi.getAll) {
-                return window.FinStackApi.getAll().then(function (backendState) {
-                    writeStoredState(mergeBackendState(state, backendState));
-                    return state;
-                });
-            }
-            return state;
-        })
-        .catch(function (err) {
-            console.error('[FinStackStore] Failed to load backend state:', err.message);
-            if (window.FinStackApi && window.FinStackApi.getAll) {
-                var baseState = {
-                    version: 0,
-                    organization: { organizationId: 'finstack-tech-01', name: 'FinStack Technologies' },
-                    organizations: [{ organizationId: 'finstack-tech-01', name: 'FinStack Technologies', enabledRoles: ['expense_submitter', 'manager', 'finance_officer', 'compliance_officer', 'configuration_manager'] }],
-                    accountRequests: [],
-                    roles: [
-                        { id: 'expense_submitter', name: 'Expense Submitter' },
-                        { id: 'manager', name: 'Manager' },
-                        { id: 'finance_officer', name: 'Finance Officer' },
-                        { id: 'compliance_officer', name: 'Compliance Officer' },
-                        { id: 'configuration_manager', name: 'Configuration Manager' }
-                    ]
-                };
-                return window.FinStackApi.getAll().then(function (backendState) {
-                    writeStoredState(mergeBackendState(baseState, backendState));
-                    return state;
-                });
-            }
-            var stored = readStoredState();
-            if (stored) {
-                console.warn('[FinStackStore] Using cached localStorage state as fallback.');
-                state = normalizeState(stored);
+    function loadClientState() {
+        if (!window.FinStackApi || typeof window.FinStackApi.getAll !== 'function') {
+            console.warn('[FinStackStore] Backend API is unavailable.');
+            return Promise.resolve(useClientFallbackState());
+        }
+
+        return window.FinStackApi.getAll()
+            .then(function (backendState) {
+                writeStoredState(mergeBackendState(CLIENT_BASELINE_STATE, backendState));
                 return state;
-            }
-            /* No stored state either — initialize empty */
-            console.warn('[FinStackStore] No stored state found. Initializing empty state.');
-            state = normalizeState({ version: 0, organizations: [], accountRequests: [], users: [], roles: [], categories: [], policies: [], expenses: [], notifications: [], auditLogs: [] });
-            return state;
-        });
+            })
+            .catch(function (error) {
+                console.error('[FinStackStore] Failed to load backend state:', error.message);
+                return useClientFallbackState();
+            });
+    }
+
+    var ready = loadClientState();
 
     /* ========== Organization & Auth APIs ========== */
 
@@ -619,13 +606,8 @@
             return this.getState();
         },
         reset: function () {
-            return ready.then(function () {
-                return fetch(seedUrl)
-                    .then(function (response) { return response.json(); })
-                    .then(function (seedState) {
-                        writeStoredState(normalizeState(seedState));
-                        return deepClone(state);
-                    });
+            return loadClientState().then(function () {
+                return deepClone(state);
             });
         },
         getSession: getSession,
