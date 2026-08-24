@@ -40,14 +40,15 @@
 
   function request(path, options) {
     options = options || {};
-    var headers = {
-      role: getRbacRole(),
-      'Content-Type': 'application/json'
-    };
+    var isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    var headers = { role: getRbacRole() };
+    if (!isFormData) headers['Content-Type'] = 'application/json';
     return fetch(BASE_URL + path, {
       method: options.method || 'GET',
       headers: headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      body: options.body === undefined
+        ? undefined
+        : (isFormData ? options.body : JSON.stringify(options.body))
     }).then(function (response) {
       return response.text().then(function (text) {
         var payload = text ? JSON.parse(text) : null;
@@ -119,6 +120,34 @@
     };
   }
 
+  function createExpense(payload, receipt) {
+    var formData = new FormData();
+    Object.keys(payload || {}).forEach(function (key) {
+      var value = payload[key];
+      if (key !== 'receiptFileName' && value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+    formData.append('receipt', receipt, receipt.name);
+    return request('/expenses', { method: 'POST', body: formData });
+  }
+
+  function downloadReceipt(expenseId) {
+    return fetch(BASE_URL + '/expenses/' + encodeURIComponent(expenseId) + '/receipt', {
+      headers: { role: getRbacRole() }
+    }).then(function (response) {
+      if (response.ok) return response.blob();
+      return response.text().then(function (text) {
+        var payload = null;
+        try { payload = text ? JSON.parse(text) : null; } catch (error) {}
+        var message = payload && (payload.message || payload.error)
+          ? payload.message || payload.error
+          : 'Receipt download failed with status ' + response.status + '.';
+        throw new Error(Array.isArray(message) ? message.join(', ') : message);
+      });
+    });
+  }
+
   window.FinStackApi = {
     baseUrl: BASE_URL,
     roleMap: ROLE_MAP,
@@ -128,6 +157,8 @@
     syncRequest: syncRequest,
     getAll: getAll,
     syncGetAll: syncGetAll,
+    createExpense: createExpense,
+    downloadReceipt: downloadReceipt,
     loadMockData: function () {
       return getAll();
     }

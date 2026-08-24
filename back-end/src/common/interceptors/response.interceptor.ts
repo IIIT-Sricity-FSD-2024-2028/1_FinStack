@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 
@@ -14,14 +15,18 @@ export interface ApiResponse<T> {
 
 @Injectable()
 export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
+  implements NestInterceptor<T, ApiResponse<T> | StreamableFile>
 {
   intercept(
     _context: ExecutionContext,
     next: CallHandler,
-  ): Observable<ApiResponse<T>> {
+  ): Observable<ApiResponse<T> | StreamableFile> {
     return next.handle().pipe(
       map((value) => {
+        if (value instanceof StreamableFile) {
+          return value;
+        }
+
         if (this.isApiResponse(value)) {
           return value;
         }

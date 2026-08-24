@@ -7,6 +7,11 @@ import { UsersRepository } from '../users/users.repository';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpensesRepository } from './expenses.repository';
+import {
+  ReceiptDownload,
+  ReceiptUploadService,
+  StagedReceipt,
+} from './receipt-upload/receipt-upload.service';
 
 @Injectable()
 export class ExpensesService {
@@ -16,6 +21,7 @@ export class ExpensesService {
     private readonly categoriesRepository: CategoriesRepository,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly receiptUploadService: ReceiptUploadService,
   ) {}
 
   findAll(): ExpenseRecord[] {
@@ -28,45 +34,98 @@ export class ExpensesService {
     return expense;
   }
 
-  create(dto: CreateExpenseDto): ExpenseRecord {
-    this.ensureUser(dto.employeeId, dto.organizationId);
-    this.ensureUser(dto.managerEmployeeId, dto.organizationId);
-    if (dto.assignedFinanceOfficerId) this.ensureFinanceOfficer(dto.assignedFinanceOfficerId, dto.organizationId);
-    this.ensureCategory(dto.categoryId, dto.organizationId);
-    const expense = this.expensesRepository.create({
-      employeeId: dto.employeeId,
-      organizationId: dto.organizationId,
-      managerEmployeeId: dto.managerEmployeeId,
-      assignedFinanceOfficerId: dto.assignedFinanceOfficerId || null,
-      amount: dto.amount,
-      currency: dto.currency || 'INR',
-      categoryId: dto.categoryId,
-      merchant: dto.merchant,
-      date: dto.date,
-      status: dto.status || 'pending',
-      workflowStatus: dto.workflowStatus || 'manager_review',
-      notes: dto.notes || '',
-      paymentMethod: dto.paymentMethod || 'personal-card',
-      receiptFileName: dto.receiptFileName || '',
-      extraction_confidence: dto.extraction_confidence,
-      flag: dto.flag,
-      risk_score: dto.risk_score,
-      managerDecision: '',
-      financeDecision: '',
-      complianceDecision: '',
-      history: [{ code: 'submitted', label: 'Submitted', at: nowIso(), note: 'Expense submitted.' }],
-    });
-    this.notificationsService.createSystem({
-      recipientEmployeeId: expense.managerEmployeeId,
-      recipientRole: 'manager',
-      title: 'New Expense Submitted',
-      message: `${expense.id} is ready for manager review.`,
-      type: 'warning',
-      relatedExpenseId: expense.id,
-      actionType: 'expense_submitted_manager',
-    });
-    this.auditService.record('Created Expense', 'Expense', expense.id, expense.organizationId);
-    return expense;
+  async create(
+    dto: CreateExpenseDto,
+    file?: Express.Multer.File,
+    receiptRequired = false,
+  ): Promise<ExpenseRecord> {
+    if (receiptRequired && !file) {
+      throw new BadRequestException('Receipt upload is required.');
+    }
+
+    let stagedReceipt: StagedReceipt | undefined;
+    let expense: ExpenseRecord | undefined;
+
+    try {
+      if (file) {
+        stagedReceipt = await this.receiptUploadService.stage(file);
+      }
+
+      this.ensureUser(dto.employeeId, dto.organizationId);
+      this.ensureUser(dto.managerEmployeeId, dto.organizationId);
+      if (dto.assignedFinanceOfficerId) {
+        this.ensureFinanceOfficer(
+          dto.assignedFinanceOfficerId,
+          dto.organizationId,
+        );
+      }
+      this.ensureCategory(dto.categoryId, dto.organizationId);
+      expense = this.expensesRepository.create({
+        employeeId: dto.employeeId,
+        organizationId: dto.organizationId,
+        managerEmployeeId: dto.managerEmployeeId,
+        assignedFinanceOfficerId: dto.assignedFinanceOfficerId || null,
+        amount: dto.amount,
+        currency: dto.currency || 'INR',
+        categoryId: dto.categoryId,
+        merchant: dto.merchant,
+        date: dto.date,
+        status: dto.status || 'pending',
+        workflowStatus: dto.workflowStatus || 'manager_review',
+        notes: dto.notes || '',
+        paymentMethod: dto.paymentMethod || 'personal-card',
+        receiptFileName:
+          stagedReceipt?.originalName || dto.receiptFileName || '',
+        extraction_confidence: dto.extraction_confidence,
+        flag: dto.flag,
+        risk_score: dto.risk_score,
+        managerDecision: '',
+        financeDecision: '',
+        complianceDecision: '',
+        history: [
+          {
+            code: 'submitted',
+            label: 'Submitted',
+            at: nowIso(),
+            note: 'Expense submitted.',
+          },
+        ],
+      });
+
+      if (stagedReceipt) {
+        this.receiptUploadService.associate(expense.id, stagedReceipt);
+      }
+
+      this.notificationsService.createSystem({
+        recipientEmployeeId: expense.managerEmployeeId,
+        recipientRole: 'manager',
+        title: 'New Expense Submitted',
+        message: `${expense.id} is ready for manager review.`,
+        type: 'warning',
+        relatedExpenseId: expense.id,
+        actionType: 'expense_submitted_manager',
+      });
+      this.auditService.record(
+        'Created Expense',
+        'Expense',
+        expense.id,
+        expense.organizationId,
+      );
+      return expense;
+    } catch (error) {
+      if (expense) {
+        this.expensesRepository.delete(expense.id);
+      }
+      if (stagedReceipt) {
+        await this.receiptUploadService.rollback(expense?.id, stagedReceipt);
+      }
+      throw error;
+    }
+  }
+
+  async getReceipt(id: string): Promise<ReceiptDownload> {
+    this.findOne(id);
+    return this.receiptUploadService.getForExpense(id);
   }
 
   update(id: string, dto: UpdateExpenseDto): ExpenseRecord {
@@ -91,8 +150,9 @@ export class ExpensesService {
     return updated;
   }
 
-  delete(id: string): { id: string; deleted: boolean } {
+  async delete(id: string): Promise<{ id: string; deleted: boolean }> {
     const current = this.findOne(id);
+    await this.receiptUploadService.deleteForExpense(id);
     const removed = this.expensesRepository.delete(id);
     if (!removed) throw new NotFoundException('Expense not found.');
     this.auditService.record('Deleted Expense', 'Expense', current.id, current.organizationId);

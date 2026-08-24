@@ -1567,6 +1567,15 @@
             var expense = tryApi('/expenses', 'POST', expenseDto(payload), null);
             return expense ? Object.assign({}, expense, { category: categoryName(expense.categoryId), employee: userName(expense.employeeId) }) : null;
         };
+        storeApi.submitExpenseWithReceipt = function (payload, receipt) {
+            return window.FinStackApi.createExpense(expenseDto(payload), receipt).then(function (expense) {
+                refreshFromBackendSync();
+                return Object.assign({}, expense, {
+                    category: categoryName(expense.categoryId),
+                    employee: userName(expense.employeeId)
+                });
+            });
+        };
         storeApi.updateExpenseAsSubmitter = function (id, updates, resubmit) {
             var existing = storeApi.getExpenseById(id);
             var body = Object.assign({}, updates || {});

@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var fileError = document.getElementById('fileError');
     var categorySelect = document.getElementById('category');
     var currentFile = null;
+    var maxFileSize = 5 * 1024 * 1024;
+    var allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+    var allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
     var categories = window.FinStackStore.getCategories().filter(function (category) {
         return category.status === 'Active';
@@ -45,6 +48,28 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function showFile(file) {
+        var extension = file.name.split('.').pop().toLowerCase();
+        var validationMessage = '';
+        if (allowedExtensions.indexOf(extension) === -1) {
+            validationMessage = 'Choose a JPEG, PNG, or PDF receipt.';
+        } else if (file.type && allowedMimeTypes.indexOf(file.type) === -1) {
+            validationMessage = 'The selected receipt type is not supported.';
+        } else if (file.size > maxFileSize) {
+            validationMessage = 'Receipt must be 5 MB or smaller.';
+        }
+
+        if (validationMessage) {
+            currentFile = null;
+            fileInput.value = '';
+            emptyState.style.display = '';
+            previewState.style.display = 'none';
+            dropzone.classList.add('error');
+            fileError.textContent = validationMessage;
+            fileError.style.display = '';
+            showToast(validationMessage, 'error');
+            return;
+        }
+
         currentFile = file;
         fileNameEl.textContent = file.name;
         fileSizeEl.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
@@ -54,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fileError.style.display = 'none';
     }
 
-    document.getElementById('expenseForm').addEventListener('submit', function (e) {
+    document.getElementById('expenseForm').addEventListener('submit', async function (e) {
         e.preventDefault();
         var errors = {};
         var amountVal = document.getElementById('amount').value;
@@ -87,34 +112,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var categoryLabel = cat.options[cat.selectedIndex] ? cat.options[cat.selectedIndex].text : cat.value;
 
-        var expense = window.FinStackStore.submitExpense({
-            amount: Number(amountVal),
-            category: categoryLabel,
-            categoryId: cat.value,
-            merchant: merchantVal.trim(),
-            date: dateVal,
-            notes: notesVal.trim(),
-            paymentMethod: paymentMethod,
-            receiptFileName: currentFile ? currentFile.name : '',
-            extraction_confidence: confidence,
-            flag: flag,
-            risk_score: risk
-        });
+        var submitButton = e.currentTarget.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
 
-        showToast('Expense ' + expense.id + ' submitted successfully! Risk: ' + FinStack.getRiskLabel(risk), 'success');
+        try {
+            var expense = await window.FinStackStore.submitExpenseWithReceipt({
+                amount: Number(amountVal),
+                category: categoryLabel,
+                categoryId: cat.value,
+                merchant: merchantVal.trim(),
+                date: dateVal,
+                notes: notesVal.trim(),
+                paymentMethod: paymentMethod,
+                extraction_confidence: confidence,
+                flag: flag,
+                risk_score: risk
+            }, currentFile);
 
-        // Reset form
-        document.getElementById('expenseForm').reset();
-        currentFile = null;
-        fileInput.value = '';
-        emptyState.style.display = '';
-        previewState.style.display = 'none';
-        dropzone.classList.remove('error');
-        fileError.style.display = 'none';
-        ['amount', 'merchant', 'category', 'date'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.style.borderColor = '';
-        });
+            if (!expense) throw new Error('Expense submission failed.');
+            showToast('Expense ' + expense.id + ' submitted successfully! Risk: ' + FinStack.getRiskLabel(risk), 'success');
+
+            document.getElementById('expenseForm').reset();
+            currentFile = null;
+            fileInput.value = '';
+            emptyState.style.display = '';
+            previewState.style.display = 'none';
+            dropzone.classList.remove('error');
+            fileError.style.display = 'none';
+            ['amount', 'merchant', 'category', 'date'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.style.borderColor = '';
+            });
+        } catch (error) {
+            showToast(error && error.message ? error.message : 'Expense submission failed.', 'error');
+        } finally {
+            if (submitButton) submitButton.disabled = false;
+        }
     });
 
     document.getElementById('resetBtn').addEventListener('click', function () {

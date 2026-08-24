@@ -157,6 +157,26 @@
     return isNaN(date.getTime()) ? String(value || '-') : date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
   }
 
+  function buildReceiptCard(expense) {
+    if (!expense.receiptFileName) {
+      return buildDetailCard('Receipt', icons.download(20), [
+        '<p style="color:var(--text-muted);margin:0;">No receipt attached</p>'
+      ]);
+    }
+
+    return buildDetailCard('Receipt', icons.download(20), [
+      detailRow('File name', esc(expense.receiptFileName)),
+      '<button class="btn btn-secondary" id="manager-download-receipt" type="button">' + icons.download(18) + ' Download Receipt</button>',
+      '<p id="manager-receipt-error" role="status" style="display:none;color:var(--danger);font-size:0.8125rem;margin:8px 0 0;">Receipt is unavailable for this expense.</p>'
+    ]);
+  }
+
+  function receiptDownloadFileName(expense) {
+    var fallback = 'receipt-' + expense.id;
+    var recordedName = String(expense.receiptFileName || fallback);
+    return recordedName.split(/[\\/]/).pop().replace(/[\r\n]/g, '').trim() || fallback;
+  }
+
   function openDetailModal(expenseId) {
     var expense = window.FinStackStore.getExpenseById(expenseId);
     var root = document.getElementById('modal-root');
@@ -182,6 +202,7 @@
                 detailRow('Payment Method', expense.paymentMethod || '-'),
                 detailRow('Notes', expense.notes || 'No notes provided.')
               ]) +
+              buildReceiptCard(expense) +
             '</div>' +
             '<div class="detail-stack">' +
               buildDetailCard('Risk Assessment', icons.shield(20), [
@@ -234,6 +255,29 @@
 
     root.querySelector('#detail-backdrop').addEventListener('click', closeModal);
     root.querySelector('#detail-close').addEventListener('click', closeModal);
+    var receiptButton = root.querySelector('#manager-download-receipt');
+    if (receiptButton) {
+      receiptButton.addEventListener('click', function() {
+        var receiptError = root.querySelector('#manager-receipt-error');
+        if (receiptError) receiptError.style.display = 'none';
+        receiptButton.disabled = true;
+
+        window.FinStackApi.downloadReceipt(expense.id).then(function(blob) {
+          var objectUrl = URL.createObjectURL(blob);
+          var link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = receiptDownloadFileName(expense);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(function() { URL.revokeObjectURL(objectUrl); }, 0);
+        }).catch(function() {
+          if (receiptError) receiptError.style.display = 'block';
+        }).finally(function() {
+          receiptButton.disabled = false;
+        });
+      });
+    }
     root.querySelector('#modal-approve').addEventListener('click', function() {
       var financeOfficerId = selectedFinanceOfficerId();
       if (!financeOfficerId) {

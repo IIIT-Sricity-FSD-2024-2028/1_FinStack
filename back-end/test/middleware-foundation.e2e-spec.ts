@@ -29,6 +29,7 @@ describe('Client middleware foundation (e2e)', () => {
     logDirectory = mkdtempSync(join(tmpdir(), 'finstack-client-logs-'));
     process.env.NODE_ENV = 'test';
     process.env.LOG_DIRECTORY = logDirectory;
+    process.env.UPLOAD_DIRECTORY = join(logDirectory, 'receipts');
     process.env.CORS_ORIGINS = 'http://localhost:5500';
     process.env.THROTTLE_TTL_SECONDS = '60';
     process.env.THROTTLE_LIMIT = '4';
@@ -47,6 +48,7 @@ describe('Client middleware foundation (e2e)', () => {
     await app?.close();
     rmSync(logDirectory, { recursive: true, force: true });
     delete process.env.LOG_DIRECTORY;
+    delete process.env.UPLOAD_DIRECTORY;
     delete process.env.CORS_ORIGINS;
     delete process.env.THROTTLE_TTL_SECONDS;
     delete process.env.THROTTLE_LIMIT;
