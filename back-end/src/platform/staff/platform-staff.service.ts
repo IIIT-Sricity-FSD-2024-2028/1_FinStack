@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,17 +9,27 @@ import { PlatformStaffStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { PlatformPasswordService } from '../auth/platform-password.service';
 import { PlatformSessionService } from '../auth/platform-session.service';
+import { AssignPlatformStaffRoleDto } from './dto/assign-platform-staff-role.dto';
 import { CreatePlatformStaffDto } from './dto/create-platform-staff.dto';
 import { ListPlatformStaffQueryDto } from './dto/list-platform-staff-query.dto';
 import { UpdatePlatformStaffDto } from './dto/update-platform-staff.dto';
 import {
   PlatformStaffResponse,
+  PlatformStaffRoleAssignmentResponse,
+  safePlatformRoleSelect,
   safePlatformStaffSelect,
+  safePlatformStaffRoleAssignmentSelect,
   toSafePlatformStaff,
+  toSafePlatformStaffRoleAssignment,
 } from './platform-staff.types';
 
 const SUPER_ADMIN_ROLE_KEY = 'PLATFORM_SUPER_ADMIN';
 const SERIALIZABLE_RETRY_LIMIT = 3;
+
+interface SerializableConflict {
+  code: string;
+  message: string;
+}
 
 export interface PaginatedPlatformStaff {
   items: PlatformStaffResponse[];
@@ -69,6 +80,158 @@ export class PlatformStaffService {
       throw this.notFound();
     }
     return toSafePlatformStaff(staff);
+  }
+
+  async findAssignedRoles(
+    staffId: string,
+  ): Promise<PlatformStaffRoleAssignmentResponse[]> {
+    await this.assertStaffExists(staffId);
+    const assignments = await this.prisma.platformStaffRole.findMany({
+      where: { staffId },
+      select: safePlatformStaffRoleAssignmentSelect,
+      orderBy: [{ role: { name: 'asc' } }, { role: { key: 'asc' } }],
+    });
+    return assignments.map(toSafePlatformStaffRoleAssignment);
+  }
+
+  async assignRole(
+    staffId: string,
+    dto: AssignPlatformStaffRoleDto,
+    authenticatedStaffId: string,
+  ): Promise<PlatformStaffRoleAssignmentResponse> {
+    try {
+      return await this.withSerializableRetry(
+        async (transaction) => {
+          const [staff, role] = await Promise.all([
+            transaction.platformStaff.findUnique({
+              where: { id: staffId },
+              select: { status: true },
+            }),
+            transaction.platformRole.findUnique({
+              where: { id: dto.roleId },
+              select: safePlatformRoleSelect,
+            }),
+          ]);
+          if (!staff) {
+            throw this.notFound();
+          }
+          if (!role) {
+            throw this.roleNotFound();
+          }
+          if (staff.status === PlatformStaffStatus.SUSPENDED) {
+            throw new ConflictException({
+              code: 'PLATFORM_STAFF_ROLE_ASSIGNMENT_SUSPENDED',
+              message: 'Roles cannot be assigned to suspended platform staff.',
+            });
+          }
+          if (!role.isActive) {
+            throw new ConflictException({
+              code: 'PLATFORM_ROLE_INACTIVE',
+              message: 'Inactive platform roles cannot be assigned.',
+            });
+          }
+          if (role.key === SUPER_ADMIN_ROLE_KEY) {
+            await this.assertEffectiveSuperAdmin(
+              authenticatedStaffId,
+              transaction,
+            );
+          }
+
+          const assignment = await transaction.platformStaffRole.create({
+            data: {
+              staffId,
+              roleId: role.id,
+              assignedByStaffId: authenticatedStaffId,
+            },
+            select: safePlatformStaffRoleAssignmentSelect,
+          });
+          return toSafePlatformStaffRoleAssignment(assignment);
+        },
+        {
+          code: 'PLATFORM_STAFF_ROLE_ASSIGNMENT_CONFLICT',
+          message: 'The role assignment conflicted with another staff update.',
+        },
+      );
+    } catch (error) {
+      this.handleAssignmentWriteError(error);
+    }
+  }
+
+  async removeRole(
+    staffId: string,
+    roleId: string,
+    authenticatedStaffId: string,
+  ): Promise<PlatformStaffRoleAssignmentResponse> {
+    return this.withSerializableRetry(
+      async (transaction) => {
+        const [staff, role, assignment] = await Promise.all([
+          transaction.platformStaff.findUnique({
+            where: { id: staffId },
+            select: { status: true },
+          }),
+          transaction.platformRole.findUnique({
+            where: { id: roleId },
+            select: safePlatformRoleSelect,
+          }),
+          transaction.platformStaffRole.findUnique({
+            where: { staffId_roleId: { staffId, roleId } },
+            select: safePlatformStaffRoleAssignmentSelect,
+          }),
+        ]);
+        if (!staff) {
+          throw this.notFound();
+        }
+        if (!role) {
+          throw this.roleNotFound();
+        }
+        if (!assignment) {
+          throw this.assignmentNotFound();
+        }
+
+        if (role.key === SUPER_ADMIN_ROLE_KEY) {
+          await this.assertEffectiveSuperAdmin(
+            authenticatedStaffId,
+            transaction,
+          );
+        }
+
+        if (
+          staff.status === PlatformStaffStatus.ACTIVE &&
+          role.key === SUPER_ADMIN_ROLE_KEY &&
+          role.isActive
+        ) {
+          const effectiveSuperAdmins = await transaction.platformStaff.count({
+            where: {
+              status: PlatformStaffStatus.ACTIVE,
+              roles: {
+                some: {
+                  role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
+                },
+              },
+            },
+          });
+          if (effectiveSuperAdmins <= 1) {
+            throw new ConflictException({
+              code: 'LAST_EFFECTIVE_SUPER_ADMIN',
+              message:
+                'The last effective active Super Admin cannot lose that role.',
+            });
+          }
+        }
+
+        const removed = await transaction.platformStaffRole.deleteMany({
+          where: { staffId, roleId },
+        });
+        if (removed.count !== 1) {
+          throw this.assignmentNotFound();
+        }
+        return toSafePlatformStaffRoleAssignment(assignment);
+      },
+      {
+        code: 'PLATFORM_STAFF_ROLE_REMOVAL_CONFLICT',
+        message: 'The role removal conflicted with another staff update.',
+      },
+    );
   }
 
   async create(dto: CreatePlatformStaffDto): Promise<PlatformStaffResponse> {
@@ -212,6 +375,10 @@ export class PlatformStaffService {
 
   private async withSerializableRetry<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+    conflict: SerializableConflict = {
+      code: 'PLATFORM_STAFF_DEACTIVATION_CONFLICT',
+      message: 'The deactivation conflicted with another staff update.',
+    },
   ): Promise<T> {
     for (let attempt = 1; attempt <= SERIALIZABLE_RETRY_LIMIT; attempt += 1) {
       try {
@@ -224,8 +391,8 @@ export class PlatformStaffService {
         }
         if (attempt === SERIALIZABLE_RETRY_LIMIT) {
           throw new ConflictException({
-            code: 'PLATFORM_STAFF_DEACTIVATION_CONFLICT',
-            message: 'The deactivation conflicted with another staff update.',
+            code: conflict.code,
+            message: conflict.message,
           });
         }
       }
@@ -264,6 +431,28 @@ export class PlatformStaffService {
     throw error;
   }
 
+  private handleAssignmentWriteError(error: unknown): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException({
+        code: 'PLATFORM_STAFF_ROLE_ALREADY_ASSIGNED',
+        message: 'The platform role is already assigned to this staff member.',
+      });
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2003'
+    ) {
+      throw new ConflictException({
+        code: 'PLATFORM_STAFF_ROLE_ASSIGNMENT_CONFLICT',
+        message: 'The staff member or platform role changed during assignment.',
+      });
+    }
+    throw error;
+  }
+
   private isSerializationFailure(error: unknown): boolean {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -275,6 +464,54 @@ export class PlatformStaffService {
     return new NotFoundException({
       code: 'PLATFORM_STAFF_NOT_FOUND',
       message: 'Platform staff member not found.',
+    });
+  }
+
+  private async assertStaffExists(staffId: string): Promise<void> {
+    const staff = await this.prisma.platformStaff.findUnique({
+      where: { id: staffId },
+      select: { id: true },
+    });
+    if (!staff) {
+      throw this.notFound();
+    }
+  }
+
+  private async assertEffectiveSuperAdmin(
+    staffId: string,
+    transaction: Prisma.TransactionClient,
+  ): Promise<void> {
+    const effectiveSuperAdmin = await transaction.platformStaff.findFirst({
+      where: {
+        id: staffId,
+        status: PlatformStaffStatus.ACTIVE,
+        roles: {
+          some: {
+            role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (!effectiveSuperAdmin) {
+      throw new ForbiddenException({
+        code: 'EFFECTIVE_SUPER_ADMIN_REQUIRED',
+        message: 'An effective Super Admin is required for this operation.',
+      });
+    }
+  }
+
+  private roleNotFound(): NotFoundException {
+    return new NotFoundException({
+      code: 'PLATFORM_ROLE_NOT_FOUND',
+      message: 'Platform role not found.',
+    });
+  }
+
+  private assignmentNotFound(): NotFoundException {
+    return new NotFoundException({
+      code: 'PLATFORM_STAFF_ROLE_ASSIGNMENT_NOT_FOUND',
+      message: 'Platform staff role assignment not found.',
     });
   }
 

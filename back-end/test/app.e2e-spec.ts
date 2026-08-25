@@ -193,6 +193,36 @@ describe('FinStack foundation (e2e)', () => {
     return staff;
   }
 
+  async function createManagedRole(
+    permissionKeys: string[] = [],
+    isActive = true,
+  ) {
+    const suffix = `${Date.now()}-${randomUUID()}`;
+    const permissions = await prisma.permission.findMany({
+      where: { key: { in: permissionKeys } },
+      select: { id: true },
+    });
+    expect(permissions).toHaveLength(permissionKeys.length);
+    const role = await prisma.platformRole.create({
+      data: {
+        key: `STAFF_ROLE_E2E_${suffix}`.replace(/-/g, '_').slice(0, 100),
+        name: `Staff Role E2E ${suffix}`.slice(0, 150),
+        description: 'Role assignment E2E fixture',
+        isActive,
+        rolePermissions:
+          permissions.length > 0
+            ? {
+                create: permissions.map((permission) => ({
+                  permissionId: permission.id,
+                })),
+              }
+            : undefined,
+      },
+    });
+    extraRoleIds.push(role.id);
+    return role;
+  }
+
   it('serves platform health without the legacy role header', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/platform/health')
@@ -584,6 +614,328 @@ describe('FinStack foundation (e2e)', () => {
       .post(`/api/v1/platform/staff/${suspended.id}/reactivations`)
       .set('Authorization', `Bearer ${activateToken}`)
       .expect(400);
+  });
+
+  it('protects staff role listing and returns safe assignments', async () => {
+    const role = await createManagedRole();
+    const target = await createManagedStaff(
+      PlatformStaffStatus.ACTIVE,
+      role.id,
+    );
+    const viewToken = await createAccessToken(['platform.staff.view']);
+    const withoutPermission = await createAccessToken([
+      'platform.organization.view',
+    ]);
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${target.id}/roles`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${target.id}/roles`)
+      .set('Authorization', `Bearer ${withoutPermission}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/staff/not-a-uuid/roles')
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${randomUUID()}/roles`)
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(404);
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${target.id}/roles`)
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(200);
+    const body = response.body as unknown as {
+      data: Array<{
+        staffId: string;
+        role: Record<string, unknown>;
+        assignedAt: string;
+        assignedByStaffId: string | null;
+      }>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      staffId: target.id,
+      role: {
+        id: role.id,
+        key: role.key,
+        name: role.name,
+        description: role.description,
+        isSystemPreset: role.isSystemPreset,
+        isActive: true,
+      },
+    });
+    expect(body.data[0].role).not.toHaveProperty('rolePermissions');
+    expect(body.data[0]).not.toHaveProperty('staff');
+  });
+
+  it('assigns roles with actor attribution and enforces assignment rules', async () => {
+    const actor = await createPlatformActor(['platform.staff.role.assign']);
+    const withoutPermission = await createAccessToken(['platform.staff.view']);
+    const role = await createManagedRole();
+    const inactiveRole = await createManagedRole([], false);
+    const activeTarget = await createManagedStaff();
+    const inactiveTarget = await createManagedStaff(
+      PlatformStaffStatus.INACTIVE,
+    );
+    const suspendedTarget = await createManagedStaff(
+      PlatformStaffStatus.SUSPENDED,
+    );
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${withoutPermission}`)
+      .send({ roleId: role.id })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/v1/platform/staff/not-a-uuid/role-assignments')
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: 'not-a-uuid' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${randomUUID()}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: randomUUID() })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: inactiveRole.id })
+      .expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${suspendedTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(409);
+
+    for (const forbidden of [
+      { assignedByStaffId: randomUUID() },
+      { permissions: ['platform.organization.view'] },
+      { assignedAt: new Date().toISOString() },
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+        .set('Authorization', `Bearer ${actor.token}`)
+        .send({ roleId: role.id, ...forbidden })
+        .expect(400);
+    }
+
+    const assigned = await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(201);
+    const assignedBody = assigned.body as unknown as {
+      data: {
+        staffId: string;
+        role: { id: string };
+        assignedByStaffId: string;
+      };
+    };
+    expect(assignedBody.data).toMatchObject({
+      staffId: activeTarget.id,
+      role: { id: role.id },
+      assignedByStaffId: actor.staffId,
+    });
+    const stored = await prisma.platformStaffRole.findUniqueOrThrow({
+      where: {
+        staffId_roleId: { staffId: activeTarget.id, roleId: role.id },
+      },
+    });
+    expect(stored.assignedByStaffId).toBe(actor.staffId);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${activeTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${inactiveTarget.id}/role-assignments`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ roleId: role.id })
+      .expect(201);
+  });
+
+  it('requires an effective Super Admin actor for Super Admin role changes', async () => {
+    const nonSuperAdmin = await createPlatformActor([
+      'platform.staff.role.assign',
+    ]);
+    const effectiveSuperAdmin = await createPlatformActor([
+      'platform.staff.role.assign',
+    ]);
+    const superAdminRole = await prisma.platformRole.findUniqueOrThrow({
+      where: { key: 'PLATFORM_SUPER_ADMIN' },
+    });
+    await prisma.platformStaffRole.create({
+      data: {
+        staffId: effectiveSuperAdmin.staffId,
+        roleId: superAdminRole.id,
+      },
+    });
+    const target = await createManagedStaff();
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${target.id}/role-assignments`)
+      .set('Authorization', `Bearer ${nonSuperAdmin.token}`)
+      .send({ roleId: superAdminRole.id })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${nonSuperAdmin.staffId}/role-assignments`)
+      .set('Authorization', `Bearer ${nonSuperAdmin.token}`)
+      .send({ roleId: superAdminRole.id })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${target.id}/role-assignments`)
+      .set('Authorization', `Bearer ${effectiveSuperAdmin.token}`)
+      .send({ roleId: superAdminRole.id })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${target.id}/role-assignments/${superAdminRole.id}`,
+      )
+      .set('Authorization', `Bearer ${nonSuperAdmin.token}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${target.id}/role-assignments/${superAdminRole.id}`,
+      )
+      .set('Authorization', `Bearer ${effectiveSuperAdmin.token}`)
+      .expect(200);
+  });
+
+  it('removes exact role assignments across staff lifecycle states', async () => {
+    const assignmentToken = await createAccessToken([
+      'platform.staff.role.assign',
+    ]);
+    const withoutPermission = await createAccessToken(['platform.staff.view']);
+    const role = await createManagedRole();
+    const active = await createManagedStaff(
+      PlatformStaffStatus.ACTIVE,
+      role.id,
+    );
+    const inactive = await createManagedStaff(
+      PlatformStaffStatus.INACTIVE,
+      role.id,
+    );
+    const suspended = await createManagedStaff(
+      PlatformStaffStatus.SUSPENDED,
+      role.id,
+    );
+    const permissionTarget = await createManagedStaff(
+      PlatformStaffStatus.ACTIVE,
+      role.id,
+    );
+    const noAssignment = await createManagedStaff();
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${permissionTarget.id}/role-assignments/${role.id}`,
+      )
+      .set('Authorization', `Bearer ${withoutPermission}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/platform/staff/not-a-uuid/role-assignments/${role.id}`)
+      .set('Authorization', `Bearer ${assignmentToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/platform/staff/${active.id}/role-assignments/not-a-uuid`)
+      .set('Authorization', `Bearer ${assignmentToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${noAssignment.id}/role-assignments/${role.id}`,
+      )
+      .set('Authorization', `Bearer ${assignmentToken}`)
+      .expect(404);
+
+    for (const target of [active, inactive, suspended]) {
+      const response = await request(app.getHttpServer())
+        .delete(
+          `/api/v1/platform/staff/${target.id}/role-assignments/${role.id}`,
+        )
+        .set('Authorization', `Bearer ${assignmentToken}`)
+        .expect(200);
+      const body = response.body as unknown as {
+        data: { staffId: string; role: { id: string } };
+      };
+      expect(body.data).toMatchObject({
+        staffId: target.id,
+        role: { id: role.id },
+      });
+    }
+    await request(app.getHttpServer())
+      .delete(`/api/v1/platform/staff/${active.id}/role-assignments/${role.id}`)
+      .set('Authorization', `Bearer ${assignmentToken}`)
+      .expect(404);
+  });
+
+  it('allows Super Admin removal when another effective Super Admin remains', async () => {
+    const actor = await createPlatformActor(['platform.staff.role.assign']);
+    const superAdminRole = await prisma.platformRole.findUniqueOrThrow({
+      where: { key: 'PLATFORM_SUPER_ADMIN' },
+    });
+    await prisma.platformStaffRole.create({
+      data: { staffId: actor.staffId, roleId: superAdminRole.id },
+    });
+    const first = await createManagedStaff(
+      PlatformStaffStatus.ACTIVE,
+      superAdminRole.id,
+    );
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${first.id}/role-assignments/${superAdminRole.id}`,
+      )
+      .set('Authorization', `Bearer ${actor.token}`)
+      .expect(200);
+  });
+
+  it('refreshes effective permissions after role assignment and removal', async () => {
+    const target = await createPlatformActor([
+      'platform.staff.view',
+      'platform.staff.role.assign',
+    ]);
+    const organizationRole = await createManagedRole([
+      'platform.organization.view',
+    ]);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${target.token}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${target.staffId}/role-assignments`)
+      .set('Authorization', `Bearer ${target.token}`)
+      .send({ roleId: organizationRole.id })
+      .expect(201);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${target.token}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/platform/staff/${target.staffId}/role-assignments/${organizationRole.id}`,
+      )
+      .set('Authorization', `Bearer ${target.token}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${target.token}`)
+      .expect(403);
   });
 
   it('keeps the seeded catalog synchronized and never resets a bootstrap password', async () => {

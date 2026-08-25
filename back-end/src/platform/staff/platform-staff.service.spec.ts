@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { PlatformStaffStatus, Prisma } from '@prisma/client';
@@ -15,6 +16,22 @@ const baseStaff = {
   lastLoginAt: null,
   createdAt: new Date('2026-08-25T00:00:00.000Z'),
   updatedAt: new Date('2026-08-25T00:00:00.000Z'),
+};
+
+const baseRole = {
+  id: 'b2314442-9af1-42e8-8e01-d10e08b79880',
+  key: 'SUPPORT_AGENT',
+  name: 'Customer Support Agent',
+  description: 'Support access',
+  isSystemPreset: true,
+  isActive: true,
+};
+
+const baseAssignment = {
+  staffId: baseStaff.id,
+  role: baseRole,
+  assignedAt: new Date('2026-08-25T01:00:00.000Z'),
+  assignedByStaffId: '896de305-f304-438e-812c-77256fd6710b',
 };
 
 function serviceWith(
@@ -136,6 +153,364 @@ describe('PlatformStaffService', () => {
     await expect(service.findOne(baseStaff.id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('lists assigned roles with a safe stable projection', async () => {
+    let capturedFindManyArgs: unknown;
+    const service = serviceWith({
+      platformStaff: {
+        findUnique: jest.fn().mockResolvedValue({ id: baseStaff.id }),
+      },
+      platformStaffRole: {
+        findMany: jest.fn((args: unknown) => {
+          capturedFindManyArgs = args;
+          return Promise.resolve([baseAssignment]);
+        }),
+      },
+    });
+
+    await expect(service.findAssignedRoles(baseStaff.id)).resolves.toEqual([
+      baseAssignment,
+    ]);
+    const args = capturedFindManyArgs as {
+      orderBy: Array<Record<string, unknown>>;
+      select: Record<string, unknown>;
+    };
+    expect(args.orderBy).toEqual([
+      { role: { name: 'asc' } },
+      { role: { key: 'asc' } },
+    ]);
+    expect(args.select).not.toHaveProperty('staff');
+    expect(args.select).not.toHaveProperty('rolePermissions');
+  });
+
+  it('assigns an active role with authenticated actor attribution', async () => {
+    const create = jest.fn().mockResolvedValue(baseAssignment);
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.INACTIVE }),
+      },
+      platformRole: { findUnique: jest.fn().mockResolvedValue(baseRole) },
+      platformStaffRole: { create },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.assignRole(
+        baseStaff.id,
+        { roleId: baseRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).resolves.toEqual(baseAssignment);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          staffId: baseStaff.id,
+          roleId: baseRole.id,
+          assignedByStaffId: baseAssignment.assignedByStaffId,
+        },
+      }),
+    );
+  });
+
+  it('rejects assignment to suspended staff or from an inactive role', async () => {
+    const suspendedTransaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.SUSPENDED }),
+      },
+      platformRole: { findUnique: jest.fn().mockResolvedValue(baseRole) },
+    };
+    const suspendedService = serviceWith({
+      $transaction: jest.fn(
+        (
+          operation: (client: typeof suspendedTransaction) => Promise<unknown>,
+        ) => operation(suspendedTransaction),
+      ),
+    });
+    const inactiveRoleTransaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+      },
+      platformRole: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ ...baseRole, isActive: false }),
+      },
+    };
+    const inactiveRoleService = serviceWith({
+      $transaction: jest.fn(
+        (
+          operation: (
+            client: typeof inactiveRoleTransaction,
+          ) => Promise<unknown>,
+        ) => operation(inactiveRoleTransaction),
+      ),
+    });
+
+    await expect(
+      suspendedService.assignRole(
+        baseStaff.id,
+        { roleId: baseRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      inactiveRoleService.assignRole(
+        baseStaff.id,
+        { roleId: baseRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('maps duplicate role assignment to a controlled conflict', async () => {
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+      },
+      platformRole: { findUnique: jest.fn().mockResolvedValue(baseRole) },
+      platformStaffRole: {
+        create: jest.fn().mockRejectedValue(
+          new Prisma.PrismaClientKnownRequestError('Unique failed', {
+            code: 'P2002',
+            clientVersion: 'test',
+          }),
+        ),
+      },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.assignRole(
+        baseStaff.id,
+        { roleId: baseRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('blocks a non-Super-Admin from assigning Super Admin to themselves', async () => {
+    const superAdminRole = {
+      ...baseRole,
+      key: 'PLATFORM_SUPER_ADMIN',
+      name: 'Platform Super Admin',
+    };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(superAdminRole),
+      },
+      platformStaffRole: { create: jest.fn() },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.assignRole(
+        baseStaff.id,
+        { roleId: superAdminRole.id },
+        baseStaff.id,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(transaction.platformStaffRole.create).not.toHaveBeenCalled();
+  });
+
+  it('allows an effective Super Admin to assign the Super Admin role', async () => {
+    const superAdminRole = {
+      ...baseRole,
+      key: 'PLATFORM_SUPER_ADMIN',
+      name: 'Platform Super Admin',
+    };
+    const assignment = { ...baseAssignment, role: superAdminRole };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: baseAssignment.assignedByStaffId }),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(superAdminRole),
+      },
+      platformStaffRole: {
+        create: jest.fn().mockResolvedValue(assignment),
+      },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.assignRole(
+        baseStaff.id,
+        { roleId: superAdminRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).resolves.toEqual(assignment);
+  });
+
+  it('blocks a non-Super-Admin from removing a Super Admin assignment', async () => {
+    const superAdminRole = {
+      ...baseRole,
+      key: 'PLATFORM_SUPER_ADMIN',
+      name: 'Platform Super Admin',
+    };
+    const assignment = { ...baseAssignment, role: superAdminRole };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        count: jest.fn(),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(superAdminRole),
+      },
+      platformStaffRole: {
+        findUnique: jest.fn().mockResolvedValue(assignment),
+        deleteMany: jest.fn(),
+      },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.removeRole(baseStaff.id, superAdminRole.id, 'non-super-admin-id'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(transaction.platformStaff.count).not.toHaveBeenCalled();
+    expect(transaction.platformStaffRole.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('blocks removal of the last effective Super Admin assignment', async () => {
+    const superAdminRole = {
+      ...baseRole,
+      key: 'PLATFORM_SUPER_ADMIN',
+      name: 'Platform Super Admin',
+    };
+    const assignment = { ...baseAssignment, role: superAdminRole };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: baseAssignment.assignedByStaffId }),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(superAdminRole),
+      },
+      platformStaffRole: {
+        findUnique: jest.fn().mockResolvedValue(assignment),
+        deleteMany: jest.fn(),
+      },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
+    });
+
+    await expect(
+      service.removeRole(
+        baseStaff.id,
+        superAdminRole.id,
+        baseAssignment.assignedByStaffId,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(transaction.platformStaffRole.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('removes a Super Admin assignment when another remains', async () => {
+    const superAdminRole = {
+      ...baseRole,
+      key: 'PLATFORM_SUPER_ADMIN',
+      name: 'Platform Super Admin',
+    };
+    const assignment = { ...baseAssignment, role: superAdminRole };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: baseAssignment.assignedByStaffId }),
+        count: jest.fn().mockResolvedValue(2),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(superAdminRole),
+      },
+      platformStaffRole: {
+        findUnique: jest.fn().mockResolvedValue(assignment),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(
+        (
+          operation: (client: typeof transaction) => Promise<unknown>,
+          options?: { isolationLevel: Prisma.TransactionIsolationLevel },
+        ) => {
+          void options;
+          return operation(transaction);
+        },
+      ),
+    };
+    const service = serviceWith(prisma);
+
+    await expect(
+      service.removeRole(
+        baseStaff.id,
+        superAdminRole.id,
+        baseAssignment.assignedByStaffId,
+      ),
+    ).resolves.toEqual(assignment);
+    expect(transaction.platformStaffRole.deleteMany).toHaveBeenCalledWith({
+      where: { staffId: baseStaff.id, roleId: superAdminRole.id },
+    });
+    expect(prisma.$transaction.mock.calls[0][1]).toEqual({
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
   });
 
   it('blocks deactivation of the last effective active Super Admin', async () => {
