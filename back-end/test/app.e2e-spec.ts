@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { PlatformStaffStatus } from '@prisma/client';
+import { OrganizationStatus, PlatformStaffStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
 import { createHash, randomUUID } from 'crypto';
@@ -22,6 +22,8 @@ describe('FinStack foundation (e2e)', () => {
   let roleId: string;
   let bootstrapStaffId: string | undefined;
   const extraRoleIds: string[] = [];
+  const extraStaffIds: string[] = [];
+  const extraOrganizationIds: string[] = [];
   const email = `auth-e2e-${Date.now()}@example.test`;
   const password = 'Auth-e2e-password-2026!';
 
@@ -58,6 +60,7 @@ describe('FinStack foundation (e2e)', () => {
     await app.init();
 
     prisma = app.get(PrismaService);
+    await seedPlatformAuthRbac(prisma);
     const permission = await prisma.permission.findUniqueOrThrow({
       where: { key: 'platform.staff.view' },
     });
@@ -87,6 +90,16 @@ describe('FinStack foundation (e2e)', () => {
     if (bootstrapStaffId) {
       await prisma.platformStaff.delete({ where: { id: bootstrapStaffId } });
     }
+    if (extraOrganizationIds.length > 0) {
+      await prisma.organization.deleteMany({
+        where: { id: { in: extraOrganizationIds } },
+      });
+    }
+    if (extraStaffIds.length > 0) {
+      await prisma.platformStaff.deleteMany({
+        where: { id: { in: extraStaffIds } },
+      });
+    }
     if (staffId) {
       await prisma.platformStaff.delete({ where: { id: staffId } });
     }
@@ -100,6 +113,58 @@ describe('FinStack foundation (e2e)', () => {
     }
     await app.close();
   });
+
+  async function createAccessToken(permissionKeys: string[]): Promise<string> {
+    const suffix = `${Date.now()}-${randomUUID()}`;
+    const permissions = await prisma.permission.findMany({
+      where: { key: { in: permissionKeys } },
+      select: { id: true },
+    });
+    expect(permissions).toHaveLength(permissionKeys.length);
+
+    const role = await prisma.platformRole.create({
+      data: {
+        key: `ORG_E2E_${suffix}`.replace(/-/g, '_').slice(0, 100),
+        name: `Organization E2E ${suffix}`.slice(0, 150),
+        rolePermissions: {
+          create: permissions.map((permission) => ({
+            permissionId: permission.id,
+          })),
+        },
+      },
+    });
+    extraRoleIds.push(role.id);
+
+    const staff = await prisma.platformStaff.create({
+      data: {
+        firstName: 'Org',
+        lastName: 'E2E',
+        email: `org-e2e-${suffix}@example.test`,
+        passwordHash: await argon2.hash('Org-e2e-password-2026!'),
+        roles: { create: { roleId: role.id } },
+      },
+    });
+    extraStaffIds.push(staff.id);
+
+    const session = await prisma.platformAuthSession.create({
+      data: {
+        staffId: staff.id,
+        refreshTokenHash: createHash('sha256').update(suffix).digest('hex'),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    return new JwtService().sign(
+      { sub: staff.id, sid: session.id, type: 'access' },
+      {
+        algorithm: 'HS256',
+        secret: process.env.PLATFORM_JWT_ACCESS_SECRET,
+        issuer: process.env.PLATFORM_JWT_ISSUER,
+        audience: process.env.PLATFORM_JWT_AUDIENCE,
+        expiresIn: '5m',
+      },
+    );
+  }
 
   it('serves platform health without the legacy role header', async () => {
     const response = await request(app.getHttpServer())
@@ -146,6 +211,97 @@ describe('FinStack foundation (e2e)', () => {
         data: { staffId, roleId: randomUUID() },
       }),
     ).rejects.toMatchObject({ code: 'P2003' });
+  });
+
+  it('rejects organization creation lifecycle status input', async () => {
+    const token = await createAccessToken(['platform.organization.create']);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Forbidden Status LLC',
+        primaryEmail: `forbidden-status-${Date.now()}@example.test`,
+        status: OrganizationStatus.SUSPENDED,
+      })
+      .expect(400);
+  });
+
+  it('creates organizations in provisioning status', async () => {
+    const token = await createAccessToken(['platform.organization.create']);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Provisioning Org LLC',
+        primaryEmail: `provisioning-org-${Date.now()}@example.test`,
+      })
+      .expect(201);
+    const body = response.body as unknown as {
+      data: { id: string; status: OrganizationStatus };
+    };
+    extraOrganizationIds.push(body.data.id);
+
+    expect(body.data.status).toBe(OrganizationStatus.PROVISIONING);
+  });
+
+  it('validates organization route IDs before hitting Prisma', async () => {
+    const token = await createAccessToken(['platform.organization.view']);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations/hello')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('enforces organization route authentication and permissions', async () => {
+    const viewToken = await createAccessToken(['platform.organization.view']);
+    const noOrganizationPermissionToken = await createAccessToken([
+      'platform.staff.view',
+    ]);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${noOrganizationPermissionToken}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(200);
+  });
+
+  it('requires dedicated lifecycle permissions for organization suspension', async () => {
+    const createToken = await createAccessToken([
+      'platform.organization.create',
+    ]);
+    const viewToken = await createAccessToken(['platform.organization.view']);
+    const suspendToken = await createAccessToken([
+      'platform.organization.suspend',
+    ]);
+
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/platform/organizations')
+      .set('Authorization', `Bearer ${createToken}`)
+      .send({
+        name: 'Lifecycle Permission LLC',
+        primaryEmail: `lifecycle-permission-${Date.now()}@example.test`,
+      })
+      .expect(201);
+    const body = created.body as unknown as { data: { id: string } };
+    extraOrganizationIds.push(body.data.id);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/organizations/${body.data.id}/suspensions`)
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/organizations/${body.data.id}/suspensions`)
+      .set('Authorization', `Bearer ${suspendToken}`)
+      .expect(201);
   });
 
   it('keeps the seeded catalog synchronized and never resets a bootstrap password', async () => {

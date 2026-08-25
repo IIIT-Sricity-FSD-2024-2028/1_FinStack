@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { PermissionGate } from '../auth/PermissionGate';
 import { useAuth } from '../auth/useAuth';
 
 export function AdminLayout() {
@@ -14,10 +15,26 @@ export function AdminLayout() {
           </span>
         </div>
         <nav aria-label="Admin navigation">
-          <NavLink className="nav-item nav-item-active" to="/health">
+          <NavLink
+            className={({ isActive }) =>
+              `nav-item${isActive ? ' nav-item-active' : ''}`
+            }
+            to="/health"
+          >
             <span className="nav-indicator" aria-hidden="true" />
             System health
           </NavLink>
+          <PermissionGate permission="platform.organization.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? ' nav-item-active' : ''}`
+              }
+              to="/organizations"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Organizations
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>

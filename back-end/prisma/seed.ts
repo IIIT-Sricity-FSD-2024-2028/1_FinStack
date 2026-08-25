@@ -2,6 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const permissions = [
+  ['platform.organization.view', 'View organizations'],
+  ['platform.organization.create', 'Create organizations'],
+  ['platform.organization.update', 'Update organization metadata'],
+  ['platform.organization.suspend', 'Suspend organizations'],
+  ['platform.organization.reactivate', 'Reactivate organizations'],
+  ['platform.organization.cancel', 'Cancel organizations'],
+  ['platform.organization.archive', 'Archive organizations'],
   ['platform.staff.view', 'View platform staff'],
   ['platform.staff.create', 'Create platform staff'],
   ['platform.staff.update', 'Update platform staff'],

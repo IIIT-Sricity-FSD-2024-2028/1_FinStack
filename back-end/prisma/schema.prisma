@@ -14,6 +14,40 @@ enum PlatformStaffStatus {
   SUSPENDED
 }
 
+enum OrganizationStatus {
+  PROVISIONING
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  ARCHIVED
+}
+
+model Organization {
+  id                  String             @id @default(uuid()) @db.Uuid
+  name                String             @db.VarChar(180)
+  slug                String?            @unique @db.VarChar(120)
+  primaryEmail        String             @unique @db.VarChar(320)
+  primaryContactName  String?            @db.VarChar(160)
+  primaryContactEmail String?            @db.VarChar(320)
+  billingEmail        String?            @db.VarChar(320)
+  country             String?            @db.VarChar(100)
+  defaultCurrency     String             @default("INR") @db.Char(3)
+  timezone            String?            @db.VarChar(80)
+  status              OrganizationStatus @default(PROVISIONING)
+  externalCustomerRef String?            @unique @db.VarChar(160)
+  metadata            Json?
+  statusChangedAt     DateTime?
+  suspendedAt         DateTime?
+  cancelledAt         DateTime?
+  archivedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
 model PlatformStaff {
   id            String                @id @default(uuid()) @db.Uuid
   firstName     String                @db.VarChar(100)
