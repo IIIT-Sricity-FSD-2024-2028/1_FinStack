@@ -73,7 +73,7 @@ export class PlatformOrganizationsService {
           country: this.optionalTrim(dto.country),
           defaultCurrency: dto.defaultCurrency?.toUpperCase() ?? 'INR',
           timezone: this.optionalTrim(dto.timezone),
-          status: dto.status ?? OrganizationStatus.PROVISIONING,
+          status: OrganizationStatus.PROVISIONING,
           statusChangedAt: new Date(),
           externalCustomerRef: this.optionalTrim(dto.externalCustomerRef),
           metadata: this.toPrismaJson(dto.metadata),

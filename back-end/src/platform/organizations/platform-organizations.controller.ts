@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  ParseUUIDPipe,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -37,42 +38,45 @@ export class PlatformOrganizationsController {
   @Get(':id')
   @Permissions('platform.organization.view')
   @ApiOperation({ summary: 'Get organization details' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizations.findOne(id);
   }
 
   @Patch(':id')
   @Permissions('platform.organization.update')
   @ApiOperation({ summary: 'Update organization metadata' })
-  update(@Param('id') id: string, @Body() dto: UpdateOrganizationDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
     return this.organizations.update(id, dto);
   }
 
   @Post(':id/suspensions')
   @Permissions('platform.organization.suspend')
   @ApiOperation({ summary: 'Suspend an organization' })
-  suspend(@Param('id') id: string) {
+  suspend(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizations.suspend(id);
   }
 
   @Post(':id/reactivations')
   @Permissions('platform.organization.reactivate')
   @ApiOperation({ summary: 'Reactivate a suspended organization' })
-  reactivate(@Param('id') id: string) {
+  reactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizations.reactivate(id);
   }
 
   @Post(':id/cancellations')
   @Permissions('platform.organization.cancel')
   @ApiOperation({ summary: 'Cancel an organization' })
-  cancel(@Param('id') id: string) {
+  cancel(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizations.cancel(id);
   }
 
   @Post(':id/archivals')
   @Permissions('platform.organization.archive')
   @ApiOperation({ summary: 'Archive a cancelled organization' })
-  archive(@Param('id') id: string) {
+  archive(@Param('id', ParseUUIDPipe) id: string) {
     return this.organizations.archive(id);
   }
 }

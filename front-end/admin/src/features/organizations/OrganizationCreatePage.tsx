@@ -48,7 +48,6 @@ export function OrganizationCreatePage() {
       )}
       <div className="status-card form-panel">
         <OrganizationForm
-          includeStatus
           submitting={submitting}
           submitLabel="Create organization"
           onSubmit={create}

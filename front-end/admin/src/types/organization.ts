@@ -55,7 +55,6 @@ export interface OrganizationPayload {
   country?: string;
   defaultCurrency?: string;
   timezone?: string;
-  status?: OrganizationStatus;
   externalCustomerRef?: string;
   metadata?: Record<string, unknown>;
 }

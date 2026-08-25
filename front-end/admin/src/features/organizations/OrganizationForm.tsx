@@ -2,13 +2,10 @@ import { useMemo, useState, type FormEvent } from 'react';
 import type {
   Organization,
   OrganizationPayload,
-  OrganizationStatus,
 } from '../../types/organization';
-import { organizationStatuses, statusLabel } from './organization-ui';
 
 interface OrganizationFormProps {
   organization?: Organization;
-  includeStatus?: boolean;
   submitting: boolean;
   submitLabel: string;
   onSubmit: (payload: OrganizationPayload) => Promise<void>;
@@ -24,14 +21,12 @@ interface OrganizationFormValues {
   country: string;
   defaultCurrency: string;
   timezone: string;
-  status: OrganizationStatus;
   externalCustomerRef: string;
   metadata: string;
 }
 
 export function OrganizationForm({
   organization,
-  includeStatus = false,
   submitting,
   submitLabel,
   onSubmit,
@@ -47,7 +42,6 @@ export function OrganizationForm({
       country: organization?.country ?? '',
       defaultCurrency: organization?.defaultCurrency ?? 'INR',
       timezone: organization?.timezone ?? '',
-      status: organization?.status ?? 'PROVISIONING',
       externalCustomerRef: organization?.externalCustomerRef ?? '',
       metadata: organization?.metadata
         ? JSON.stringify(organization.metadata, null, 2)
@@ -92,7 +86,6 @@ export function OrganizationForm({
       country: optional(values.country),
       defaultCurrency: optional(values.defaultCurrency),
       timezone: optional(values.timezone),
-      status: includeStatus ? values.status : undefined,
       externalCustomerRef: optional(values.externalCustomerRef),
       metadata,
     });
@@ -187,23 +180,6 @@ export function OrganizationForm({
             onChange={(event) => update('timezone', event.target.value)}
           />
         </label>
-        {includeStatus && (
-          <label>
-            Initial status
-            <select
-              value={values.status}
-              onChange={(event) =>
-                update('status', event.target.value as OrganizationStatus)
-              }
-            >
-              {organizationStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {statusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         <label>
           External customer ref
           <input

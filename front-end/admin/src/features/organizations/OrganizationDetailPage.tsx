@@ -44,7 +44,7 @@ export function OrganizationDetailPage() {
   async function runLifecycle(
     label: string,
     permission: string,
-    action: (id: string, reason?: string) => Promise<Organization>,
+    action: (id: string) => Promise<Organization>,
   ) {
     if (!data || !window.confirm(`${label} ${data.name}?`)) return;
     setActionError(null);

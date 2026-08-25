@@ -38,35 +38,31 @@ export function createOrganization(payload: OrganizationPayload) {
   });
 }
 
-export function updateOrganization(
-  id: string,
-  payload: Omit<OrganizationPayload, 'status'>,
-) {
+export function updateOrganization(id: string, payload: OrganizationPayload) {
   return apiRequest<Organization>(`/organizations/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }
 
-export function suspendOrganization(id: string, reason?: string) {
-  return lifecycle(id, 'suspensions', reason);
+export function suspendOrganization(id: string) {
+  return lifecycle(id, 'suspensions');
 }
 
-export function reactivateOrganization(id: string, reason?: string) {
-  return lifecycle(id, 'reactivations', reason);
+export function reactivateOrganization(id: string) {
+  return lifecycle(id, 'reactivations');
 }
 
-export function cancelOrganization(id: string, reason?: string) {
-  return lifecycle(id, 'cancellations', reason);
+export function cancelOrganization(id: string) {
+  return lifecycle(id, 'cancellations');
 }
 
-export function archiveOrganization(id: string, reason?: string) {
-  return lifecycle(id, 'archivals', reason);
+export function archiveOrganization(id: string) {
+  return lifecycle(id, 'archivals');
 }
 
-function lifecycle(id: string, action: string, reason?: string) {
+function lifecycle(id: string, action: string) {
   return apiRequest<Organization>(`/organizations/${id}/${action}`, {
     method: 'POST',
-    body: JSON.stringify(reason ? { reason } : {}),
   });
 }

@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { PermissionRoute } from '../auth/PermissionRoute';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { PublicOnlyRoute } from '../auth/PublicOnlyRoute';
 import { LoginPage } from '../features/auth/LoginPage';
@@ -20,7 +21,16 @@ export function AppRouter() {
           <Route index element={<HealthPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="organizations" element={<OrganizationsPage />} />
-          <Route path="organizations/new" element={<OrganizationCreatePage />} />
+          <Route
+            element={
+              <PermissionRoute permission="platform.organization.create" />
+            }
+          >
+            <Route
+              path="organizations/new"
+              element={<OrganizationCreatePage />}
+            />
+          </Route>
           <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         </Route>
       </Route>

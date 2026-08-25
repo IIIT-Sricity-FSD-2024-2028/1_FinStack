@@ -107,6 +107,30 @@ describe('PlatformOrganizationsService', () => {
     expect(updateArg.data).not.toHaveProperty('status');
   });
 
+  it('creates organizations in provisioning regardless of lifecycle input shape', async () => {
+    const create = jest.fn((args: unknown) => {
+      void args;
+      return Promise.resolve({
+        ...baseOrganization,
+        status: OrganizationStatus.PROVISIONING,
+      });
+    });
+    const service = serviceWithPrisma({
+      organization: { create },
+    });
+
+    await service.create({
+      name: 'Acme Finance',
+      primaryEmail: 'ADMIN@ACME.TEST',
+    });
+
+    const createArg = create.mock.calls[0]?.[0] as {
+      data: { status?: OrganizationStatus; primaryEmail?: string };
+    };
+    expect(createArg.data.status).toBe(OrganizationStatus.PROVISIONING);
+    expect(createArg.data.primaryEmail).toBe('admin@acme.test');
+  });
+
   it('rejects invalid lifecycle transitions', async () => {
     const prisma = {
       organization: {
