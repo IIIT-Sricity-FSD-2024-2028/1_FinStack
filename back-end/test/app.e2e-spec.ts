@@ -114,7 +114,10 @@ describe('FinStack foundation (e2e)', () => {
     await app.close();
   });
 
-  async function createAccessToken(permissionKeys: string[]): Promise<string> {
+  async function createPlatformActor(permissionKeys: string[]): Promise<{
+    token: string;
+    staffId: string;
+  }> {
     const suffix = `${Date.now()}-${randomUUID()}`;
     const permissions = await prisma.permission.findMany({
       where: { key: { in: permissionKeys } },
@@ -154,7 +157,7 @@ describe('FinStack foundation (e2e)', () => {
       },
     });
 
-    return new JwtService().sign(
+    const token = new JwtService().sign(
       { sub: staff.id, sid: session.id, type: 'access' },
       {
         algorithm: 'HS256',
@@ -164,6 +167,30 @@ describe('FinStack foundation (e2e)', () => {
         expiresIn: '5m',
       },
     );
+    return { token, staffId: staff.id };
+  }
+
+  async function createAccessToken(permissionKeys: string[]): Promise<string> {
+    return (await createPlatformActor(permissionKeys)).token;
+  }
+
+  async function createManagedStaff(
+    status: PlatformStaffStatus = PlatformStaffStatus.ACTIVE,
+    roleId?: string,
+  ) {
+    const suffix = `${Date.now()}-${randomUUID()}`;
+    const staff = await prisma.platformStaff.create({
+      data: {
+        firstName: 'Managed',
+        lastName: 'Staff',
+        email: `managed-${suffix}@example.test`,
+        passwordHash: await argon2.hash('Managed-password-2026!'),
+        status,
+        roles: roleId ? { create: { roleId } } : undefined,
+      },
+    });
+    extraStaffIds.push(staff.id);
+    return staff;
   }
 
   it('serves platform health without the legacy role header', async () => {
@@ -302,6 +329,261 @@ describe('FinStack foundation (e2e)', () => {
       .post(`/api/v1/platform/organizations/${body.data.id}/suspensions`)
       .set('Authorization', `Bearer ${suspendToken}`)
       .expect(201);
+  });
+
+  it('protects staff list/detail and returns only safe staff fields', async () => {
+    const viewToken = await createAccessToken(['platform.staff.view']);
+    const withoutPermission = await createAccessToken([
+      'platform.organization.view',
+    ]);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/staff')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/staff')
+      .set('Authorization', `Bearer ${withoutPermission}`)
+      .expect(403);
+
+    const list = await request(app.getHttpServer())
+      .get('/api/v1/platform/staff?search=Auth&status=ACTIVE&page=1&limit=10')
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(200);
+    const listBody = list.body as unknown as {
+      data: { items: Array<Record<string, unknown>> };
+    };
+    expect(listBody.data.items.length).toBeGreaterThan(0);
+    expect(listBody.data.items[0]).not.toHaveProperty('passwordHash');
+    expect(listBody.data.items[0]).not.toHaveProperty('authSessions');
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${staffId}`)
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(200);
+    const detailBody = detail.body as unknown as {
+      data: Record<string, unknown>;
+    };
+    expect(detailBody.data).toMatchObject({ id: staffId, email });
+    expect(detailBody.data).not.toHaveProperty('passwordHash');
+
+    await request(app.getHttpServer())
+      .get('/api/v1/platform/staff/not-a-uuid')
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .get(`/api/v1/platform/staff/${randomUUID()}`)
+      .set('Authorization', `Bearer ${viewToken}`)
+      .expect(404);
+  });
+
+  it('creates active staff with normalized identity and a hashed password', async () => {
+    const createToken = await createAccessToken(['platform.staff.create']);
+    const createEmail = `created-${Date.now()}@example.test`;
+    const initialPassword = 'Created-password-2026!';
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/platform/staff')
+      .set('Authorization', `Bearer ${createToken}`)
+      .send({
+        firstName: '  Created ',
+        lastName: ' Staff  ',
+        email: createEmail.toUpperCase(),
+        initialPassword,
+      })
+      .expect(201);
+    const createBody = response.body as unknown as {
+      data: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        status: PlatformStaffStatus;
+      };
+    };
+    const created = createBody.data;
+    extraStaffIds.push(created.id);
+    expect(created).toMatchObject({
+      email: createEmail,
+      firstName: 'Created',
+      lastName: 'Staff',
+      status: PlatformStaffStatus.ACTIVE,
+    });
+    expect(created).not.toHaveProperty('passwordHash');
+
+    const stored = await prisma.platformStaff.findUniqueOrThrow({
+      where: { id: created.id },
+    });
+    expect(stored.passwordHash).not.toBe(initialPassword);
+    await expect(
+      argon2.verify(stored.passwordHash, initialPassword),
+    ).resolves.toBe(true);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/platform/staff')
+      .set('Authorization', `Bearer ${createToken}`)
+      .send({
+        firstName: 'Duplicate',
+        lastName: 'Staff',
+        email: createEmail.toUpperCase(),
+        initialPassword,
+      })
+      .expect(409);
+
+    for (const forbidden of [
+      { status: PlatformStaffStatus.INACTIVE },
+      { roles: [roleId] },
+      { passwordHash: 'caller-controlled' },
+    ]) {
+      await request(app.getHttpServer())
+        .post('/api/v1/platform/staff')
+        .set('Authorization', `Bearer ${createToken}`)
+        .send({
+          firstName: 'Rejected',
+          lastName: 'Staff',
+          email: `rejected-${randomUUID()}@example.test`,
+          initialPassword,
+          ...forbidden,
+        })
+        .expect(400);
+    }
+  });
+
+  it('updates only normalized staff profile fields', async () => {
+    const updateToken = await createAccessToken(['platform.staff.update']);
+    const target = await createManagedStaff();
+    const conflict = await createManagedStaff();
+    const nextEmail = `updated-${Date.now()}@example.test`;
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/platform/staff/${target.id}`)
+      .set('Authorization', `Bearer ${updateToken}`)
+      .send({
+        firstName: '  Updated ',
+        lastName: ' Name ',
+        email: nextEmail.toUpperCase(),
+      })
+      .expect(200);
+    const updateBody = response.body as unknown as {
+      data: Record<string, unknown>;
+    };
+    expect(updateBody.data).toMatchObject({
+      firstName: 'Updated',
+      lastName: 'Name',
+      email: nextEmail,
+    });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/platform/staff/${target.id}`)
+      .set('Authorization', `Bearer ${updateToken}`)
+      .send({ email: conflict.email.toUpperCase() })
+      .expect(409);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/platform/staff/${randomUUID()}`)
+      .set('Authorization', `Bearer ${updateToken}`)
+      .send({ firstName: 'Missing' })
+      .expect(404);
+
+    for (const forbidden of [
+      { status: PlatformStaffStatus.INACTIVE },
+      { passwordHash: 'caller-controlled' },
+    ]) {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/platform/staff/${target.id}`)
+        .set('Authorization', `Bearer ${updateToken}`)
+        .send(forbidden)
+        .expect(400);
+    }
+  });
+
+  it('deactivates active staff and revokes all target sessions', async () => {
+    const disableToken = await createAccessToken(['platform.staff.disable']);
+    const target = await createManagedStaff();
+    const suspended = await createManagedStaff(PlatformStaffStatus.SUSPENDED);
+    await prisma.platformAuthSession.createMany({
+      data: [1, 2].map((number) => ({
+        staffId: target.id,
+        refreshTokenHash: createHash('sha256')
+          .update(`${target.id}-${number}`)
+          .digest('hex'),
+        expiresAt: new Date(Date.now() + 60_000),
+      })),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${target.id}/deactivations`)
+      .set('Authorization', `Bearer ${disableToken}`)
+      .expect(201);
+    const deactivateBody = response.body as unknown as {
+      data: { status: PlatformStaffStatus };
+    };
+    expect(deactivateBody.data.status).toBe(PlatformStaffStatus.INACTIVE);
+    await expect(
+      prisma.platformAuthSession.count({
+        where: { staffId: target.id, revokedAt: null },
+      }),
+    ).resolves.toBe(0);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${target.id}/deactivations`)
+      .set('Authorization', `Bearer ${disableToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${suspended.id}/deactivations`)
+      .set('Authorization', `Bearer ${disableToken}`)
+      .expect(400);
+  });
+
+  it('rejects self-deactivation', async () => {
+    const actor = await createPlatformActor(['platform.staff.disable']);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${actor.staffId}/deactivations`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .expect(409);
+  });
+
+  it('allows one Super Admin deactivation while another remains effective', async () => {
+    const disableToken = await createAccessToken(['platform.staff.disable']);
+    const superAdminRole = await prisma.platformRole.findUniqueOrThrow({
+      where: { key: 'PLATFORM_SUPER_ADMIN' },
+    });
+    const first = await createManagedStaff(
+      PlatformStaffStatus.ACTIVE,
+      superAdminRole.id,
+    );
+    await createManagedStaff(PlatformStaffStatus.ACTIVE, superAdminRole.id);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${first.id}/deactivations`)
+      .set('Authorization', `Bearer ${disableToken}`)
+      .expect(201);
+  });
+
+  it('reactivates only inactive staff with the activate permission', async () => {
+    const activateToken = await createAccessToken(['platform.staff.activate']);
+    const withoutPermission = await createAccessToken(['platform.staff.view']);
+    const inactive = await createManagedStaff(PlatformStaffStatus.INACTIVE);
+    const suspended = await createManagedStaff(PlatformStaffStatus.SUSPENDED);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${inactive.id}/reactivations`)
+      .set('Authorization', `Bearer ${withoutPermission}`)
+      .expect(403);
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${inactive.id}/reactivations`)
+      .set('Authorization', `Bearer ${activateToken}`)
+      .expect(201);
+    const reactivateBody = response.body as unknown as {
+      data: { status: PlatformStaffStatus };
+    };
+    expect(reactivateBody.data.status).toBe(PlatformStaffStatus.ACTIVE);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${inactive.id}/reactivations`)
+      .set('Authorization', `Bearer ${activateToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/staff/${suspended.id}/reactivations`)
+      .set('Authorization', `Bearer ${activateToken}`)
+      .expect(400);
   });
 
   it('keeps the seeded catalog synchronized and never resets a bootstrap password', async () => {

@@ -7,6 +7,7 @@ import { PlatformHealthModule } from './health/platform-health.module';
 import { PlatformOrganizationsModule } from './organizations/platform-organizations.module';
 import { PlatformPermissionGuard } from './rbac/guards/platform-permission.guard';
 import { PlatformRbacModule } from './rbac/platform-rbac.module';
+import { PlatformStaffModule } from './staff/platform-staff.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PlatformRbacModule } from './rbac/platform-rbac.module';
     PlatformAuthModule,
     PlatformHealthModule,
     PlatformOrganizationsModule,
+    PlatformStaffModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: PlatformAuthenticationGuard },

@@ -108,8 +108,12 @@ export class PlatformSessionService {
     });
   }
 
-  async revokeAllForStaff(staffId: string): Promise<void> {
-    await this.prisma.platformAuthSession.updateMany({
+  async revokeAllForStaff(
+    staffId: string,
+    transaction?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = transaction ?? this.prisma;
+    await client.platformAuthSession.updateMany({
       where: { staffId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
