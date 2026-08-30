@@ -1,6 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { PermissionGate } from '../auth/PermissionGate';
-import { useAuth } from '../auth/useAuth';
+import { NavLink, Outlet } from "react-router-dom";
+import { PermissionGate } from "../auth/PermissionGate";
+import { useAuth } from "../auth/useAuth";
 
 export function AdminLayout() {
   const { auth, logout } = useAuth();
@@ -17,7 +17,7 @@ export function AdminLayout() {
         <nav aria-label="Admin navigation">
           <NavLink
             className={({ isActive }) =>
-              `nav-item${isActive ? ' nav-item-active' : ''}`
+              `nav-item${isActive ? " nav-item-active" : ""}`
             }
             to="/health"
           >
@@ -27,12 +27,34 @@ export function AdminLayout() {
           <PermissionGate permission="platform.organization.view">
             <NavLink
               className={({ isActive }) =>
-                `nav-item${isActive ? ' nav-item-active' : ''}`
+                `nav-item${isActive ? " nav-item-active" : ""}`
               }
               to="/organizations"
             >
               <span className="nav-indicator" aria-hidden="true" />
               Organizations
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="platform.audit.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? " nav-item-active" : ""}`
+              }
+              to="/audit-logs"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Audit logs
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="platform.notification.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? " nav-item-active" : ""}`
+              }
+              to="/notifications"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Notifications
             </NavLink>
           </PermissionGate>
         </nav>

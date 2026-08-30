@@ -15,6 +15,9 @@ const permissions = [
   ['platform.staff.disable', 'Disable platform staff'],
   ['platform.role.view', 'View platform roles and permissions'],
   ['platform.role.manage', 'Manage platform roles and permissions'],
+  ['platform.audit.view', 'View platform audit logs'],
+  ['platform.notification.view', 'View platform notifications'],
+  ['platform.notification.manage', 'Manage platform notifications'],
 ] as const;
 
 const roles = [
