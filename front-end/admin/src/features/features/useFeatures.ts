@@ -8,10 +8,10 @@ interface FeaturesState {
   isLoading: boolean;
 }
 
-export function useFeatures() {
+export function useFeatures(initialQuery?: { isActive?: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [isActive, setIsActive] = useState<string>(''); // '' | 'true' | 'false'
+  const [isActive, setIsActive] = useState<string>(initialQuery?.isActive ?? ''); // '' | 'true' | 'false'
   const limit = 20;
 
   const controllerRef = useRef<AbortController | null>(null);

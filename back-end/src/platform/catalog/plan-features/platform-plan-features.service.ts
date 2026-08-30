@@ -54,13 +54,13 @@ function validateFeatureValue(
 }
 
 async function auditPlanFeature(
-  prisma: PrismaService,
+  tx: Prisma.TransactionClient,
   actorStaffId: string,
   action: string,
   resourceId: string,
   metadata?: Record<string, unknown>,
 ): Promise<void> {
-  await prisma.platformAuditLog.create({
+  await tx.platformAuditLog.create({
     data: {
       actorStaffId,
       action,
@@ -98,32 +98,43 @@ export class PlatformPlanFeaturesService {
       });
     }
 
+    if (!feature.isActive) {
+      throw new BadRequestException({
+        code: 'FEATURE_INACTIVE',
+        message: 'Cannot assign an inactive feature.',
+      });
+    }
+
     validateFeatureValue(feature.valueType, dto.value);
 
     try {
-      const planFeature = await this.prisma.planFeature.create({
-        data: {
-          planId,
-          featureId: dto.featureId,
-          enabled: dto.enabled ?? true,
-          value:
-            dto.value !== undefined
-              ? (dto.value as Prisma.InputJsonValue)
-              : Prisma.DbNull,
-        },
-        include: { feature: true },
-      });
+      const planFeature = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.planFeature.create({
+          data: {
+            planId,
+            featureId: dto.featureId,
+            enabled: dto.enabled ?? true,
+            value:
+              dto.value !== undefined
+                ? (dto.value as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+          },
+          include: { feature: true },
+        });
 
-      await auditPlanFeature(
-        this.prisma,
-        actorStaffId,
-        'plan_feature.assigned',
-        planFeature.id,
-        {
-          planKey: plan.key,
-          featureKey: feature.key,
-        },
-      );
+        await auditPlanFeature(
+          tx,
+          actorStaffId,
+          'plan_feature.assigned',
+          created.id,
+          {
+            planKey: plan.key,
+            featureKey: feature.key,
+          },
+        );
+
+        return created;
+      });
 
       return planFeature;
     } catch (error) {
@@ -161,26 +172,30 @@ export class PlatformPlanFeaturesService {
       validateFeatureValue(planFeature.feature.valueType, dto.value);
     }
 
-    const updated = await this.prisma.planFeature.update({
-      where: { planId_featureId: { planId, featureId } },
-      data: {
-        ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
-        ...(dto.value !== undefined
-          ? { value: dto.value as Prisma.InputJsonValue }
-          : {}),
-      },
-      include: { feature: true },
-    });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedPlanFeature = await tx.planFeature.update({
+        where: { planId_featureId: { planId, featureId } },
+        data: {
+          ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
+          ...(dto.value !== undefined
+            ? { value: dto.value as Prisma.InputJsonValue }
+            : {}),
+        },
+        include: { feature: true },
+      });
 
-    await auditPlanFeature(
-      this.prisma,
-      actorStaffId,
-      'plan_feature.updated',
-      updated.id,
-      {
-        featureKey: planFeature.feature.key,
-      },
-    );
+      await auditPlanFeature(
+        tx,
+        actorStaffId,
+        'plan_feature.updated',
+        updatedPlanFeature.id,
+        {
+          featureKey: planFeature.feature.key,
+        },
+      );
+
+      return updatedPlanFeature;
+    });
 
     return updated;
   }
@@ -201,21 +216,21 @@ export class PlatformPlanFeaturesService {
       });
     }
 
-    await this.prisma.planFeature.delete({
-      where: { planId_featureId: { planId, featureId } },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.planFeature.delete({
+        where: { planId_featureId: { planId, featureId } },
+      });
 
-    await this.prisma.platformAuditLog.create({
-      data: {
+      await auditPlanFeature(
+        tx,
         actorStaffId,
-        action: 'plan_feature.removed',
-        resourceType: 'PlanFeature',
-        resourceId: planFeature.id,
-        metadata: {
+        'plan_feature.removed',
+        planFeature.id,
+        {
           planKey: planFeature.plan.key,
           featureKey: planFeature.feature.key,
         },
-      },
+      );
     });
   }
 }

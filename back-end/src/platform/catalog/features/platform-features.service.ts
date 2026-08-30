@@ -10,13 +10,13 @@ import { ListFeaturesQueryDto } from './dto/list-features-query.dto';
 import { UpdateFeatureDto } from './dto/update-feature.dto';
 
 async function auditFeature(
-  prisma: PrismaService,
+  tx: Prisma.TransactionClient,
   actorStaffId: string,
   action: string,
   resourceId: string,
   metadata?: Record<string, unknown>,
 ): Promise<void> {
-  await prisma.platformAuditLog.create({
+  await tx.platformAuditLog.create({
     data: {
       actorStaffId,
       action,
@@ -52,6 +52,7 @@ export class PlatformFeaturesService {
         skip,
         take: limit,
         orderBy: { [sortBy]: order },
+        include: { _count: { select: { planFeatures: true } } },
       }),
     ]);
 
@@ -68,8 +69,8 @@ export class PlatformFeaturesService {
     const feature = await this.prisma.feature.findUnique({
       where: { id },
       include: {
-        _count: {
-          select: { planFeatures: true },
+        planFeatures: {
+          include: { plan: true },
         },
       },
     });
@@ -86,25 +87,23 @@ export class PlatformFeaturesService {
 
   async create(dto: CreateFeatureDto, actorStaffId: string) {
     try {
-      const feature = await this.prisma.feature.create({
-        data: {
-          key: dto.key,
-          name: dto.name,
-          description: dto.description,
-          valueType: dto.valueType,
-          isActive: true,
-        },
-      });
+      const feature = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.feature.create({
+          data: {
+            key: dto.key,
+            name: dto.name,
+            description: dto.description,
+            valueType: dto.valueType,
+            isActive: true,
+          },
+        });
 
-      await auditFeature(
-        this.prisma,
-        actorStaffId,
-        'feature.created',
-        feature.id,
-        {
-          key: feature.key,
-        },
-      );
+        await auditFeature(tx, actorStaffId, 'feature.created', created.id, {
+          key: created.key,
+        });
+
+        return created;
+      });
 
       return feature;
     } catch (error) {
@@ -131,17 +130,16 @@ export class PlatformFeaturesService {
     }
 
     try {
-      const feature = await this.prisma.feature.update({
-        where: { id },
-        data: dto,
-      });
+      const feature = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.feature.update({
+          where: { id },
+          data: dto,
+        });
 
-      await auditFeature(
-        this.prisma,
-        actorStaffId,
-        'feature.updated',
-        feature.id,
-      );
+        await auditFeature(tx, actorStaffId, 'feature.updated', updated.id);
+
+        return updated;
+      });
 
       return feature;
     } catch (error) {
@@ -174,17 +172,16 @@ export class PlatformFeaturesService {
       });
     }
 
-    const feature = await this.prisma.feature.update({
-      where: { id },
-      data: { isActive: true },
-    });
+    const feature = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.feature.update({
+        where: { id },
+        data: { isActive: true },
+      });
 
-    await auditFeature(
-      this.prisma,
-      actorStaffId,
-      'feature.activated',
-      feature.id,
-    );
+      await auditFeature(tx, actorStaffId, 'feature.activated', updated.id);
+
+      return updated;
+    });
 
     return feature;
   }
@@ -205,17 +202,16 @@ export class PlatformFeaturesService {
       });
     }
 
-    const feature = await this.prisma.feature.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const feature = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.feature.update({
+        where: { id },
+        data: { isActive: false },
+      });
 
-    await auditFeature(
-      this.prisma,
-      actorStaffId,
-      'feature.deactivated',
-      feature.id,
-    );
+      await auditFeature(tx, actorStaffId, 'feature.deactivated', updated.id);
+
+      return updated;
+    });
 
     return feature;
   }

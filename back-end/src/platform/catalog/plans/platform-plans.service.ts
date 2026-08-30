@@ -10,13 +10,13 @@ import { ListPlansQueryDto } from './dto/list-plans-query.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 
 async function auditPlan(
-  prisma: PrismaService,
+  tx: Prisma.TransactionClient,
   actorStaffId: string,
   action: string,
   resourceId: string,
   metadata?: Record<string, unknown>,
 ): Promise<void> {
-  await prisma.platformAuditLog.create({
+  await tx.platformAuditLog.create({
     data: {
       actorStaffId,
       action,
@@ -86,20 +86,24 @@ export class PlatformPlansService {
 
   async create(dto: CreatePlanDto, actorStaffId: string) {
     try {
-      const plan = await this.prisma.plan.create({
-        data: {
-          key: dto.key,
-          name: dto.name,
-          description: dto.description,
-          billingInterval: dto.billingInterval,
-          basePrice: dto.basePrice,
-          currency: dto.currency,
-          trialDays: dto.trialDays,
-        },
-      });
+      const plan = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.plan.create({
+          data: {
+            key: dto.key,
+            name: dto.name,
+            description: dto.description,
+            billingInterval: dto.billingInterval,
+            basePrice: dto.basePrice,
+            currency: dto.currency,
+            trialDays: dto.trialDays,
+          },
+        });
 
-      await auditPlan(this.prisma, actorStaffId, 'plan.created', plan.id, {
-        key: plan.key,
+        await auditPlan(tx, actorStaffId, 'plan.created', created.id, {
+          key: created.key,
+        });
+
+        return created;
       });
 
       return plan;
@@ -127,12 +131,16 @@ export class PlatformPlansService {
     }
 
     try {
-      const plan = await this.prisma.plan.update({
-        where: { id },
-        data: dto,
-      });
+      const plan = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.plan.update({
+          where: { id },
+          data: dto,
+        });
 
-      await auditPlan(this.prisma, actorStaffId, 'plan.updated', plan.id);
+        await auditPlan(tx, actorStaffId, 'plan.updated', updated.id);
+
+        return updated;
+      });
 
       return plan;
     } catch (error) {
@@ -165,12 +173,16 @@ export class PlatformPlansService {
       });
     }
 
-    const plan = await this.prisma.plan.update({
-      where: { id },
-      data: { status: 'ACTIVE' },
-    });
+    const plan = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.plan.update({
+        where: { id },
+        data: { status: 'ACTIVE' },
+      });
 
-    await auditPlan(this.prisma, actorStaffId, 'plan.activated', plan.id);
+      await auditPlan(tx, actorStaffId, 'plan.activated', updated.id);
+
+      return updated;
+    });
 
     return plan;
   }
@@ -191,12 +203,16 @@ export class PlatformPlansService {
       });
     }
 
-    const plan = await this.prisma.plan.update({
-      where: { id },
-      data: { status: 'INACTIVE' },
-    });
+    const plan = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.plan.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+      });
 
-    await auditPlan(this.prisma, actorStaffId, 'plan.deactivated', plan.id);
+      await auditPlan(tx, actorStaffId, 'plan.deactivated', updated.id);
+
+      return updated;
+    });
 
     return plan;
   }

@@ -63,6 +63,7 @@ export const FeaturesPage: React.FC = () => {
                   <th>Name</th>
                   <th>Value Type</th>
                   <th>Status</th>
+                  <th>Plan Count</th>
                   <th>Created</th>
                 </tr>
               </thead>
@@ -85,6 +86,7 @@ export const FeaturesPage: React.FC = () => {
                         {feature.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    <td>{feature._count?.planFeatures || 0}</td>
                     <td>{new Date(feature.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}

@@ -59,11 +59,17 @@ describe('PlatformPlansService', () => {
   });
 
   it('creates a plan successfully', async () => {
-    const create = jest.fn().mockResolvedValue(basePlan);
-    const auditLogCreate = jest.fn().mockResolvedValue({});
+    const txCreate = jest.fn().mockResolvedValue(basePlan);
+    const txAuditLogCreate = jest.fn().mockResolvedValue({});
+    const txClient = {
+      plan: { create: txCreate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
     const prisma = {
-      plan: { create },
-      platformAuditLog: { create: auditLogCreate },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -78,18 +84,59 @@ describe('PlatformPlansService', () => {
         'actor-id',
       ),
     ).resolves.toEqual(basePlan);
+
+    expect(txCreate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
+  });
+
+  it('fails the transaction if audit log creation fails during plan creation', async () => {
+    const txCreate = jest.fn().mockResolvedValue(basePlan);
+    const txAuditLogCreate = jest
+      .fn()
+      .mockRejectedValue(new Error('Audit failure'));
+    const txClient = {
+      plan: { create: txCreate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
+    const prisma = {
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
+    };
+    const service = serviceWithPrisma(prisma);
+
+    await expect(
+      service.create(
+        {
+          key: 'STARTER',
+          name: 'Starter Plan',
+          billingInterval: 'MONTHLY',
+          basePrice: '9.99',
+        } as any,
+        'actor-id',
+      ),
+    ).rejects.toThrow('Audit failure');
+
+    expect(txCreate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
   });
 
   it('throws ConflictException on duplicate key or name during creation', async () => {
+    const txCreate = jest.fn().mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+    const txClient = {
+      plan: { create: txCreate },
+    };
     const prisma = {
-      plan: {
-        create: jest.fn().mockRejectedValue(
-          new Prisma.PrismaClientKnownRequestError('Unique failed', {
-            code: 'P2002',
-            clientVersion: 'test',
-          }),
-        ),
-      },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -109,6 +156,10 @@ describe('PlatformPlansService', () => {
   it('throws NotFoundException when plan is missing', async () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -124,6 +175,10 @@ describe('PlatformPlansService', () => {
           .fn()
           .mockResolvedValue({ ...basePlan, status: 'ACTIVE' }),
       },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -139,6 +194,10 @@ describe('PlatformPlansService', () => {
           .fn()
           .mockResolvedValue({ ...basePlan, status: 'INACTIVE' }),
       },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 

@@ -18,12 +18,15 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
   isRemovingFeature,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [enabled, setEnabled] = useState(pf.enabled);
   const [value, setValue] = useState<string>(
     pf.value !== null ? (typeof pf.value === 'object' ? JSON.stringify(pf.value) : String(pf.value)) : ''
   );
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const handleSave = async () => {
+    setUpdateError(null);
     let parsedValue: unknown = null;
     if (value !== '') {
       if (pf.feature!.valueType === 'INTEGER') parsedValue = parseInt(value, 10);
@@ -33,7 +36,7 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
         try {
           parsedValue = JSON.parse(value);
         } catch {
-          alert('Invalid JSON');
+          setUpdateError('Invalid JSON');
           return;
         }
       } else {
@@ -46,13 +49,14 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
       setIsEditing(false);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: { message?: string } } } };
-      alert(e.response?.data?.error?.message || 'Failed to update feature');
+      setUpdateError(e.response?.data?.error?.message || 'Failed to update feature');
     }
   };
 
   const handleCancel = () => {
     setEnabled(pf.enabled);
     setValue(pf.value !== null ? (typeof pf.value === 'object' ? JSON.stringify(pf.value) : String(pf.value)) : '');
+    setUpdateError(null);
     setIsEditing(false);
   };
 
@@ -102,6 +106,11 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
               style={{ padding: '4px' }}
             />
           )}
+          {updateError && (
+            <div style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>
+              {updateError}
+            </div>
+          )}
         </td>
         <td>{new Date(pf.createdAt).toLocaleDateString()}</td>
         <td style={{ textAlign: 'right' }}>
@@ -145,25 +154,45 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
       <td>{new Date(pf.createdAt).toLocaleDateString()}</td>
       <PermissionGate permission="subscription.plan.manage">
         <td style={{ textAlign: 'right' }}>
-          <button
-            className="button button-link"
-            onClick={() => setIsEditing(true)}
-            disabled={isUpdatingFeature}
-          >
-            Edit
-          </button>
-          <button
-            className="button button-link"
-            style={{ color: '#EF4444', marginLeft: '12px' }}
-            onClick={() => {
-              if (confirm('Remove this feature from the plan?')) {
-                void removeFeature(pf.featureId);
-              }
-            }}
-            disabled={isRemovingFeature}
-          >
-            Remove
-          </button>
+          {!confirmRemove ? (
+            <>
+              <button
+                className="button button-link"
+                onClick={() => setIsEditing(true)}
+                disabled={isUpdatingFeature || isRemovingFeature}
+              >
+                Edit
+              </button>
+              <button
+                className="button button-link"
+                style={{ color: '#EF4444', marginLeft: '12px' }}
+                onClick={() => setConfirmRemove(true)}
+                disabled={isRemovingFeature || isUpdatingFeature}
+              >
+                Remove
+              </button>
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', color: 'var(--color-error)' }}>Remove?</span>
+              <button
+                className="button button-secondary"
+                onClick={() => void removeFeature(pf.featureId).then(() => setConfirmRemove(false))}
+                disabled={isRemovingFeature}
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+              >
+                Confirm
+              </button>
+              <button
+                className="button button-link"
+                onClick={() => setConfirmRemove(false)}
+                disabled={isRemovingFeature}
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </td>
       </PermissionGate>
     </tr>

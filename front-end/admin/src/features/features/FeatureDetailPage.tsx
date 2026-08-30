@@ -19,6 +19,7 @@ export const FeatureDetailPage: React.FC = () => {
   } = useFeature(id!);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | null>(null);
 
   if (isLoading) {
     return (
@@ -60,40 +61,56 @@ export const FeatureDetailPage: React.FC = () => {
           >
             {feature.isActive ? 'Active' : 'Inactive'}
           </span>
-          <PermissionGate permission="subscription.feature.manage">
-            <button className="button" onClick={() => setIsEditing(!isEditing)}>
-              {isEditing ? 'Cancel Edit' : 'Edit Metadata'}
-            </button>
-            {!feature.isActive ? (
+          {confirmAction ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <strong style={{ fontSize: '14px', color: 'var(--color-error)' }}>
+                {confirmAction === 'activate' ? 'Activate this feature?' : 'Deactivate this feature?'}
+              </strong>
               <button
-                className="button button-secondary"
+                className="button"
                 onClick={() => {
-                  if (confirm('Are you sure you want to activate this feature?')) {
-                    activateFeature();
+                  if (confirmAction === 'activate') {
+                    void activateFeature().then(() => setConfirmAction(null));
+                  } else {
+                    void deactivateFeature().then(() => setConfirmAction(null));
                   }
                 }}
-                disabled={isActivating}
+                disabled={isActivating || isDeactivating}
               >
-                Activate
+                Confirm
               </button>
-            ) : (
               <button
                 className="button button-secondary"
-                onClick={() => {
-                  if (
-                    confirm(
-                      'Are you sure you want to deactivate this feature? It will no longer be assignable to plans.'
-                    )
-                  ) {
-                    deactivateFeature();
-                  }
-                }}
-                disabled={isDeactivating}
+                onClick={() => setConfirmAction(null)}
+                disabled={isActivating || isDeactivating}
               >
-                Deactivate
+                Cancel
               </button>
-            )}
-          </PermissionGate>
+            </div>
+          ) : (
+            <PermissionGate permission="subscription.feature.manage">
+              <button className="button" onClick={() => setIsEditing(!isEditing)}>
+                {isEditing ? 'Cancel Edit' : 'Edit Metadata'}
+              </button>
+              {!feature.isActive ? (
+                <button
+                  className="button button-secondary"
+                  onClick={() => setConfirmAction('activate')}
+                  disabled={isActivating}
+                >
+                  Activate
+                </button>
+              ) : (
+                <button
+                  className="button button-secondary"
+                  onClick={() => setConfirmAction('deactivate')}
+                  disabled={isDeactivating}
+                >
+                  Deactivate
+                </button>
+              )}
+            </PermissionGate>
+          )}
         </div>
       </div>
 
@@ -123,6 +140,45 @@ export const FeatureDetailPage: React.FC = () => {
               <p className="eyebrow">Description</p>
               <p>{feature.description || 'No description provided.'}</p>
             </div>
+          </div>
+
+          <div className="status-card form-panel" style={{ marginTop: '32px' }}>
+            <h2>Plans using this feature</h2>
+            {!feature.planFeatures || feature.planFeatures.length === 0 ? (
+              <p className="muted-copy">No plans are currently using this feature.</p>
+            ) : (
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Plan Name</th>
+                      <th>Enabled</th>
+                      <th>Assigned Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feature.planFeatures.map((pf) => (
+                      <tr key={pf.id}>
+                        <td>
+                          <Link to={`/plans/${pf.plan?.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                            <strong>{pf.plan?.name}</strong>
+                            <span style={{ fontSize: '13px', color: 'var(--color-muted)' }}>{pf.plan?.key}</span>
+                          </Link>
+                        </td>
+                        <td>
+                          <span className={pf.enabled ? 'status-pill status-pill-available' : 'status-pill status-pill-unavailable'}>
+                            {pf.enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'monospace' }}>
+                          {pf.value !== null ? JSON.stringify(pf.value) : 'null'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

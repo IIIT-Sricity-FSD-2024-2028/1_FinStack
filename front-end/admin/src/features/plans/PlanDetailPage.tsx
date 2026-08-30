@@ -26,11 +26,14 @@ export const PlanDetailPage: React.FC = () => {
     refetch,
   } = usePlan(id!);
 
-  const { data: featuresData } = useFeatures(); // for the assign dropdown
+  const { data: featuresData } = useFeatures({ isActive: 'true' }); // for the assign dropdown
 
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | null>(null);
   const [selectedFeatureId, setSelectedFeatureId] = useState('');
   const [assignValue, setAssignValue] = useState('');
+  const [assignEnabled, setAssignEnabled] = useState(true);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -52,6 +55,7 @@ export const PlanDetailPage: React.FC = () => {
   const handleAssignFeature = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFeatureId) return;
+    setAssignError(null);
 
     const feature = featuresData?.items.find((f) => f.id === selectedFeatureId);
     let parsedValue: unknown = null;
@@ -64,7 +68,7 @@ export const PlanDetailPage: React.FC = () => {
         try {
           parsedValue = JSON.parse(assignValue);
         } catch {
-          alert('Invalid JSON');
+          setAssignError('Invalid JSON');
           return;
         }
       } else {
@@ -73,12 +77,13 @@ export const PlanDetailPage: React.FC = () => {
     }
 
     try {
-      await assignFeature({ featureId: selectedFeatureId, value: parsedValue });
+      await assignFeature({ featureId: selectedFeatureId, enabled: assignEnabled, value: parsedValue });
       setSelectedFeatureId('');
       setAssignValue('');
+      setAssignEnabled(true);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: { message?: string } } } };
-      alert(e.response?.data?.error?.message || 'Failed to assign feature');
+      setAssignError(e.response?.data?.error?.message || 'Failed to assign feature');
     }
   };
 
@@ -107,40 +112,56 @@ export const PlanDetailPage: React.FC = () => {
           <span className={getStatusPillClass(plan.status)}>
             {formatStatus(plan.status)}
           </span>
-          <PermissionGate permission="subscription.plan.manage">
-            <button className="button" onClick={() => setIsEditing(!isEditing)}>
-              {isEditing ? 'Cancel Edit' : 'Edit Metadata'}
-            </button>
-            {plan.status === 'INACTIVE' ? (
+          {confirmAction ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <strong style={{ fontSize: '14px', color: 'var(--color-error)' }}>
+                {confirmAction === 'activate' ? 'Activate this plan?' : 'Deactivate this plan?'}
+              </strong>
               <button
-                className="button button-secondary"
+                className="button"
                 onClick={() => {
-                  if (confirm('Are you sure you want to activate this plan?')) {
-                    activatePlan();
+                  if (confirmAction === 'activate') {
+                    void activatePlan().then(() => setConfirmAction(null));
+                  } else {
+                    void deactivatePlan().then(() => setConfirmAction(null));
                   }
                 }}
-                disabled={isActivating}
+                disabled={isActivating || isDeactivating}
               >
-                Activate
+                Confirm
               </button>
-            ) : (
               <button
                 className="button button-secondary"
-                onClick={() => {
-                  if (
-                    confirm(
-                      'Are you sure you want to deactivate this plan? Existing subscriptions are not affected, but new subscriptions cannot select this plan.'
-                    )
-                  ) {
-                    deactivatePlan();
-                  }
-                }}
-                disabled={isDeactivating}
+                onClick={() => setConfirmAction(null)}
+                disabled={isActivating || isDeactivating}
               >
-                Deactivate
+                Cancel
               </button>
-            )}
-          </PermissionGate>
+            </div>
+          ) : (
+            <PermissionGate permission="subscription.plan.manage">
+              <button className="button" onClick={() => setIsEditing(!isEditing)}>
+                {isEditing ? 'Cancel Edit' : 'Edit Metadata'}
+              </button>
+              {plan.status === 'INACTIVE' ? (
+                <button
+                  className="button button-secondary"
+                  onClick={() => setConfirmAction('activate')}
+                  disabled={isActivating}
+                >
+                  Activate
+                </button>
+              ) : (
+                <button
+                  className="button button-secondary"
+                  onClick={() => setConfirmAction('deactivate')}
+                  disabled={isDeactivating}
+                >
+                  Deactivate
+                </button>
+              )}
+            </PermissionGate>
+          )}
         </div>
       </div>
 
@@ -181,29 +202,93 @@ export const PlanDetailPage: React.FC = () => {
       <h2 style={{ marginBottom: '16px' }}>Plan Features ({plan.planFeatures?.length || 0})</h2>
 
       <PermissionGate permission="subscription.plan.manage">
-        <form onSubmit={handleAssignFeature} className="filter-bar" style={{ marginBottom: '24px' }}>
-          <select
-            value={selectedFeatureId}
-            onChange={(e) => setSelectedFeatureId(e.target.value)}
-            required
-          >
-            <option value="">-- Assign a Feature --</option>
-            {unassignedFeatures?.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name} ({f.valueType})
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Value (optional)"
-            value={assignValue}
-            onChange={(e) => setAssignValue(e.target.value)}
-          />
-          <button type="submit" className="button" disabled={isAssigning || !selectedFeatureId}>
-            Assign
-          </button>
-        </form>
+        <div className="status-card form-panel" style={{ marginBottom: '32px' }}>
+          <form onSubmit={handleAssignFeature} className="login-form">
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Assign Feature</h3>
+            <div className="form-grid">
+              <label>
+                Feature
+                <select
+                  value={selectedFeatureId}
+                  onChange={(e) => {
+                    setSelectedFeatureId(e.target.value);
+                    setAssignValue('');
+                  }}
+                  required
+                >
+                  <option value="">-- Select an active feature --</option>
+                  {unassignedFeatures?.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.valueType})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedFeatureId && (() => {
+                const feature = featuresData?.items.find((f) => f.id === selectedFeatureId);
+                return (
+                  <label>
+                    Assigned Value ({feature?.valueType})
+                    {feature?.valueType === 'BOOLEAN' ? (
+                      <select value={assignValue} onChange={(e) => setAssignValue(e.target.value)}>
+                        <option value="">Default (null)</option>
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                      </select>
+                    ) : feature?.valueType === 'INTEGER' || feature?.valueType === 'DECIMAL' ? (
+                      <input
+                        type="number"
+                        step={feature.valueType === 'INTEGER' ? '1' : 'any'}
+                        placeholder="Value (optional)"
+                        value={assignValue}
+                        onChange={(e) => setAssignValue(e.target.value)}
+                      />
+                    ) : feature?.valueType === 'JSON' ? (
+                      <textarea
+                        rows={3}
+                        placeholder='JSON (e.g. {"limit": 10})'
+                        value={assignValue}
+                        onChange={(e) => setAssignValue(e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="String Value (optional)"
+                        value={assignValue}
+                        onChange={(e) => setAssignValue(e.target.value)}
+                      />
+                    )}
+                  </label>
+                );
+              })()}
+            </div>
+
+            {selectedFeatureId && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'row', marginTop: '12px' }}>
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto', minHeight: 'auto' }}
+                  checked={assignEnabled}
+                  onChange={(e) => setAssignEnabled(e.target.checked)}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--color-text)' }}>Enabled</span>
+              </label>
+            )}
+
+            {assignError && (
+              <div style={{ color: 'var(--color-error)', fontSize: '14px', marginTop: '12px' }}>
+                {assignError}
+              </div>
+            )}
+
+            <div className="form-actions" style={{ marginTop: '16px' }}>
+              <button type="submit" className="button" disabled={isAssigning || !selectedFeatureId}>
+                Assign Feature
+              </button>
+            </div>
+          </form>
+        </div>
       </PermissionGate>
 
       {!plan.planFeatures?.length ? (

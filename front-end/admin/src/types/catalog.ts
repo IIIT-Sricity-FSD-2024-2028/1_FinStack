@@ -11,6 +11,7 @@ export interface PlanFeature {
   createdAt: string;
   updatedAt: string;
   feature?: Feature; // When joined
+  plan?: Plan; // When joined
 }
 
 export interface Plan {
@@ -38,6 +39,7 @@ export interface Feature {
   createdAt: string;
   updatedAt: string;
   _count?: { planFeatures: number };
+  planFeatures?: PlanFeature[]; // When joined
 }
 
 export interface PaginatedResult<T> {

@@ -15,6 +15,7 @@ const baseFeature = {
   id: 'feature-uuid',
   key: 'MAX_USERS',
   valueType: 'INTEGER',
+  isActive: true,
 };
 
 const basePlanFeature = {
@@ -33,13 +34,19 @@ function serviceWithPrisma(prisma: Record<string, unknown>) {
 
 describe('PlatformPlanFeaturesService', () => {
   it('assigns feature successfully', async () => {
-    const create = jest.fn().mockResolvedValue(basePlanFeature);
-    const auditLogCreate = jest.fn().mockResolvedValue({});
+    const txCreate = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest.fn().mockResolvedValue({});
+    const txClient = {
+      planFeature: { create: txCreate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
       feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
-      planFeature: { create },
-      platformAuditLog: { create: auditLogCreate },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -51,7 +58,39 @@ describe('PlatformPlanFeaturesService', () => {
       ),
     ).resolves.toEqual(basePlanFeature);
 
-    expect(create).toHaveBeenCalled();
+    expect(txCreate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
+  });
+
+  it('fails the transaction if audit log creation fails during feature assignment', async () => {
+    const txCreate = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest
+      .fn()
+      .mockRejectedValue(new Error('Audit failure'));
+    const txClient = {
+      planFeature: { create: txCreate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
+    const prisma = {
+      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
+      feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
+    };
+    const service = serviceWithPrisma(prisma);
+
+    await expect(
+      service.assign(
+        'plan-uuid',
+        { featureId: 'feature-uuid', enabled: true, value: 10 },
+        'actor-id',
+      ),
+    ).rejects.toThrow('Audit failure');
+
+    expect(txCreate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
   });
 
   it('throws ConflictException on duplicate assignment', async () => {
@@ -66,6 +105,10 @@ describe('PlatformPlanFeaturesService', () => {
           }),
         ),
       },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -81,6 +124,10 @@ describe('PlatformPlanFeaturesService', () => {
   it('throws NotFoundException when plan is missing', async () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -93,6 +140,10 @@ describe('PlatformPlanFeaturesService', () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
       feature: { findUnique: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -111,6 +162,10 @@ describe('PlatformPlanFeaturesService', () => {
       },
       planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
       platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -140,6 +195,10 @@ describe('PlatformPlanFeaturesService', () => {
       },
       planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
       platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -169,6 +228,10 @@ describe('PlatformPlanFeaturesService', () => {
       },
       planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
       platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -198,6 +261,10 @@ describe('PlatformPlanFeaturesService', () => {
       },
       planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
       platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(prisma);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -218,34 +285,108 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('updates plan feature successfully', async () => {
-    const update = jest.fn().mockResolvedValue(basePlanFeature);
+    const txUpdate = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest.fn().mockResolvedValue({});
+    const txClient = {
+      planFeature: { update: txUpdate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
     const prisma = {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
-        update,
       },
-      platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
     await expect(
       service.update('plan-uuid', 'feature-uuid', { value: 20 }, 'actor-id'),
     ).resolves.toEqual(basePlanFeature);
-    expect(update).toHaveBeenCalled();
+
+    expect(txUpdate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
   });
 
-  it('removes plan feature successfully', async () => {
-    const deleteMock = jest.fn().mockResolvedValue(basePlanFeature);
+  it('fails the transaction if audit log creation fails during feature update', async () => {
+    const txUpdate = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest
+      .fn()
+      .mockRejectedValue(new Error('Audit failure'));
+    const txClient = {
+      planFeature: { update: txUpdate },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
     const prisma = {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
-        delete: deleteMock,
       },
-      platformAuditLog: { create: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
+    };
+    const service = serviceWithPrisma(prisma);
+
+    await expect(
+      service.update('plan-uuid', 'feature-uuid', { value: 20 }, 'actor-id'),
+    ).rejects.toThrow('Audit failure');
+
+    expect(txUpdate).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
+  });
+
+  it('removes plan feature successfully', async () => {
+    const txDelete = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest.fn().mockResolvedValue({});
+    const txClient = {
+      planFeature: { delete: txDelete },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
+    const prisma = {
+      planFeature: {
+        findUnique: jest.fn().mockResolvedValue(basePlanFeature),
+      },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
     };
     const service = serviceWithPrisma(prisma);
 
     await service.remove('plan-uuid', 'feature-uuid', 'actor-id');
-    expect(deleteMock).toHaveBeenCalled();
+
+    expect(txDelete).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
+  });
+
+  it('fails the transaction if audit log creation fails during feature removal', async () => {
+    const txDelete = jest.fn().mockResolvedValue(basePlanFeature);
+    const txAuditLogCreate = jest
+      .fn()
+      .mockRejectedValue(new Error('Audit failure'));
+    const txClient = {
+      planFeature: { delete: txDelete },
+      platformAuditLog: { create: txAuditLogCreate },
+    };
+    const prisma = {
+      planFeature: {
+        findUnique: jest.fn().mockResolvedValue(basePlanFeature),
+      },
+      $transaction: jest.fn().mockImplementation(async (cb) => {
+        if (Array.isArray(cb)) return Promise.all(cb);
+        return cb(txClient);
+      }),
+    };
+    const service = serviceWithPrisma(prisma);
+
+    await expect(
+      service.remove('plan-uuid', 'feature-uuid', 'actor-id'),
+    ).rejects.toThrow('Audit failure');
+
+    expect(txDelete).toHaveBeenCalled();
+    expect(txAuditLogCreate).toHaveBeenCalled();
   });
 });
