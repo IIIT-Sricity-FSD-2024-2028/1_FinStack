@@ -44,23 +44,26 @@ model Organization {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
+  subscriptions OrganizationSubscription[]
+
   @@index([status, createdAt])
   @@index([createdAt])
 }
 
 model PlatformStaff {
-  id            String                @id @default(uuid()) @db.Uuid
-  firstName     String                @db.VarChar(100)
-  lastName      String                @db.VarChar(100)
-  email         String                @unique @db.VarChar(320)
-  passwordHash  String                @db.VarChar(255)
-  status        PlatformStaffStatus   @default(ACTIVE)
-  lastLoginAt   DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  roles         PlatformStaffRole[]   @relation("PlatformStaffRoles")
-  assignedRoles PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
-  authSessions  PlatformAuthSession[]
+  id                  String                @id @default(uuid()) @db.Uuid
+  firstName           String                @db.VarChar(100)
+  lastName            String                @db.VarChar(100)
+  email               String                @unique @db.VarChar(320)
+  passwordHash        String                @db.VarChar(255)
+  status              PlatformStaffStatus   @default(ACTIVE)
+  lastLoginAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  roles               PlatformStaffRole[]   @relation("PlatformStaffRoles")
+  assignedRoles       PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
+  authSessions        PlatformAuthSession[]
+  subscriptionHistory SubscriptionHistory[]
 
   @@index([status, createdAt])
 }
@@ -152,18 +155,19 @@ enum FeatureValueType {
 }
 
 model Plan {
-  id              String          @id @default(uuid()) @db.Uuid
-  key             String          @unique @db.VarChar(100)
-  name            String          @unique @db.VarChar(150)
-  description     String?         @db.Text
-  status          PlanStatus      @default(ACTIVE)
+  id              String                     @id @default(uuid()) @db.Uuid
+  key             String                     @unique @db.VarChar(100)
+  name            String                     @unique @db.VarChar(150)
+  description     String?                    @db.Text
+  status          PlanStatus                 @default(ACTIVE)
   billingInterval BillingInterval
-  basePrice       Decimal         @db.Decimal(18, 4)
-  currency        String          @default("INR") @db.Char(3)
+  basePrice       Decimal                    @db.Decimal(18, 4)
+  currency        String                     @default("INR") @db.Char(3)
   trialDays       Int?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
   planFeatures    PlanFeature[]
+  subscriptions   OrganizationSubscription[]
 
   @@index([status])
   @@index([billingInterval])
@@ -220,4 +224,58 @@ model PlatformAuditLog {
   @@index([resourceType, resourceId])
   @@index([action])
   @@index([createdAt])
+}
+
+// ============================================================
+// SUBSCRIPTIONS
+// ============================================================
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRING
+  GRACE_PERIOD
+  SUSPENDED
+  CANCELLED
+}
+
+model OrganizationSubscription {
+  id                  String             @id @default(uuid()) @db.Uuid
+  organizationId      String             @db.Uuid
+  planId              String             @db.Uuid
+  status              SubscriptionStatus @default(TRIAL)
+  billingInterval     BillingInterval
+  currency            String             @default("INR") @db.Char(3)
+  priceAtSubscription Decimal            @db.Decimal(18, 4)
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  trialStartAt        DateTime?
+  trialEndAt          DateTime?
+  cancelAtPeriodEnd   Boolean            @default(false)
+  cancelledAt         DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  history      SubscriptionHistory[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model SubscriptionHistory {
+  id             String             @id @default(uuid()) @db.Uuid
+  subscriptionId String             @db.Uuid
+  status         SubscriptionStatus
+  action         String             @db.VarChar(100)
+  note           String?            @db.Text
+  actorStaffId   String?            @db.Uuid
+  createdAt      DateTime           @default(now())
+
+  subscription OrganizationSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  actorStaff   PlatformStaff?           @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([subscriptionId, createdAt])
 }

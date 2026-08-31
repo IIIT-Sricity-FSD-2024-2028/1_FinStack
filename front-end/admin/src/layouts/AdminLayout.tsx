@@ -69,6 +69,16 @@ export function AdminLayout() {
               Features
             </NavLink>
           </PermissionGate>
+          <PermissionGate permission="subscription.subscription.view">
+            <NavLink
+              to="/subscriptions"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Subscriptions
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>

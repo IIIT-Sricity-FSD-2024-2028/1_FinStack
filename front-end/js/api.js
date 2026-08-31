@@ -44,6 +44,16 @@
       role: getRbacRole(),
       'Content-Type': 'application/json'
     };
+    try {
+      var rawSession = sessionStorage.getItem('finstackUserSession');
+      if (rawSession) {
+        var session = JSON.parse(rawSession);
+        if (session && session.accessToken) {
+          headers['Authorization'] = 'Bearer ' + session.accessToken;
+        }
+      }
+    } catch (e) {}
+
     return fetch(BASE_URL + path, {
       method: options.method || 'GET',
       headers: headers,
@@ -68,6 +78,15 @@
     xhr.open(options.method || 'GET', BASE_URL + path, false);
     xhr.setRequestHeader('role', getRbacRole());
     xhr.setRequestHeader('Content-Type', 'application/json');
+    try {
+      var rawSession = sessionStorage.getItem('finstackUserSession');
+      if (rawSession) {
+        var session = JSON.parse(rawSession);
+        if (session && session.accessToken) {
+          xhr.setRequestHeader('Authorization', 'Bearer ' + session.accessToken);
+        }
+      }
+    } catch (e) {}
     xhr.send(options.body === undefined ? null : JSON.stringify(options.body));
     var payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
     if (xhr.status < 200 || xhr.status >= 300) {
@@ -89,7 +108,9 @@
       request('/audit'),
       request('/transactions'),
       request('/reports'),
-      request('/dashboard')
+      request('/dashboard'),
+      request('/api/v1/tenant/plans').then(function(res) { return res && res.items ? res.items : (Array.isArray(res) ? res : []); }).catch(function() { return []; }), // gracefully handle if backend not ready
+      request('/api/v1/tenant/subscriptions/current').then(function(res) { return res ? [res] : []; }).catch(function() { return []; })
     ]).then(function (items) {
       return {
         users: items[0],
@@ -100,22 +121,29 @@
         auditLogs: items[5],
         transactions: items[6],
         reports: items[7],
-        dashboard: items[8]
+        dashboard: items[8],
+        plans: items[9],
+        subscriptions: items[10]
       };
     });
   }
 
   function syncGetAll() {
+    var safeSync = function(path) {
+      try { return syncRequest(path); } catch(e) { return []; }
+    };
     return {
-      users: syncRequest('/users'),
-      categories: syncRequest('/categories'),
-      expenses: syncRequest('/expenses'),
-      policies: syncRequest('/policies'),
-      notifications: syncRequest('/notifications'),
-      auditLogs: syncRequest('/audit'),
-      transactions: syncRequest('/transactions'),
-      reports: syncRequest('/reports'),
-      dashboard: syncRequest('/dashboard')
+      users: safeSync('/users'),
+      categories: safeSync('/categories'),
+      expenses: safeSync('/expenses'),
+      policies: safeSync('/policies'),
+      notifications: safeSync('/notifications'),
+      auditLogs: safeSync('/audit'),
+      transactions: safeSync('/transactions'),
+      reports: safeSync('/reports'),
+      dashboard: safeSync('/dashboard'),
+      plans: (function() { try { var res = syncRequest('/api/v1/tenant/plans'); return res && res.items ? res.items : (Array.isArray(res) ? res : []); } catch(e) { return []; } })(),
+      subscriptions: (function() { try { var res = syncRequest('/api/v1/tenant/subscriptions/current'); return res ? [res] : []; } catch(e) { return []; } })()
     };
   }
 

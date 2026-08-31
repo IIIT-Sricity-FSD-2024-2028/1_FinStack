@@ -7,6 +7,7 @@
     resetPassword: 'views/shared/reset-password.html',
     accountRequest: 'views/shared/account-request.html',
     configManager: 'views/config-manager/dashboard.html',
+    configManagerSubscription: 'views/config-manager/subscription.html',
     manager: 'views/manager/dashboard.html',
     finance: 'views/finance/dashboard.html',
     compliance: 'views/compliance/dashboard.html',

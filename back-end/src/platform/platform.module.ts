@@ -6,17 +6,19 @@ import { PlatformAuthenticationGuard } from './auth/guards/platform-authenticati
 import { PlatformCatalogModule } from './catalog/platform-catalog.module';
 import { PlatformHealthModule } from './health/platform-health.module';
 import { PlatformOrganizationsModule } from './organizations/platform-organizations.module';
+import { PlatformSubscriptionsModule } from './subscriptions/platform-subscriptions.module';
 import { PlatformPermissionGuard } from './rbac/guards/platform-permission.guard';
 import { PlatformRbacModule } from './rbac/platform-rbac.module';
 
 @Module({
   imports: [
     DatabaseModule,
-    PlatformRbacModule,
     PlatformAuthModule,
     PlatformHealthModule,
     PlatformOrganizationsModule,
     PlatformCatalogModule,
+    PlatformSubscriptionsModule,
+    PlatformRbacModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: PlatformAuthenticationGuard },
