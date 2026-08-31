@@ -237,6 +237,22 @@
         ? current.currency + ' ' + current.amount + ' / ' + String(current.billingInterval || '').toLowerCase()
         : 'No active subscription billing period';
 
+      var actionButtonHtml = '';
+      if (currentInvoice) {
+        actionButtonHtml = '<button class="btn btn-primary" id="btn-pay-current-invoice">Pay Invoice</button>';
+      } else {
+        var isCurrentPeriodInvoiced = current && invoices.some(function(inv) {
+          var invStart = new Date(inv.billingPeriodStart).getTime();
+          var currStart = new Date(current.currentPeriodStart).getTime();
+          return invStart === currStart && inv.status !== 'VOID';
+        });
+        if (isCurrentPeriodInvoiced) {
+          actionButtonHtml = '<button class="btn btn-secondary" disabled>Paid</button>';
+        } else {
+          actionButtonHtml = '<button class="btn btn-primary" id="btn-pay-current-invoice">Create Invoice</button>';
+        }
+      }
+
       billingContainer.innerHTML =
         '<h2 style="font-size:1.25rem;margin:0 0 16px 0;">Billing</h2>' +
         '<div class="card" style="padding:24px;margin-bottom:24px;">' +
@@ -246,7 +262,7 @@
               '<p style="margin:0;color:var(--text-secondary);font-size:14px;">' + currentSummary + '</p>' +
               '<p style="margin:8px 0 0;color:var(--text-secondary);font-size:13px;">Next billing date: ' + formatDate(current && current.nextBillingDate) + '</p>' +
             '</div>' +
-            '<button class="btn btn-primary" id="btn-pay-current-invoice">' + (currentInvoice ? 'Pay Invoice' : 'Create Invoice') + '</button>' +
+            actionButtonHtml +
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;">' +
@@ -262,7 +278,7 @@
 
       var payButton = document.getElementById('btn-pay-current-invoice');
       if (payButton) {
-        payButton.onclick = function() { startPayment(payButton); };
+        payButton.onclick = function() { startPayment(payButton, currentInvoice ? currentInvoice.id : null); };
       }
     }
 
@@ -311,7 +327,7 @@
       return new Date(value).toLocaleDateString();
     }
 
-    function startPayment(button) {
+    function startPayment(button, invoiceId) {
       if (!hasTenantToken()) {
         alert('Please sign out and sign back in before managing billing.');
         return;
@@ -320,7 +336,11 @@
       button.disabled = true;
       button.textContent = 'Preparing checkout...';
 
-      api.request('/api/v1/tenant/billing/razorpay-orders/current', {
+      var endpoint = invoiceId 
+        ? '/api/v1/tenant/billing/invoices/' + invoiceId + '/razorpay-orders'
+        : '/api/v1/tenant/billing/razorpay-orders/current';
+
+      api.request(endpoint, {
         method: 'POST',
         body: {}
       }).then(function(order) {
