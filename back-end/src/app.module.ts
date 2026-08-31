@@ -14,6 +14,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
 import { TenantSubscriptionsModule } from './modules/tenant-subscriptions/tenant-subscriptions.module';
 import { TenantAuthModule } from './modules/tenant-auth/tenant-auth.module';
+import { TenantRegistrationModule } from './modules/tenant-registration/tenant-registration.module';
 import { PlatformModule } from './platform/platform.module';
 import { platformRoutes } from './platform/platform.routes';
 
@@ -34,6 +35,7 @@ import { platformRoutes } from './platform/platform.routes';
     DashboardModule,
     TenantSubscriptionsModule,
     TenantAuthModule,
+    TenantRegistrationModule,
     PlatformModule,
     RouterModule.register(platformRoutes),
   ],

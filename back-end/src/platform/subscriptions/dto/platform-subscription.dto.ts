@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
+  IsString,
   IsNotEmpty,
   IsOptional,
   IsUUID,
@@ -34,6 +36,11 @@ export class UpdateSubscriptionPlanDto {
   @IsUUID()
   @IsNotEmpty()
   planId!: string;
+
+  @ApiPropertyOptional({ description: 'Reason for the plan change' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 export class CancelSubscriptionDto {
@@ -43,6 +50,18 @@ export class CancelSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   immediate?: boolean;
+
+  @ApiPropertyOptional({ description: 'Reason for cancellation' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class SuspendSubscriptionDto {
+  @ApiPropertyOptional({ description: 'Reason for suspension' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 export class ListSubscriptionsDto {
@@ -53,6 +72,51 @@ export class ListSubscriptionsDto {
   @IsOptional()
   @IsEnum(SubscriptionStatus)
   status?: SubscriptionStatus;
+
+  @ApiPropertyOptional({
+    description: 'Search by organization, plan, or subscription ID',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sort field',
+    enum: [
+      'createdAt',
+      'updatedAt',
+      'currentPeriodEnd',
+      'status',
+      'organizationName',
+      'planName',
+    ],
+    default: 'createdAt',
+  })
+  @IsOptional()
+  @IsIn([
+    'createdAt',
+    'updatedAt',
+    'currentPeriodEnd',
+    'status',
+    'organizationName',
+    'planName',
+  ])
+  sortBy?:
+    | 'createdAt'
+    | 'updatedAt'
+    | 'currentPeriodEnd'
+    | 'status'
+    | 'organizationName'
+    | 'planName';
+
+  @ApiPropertyOptional({
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+    default: 'desc',
+  })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  order?: 'asc' | 'desc';
 
   @ApiPropertyOptional({ description: 'Page number' })
   @IsOptional()

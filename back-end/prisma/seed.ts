@@ -150,9 +150,7 @@ export async function seedPlatformAuthRbac(
   return seedBootstrapAdmin(prisma, superAdminRoleId, environment);
 }
 
-export async function seedProductCatalog(
-  prisma: PrismaClient,
-): Promise<void> {
+export async function seedProductCatalog(prisma: PrismaClient): Promise<void> {
   const features = [
     {
       key: 'OCR_RECEIPT_EXTRACTION',
@@ -474,6 +472,46 @@ export async function seedProductCatalog(
   }
 }
 
+export async function seedDemoOrganization(
+  prisma: PrismaClient,
+): Promise<void> {
+  const existing = await prisma.organization.findFirst({
+    where: {
+      OR: [
+        { slug: 'finstack-tech-01' },
+        { externalCustomerRef: 'finstack-tech-01' },
+        { primaryEmail: 'admin@finstack.io' },
+      ],
+    },
+  });
+
+  const data = {
+    name: 'FinStack Technologies',
+    slug: 'finstack-tech-01',
+    primaryEmail: 'admin@finstack.io',
+    primaryContactName: 'Polasa Nikhil',
+    primaryContactEmail: 'polasa.nikhil@finstack.io',
+    defaultCurrency: 'INR',
+    timezone: 'Asia/Kolkata',
+    externalCustomerRef: 'finstack-tech-01',
+  };
+
+  if (existing) {
+    await prisma.organization.update({
+      where: { id: existing.id },
+      data,
+    });
+    return;
+  }
+
+  await prisma.organization.create({
+    data: {
+      ...data,
+      status: 'PROVISIONING',
+    },
+  });
+}
+
 async function main(): Promise<void> {
   const prisma = new PrismaClient();
 
@@ -490,6 +528,9 @@ async function main(): Promise<void> {
 
     await seedProductCatalog(prisma);
     console.log('Product catalog seed completed.');
+
+    await seedDemoOrganization(prisma);
+    console.log('Demo organization seed completed.');
   } finally {
     await prisma.$disconnect();
   }
@@ -499,8 +540,7 @@ async function main(): Promise<void> {
 
 if (require.main === module) {
   void main().catch((error: unknown) => {
-    const message =
-      error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Unknown error';
 
     console.error(`Platform seed failed: ${message}`);
     process.exitCode = 1;

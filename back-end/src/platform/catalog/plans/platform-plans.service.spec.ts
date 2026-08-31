@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PlatformPlansService } from './platform-plans.service';
@@ -56,6 +57,91 @@ describe('PlatformPlansService', () => {
     expect(findManyArg.take).toBe(10);
     expect(findManyArg.where.status).toBe('INACTIVE');
     expect(Array.isArray(findManyArg.where.OR)).toBe(true);
+  });
+
+  it('lists active tenant plans with assigned feature values', async () => {
+    const prisma = {
+      plan: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            ...basePlan,
+            status: 'ACTIVE',
+            planFeatures: [
+              {
+                enabled: true,
+                value: 25,
+                createdAt: new Date(),
+                feature: {
+                  key: 'MAX_USERS',
+                  name: 'Maximum Users',
+                  valueType: 'INTEGER',
+                  isActive: true,
+                },
+              },
+            ],
+          },
+        ]),
+      },
+    };
+    const service = serviceWithPrisma(prisma);
+
+    await expect(service.findActivePlansForTenant()).resolves.toMatchObject({
+      items: [
+        {
+          key: 'STARTER',
+          features: [
+            {
+              key: 'MAX_USERS',
+              name: 'Maximum Users',
+              valueType: 'INTEGER',
+              value: 25,
+              enabled: true,
+            },
+          ],
+        },
+      ],
+      total: 1,
+    });
+
+    expect(prisma.plan.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: 'ACTIVE' },
+        include: expect.objectContaining({
+          planFeatures: expect.any(Object),
+        }),
+      }),
+    );
+  });
+
+  it('filters inactive feature assignments from tenant plan payloads', async () => {
+    const prisma = {
+      plan: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            ...basePlan,
+            status: 'ACTIVE',
+            planFeatures: [
+              {
+                enabled: true,
+                value: true,
+                createdAt: new Date(),
+                feature: {
+                  key: 'AI_RISK_SCORING',
+                  name: 'AI Risk Scoring',
+                  valueType: 'BOOLEAN',
+                  isActive: false,
+                },
+              },
+            ],
+          },
+        ]),
+      },
+    };
+    const service = serviceWithPrisma(prisma);
+
+    const result = await service.findActivePlansForTenant();
+
+    expect(result.items[0].features).toEqual([]);
   });
 
   it('creates a plan successfully', async () => {

@@ -15,6 +15,7 @@ import {
   AssignSubscriptionDto,
   CancelSubscriptionDto,
   ListSubscriptionsDto,
+  SuspendSubscriptionDto,
   UpdateSubscriptionPlanDto,
 } from './dto/platform-subscription.dto';
 
@@ -75,7 +76,7 @@ export class PlatformSubscriptionsController {
     @Body() dto: UpdateSubscriptionPlanDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.subscriptions.upgrade(id, dto.planId, req.user?.id);
+    return this.subscriptions.upgrade(id, dto.planId, req.user?.id, dto.reason);
   }
 
   @Post(':id/downgrades')
@@ -86,14 +87,27 @@ export class PlatformSubscriptionsController {
     @Body() dto: UpdateSubscriptionPlanDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.subscriptions.downgrade(id, dto.planId, req.user?.id);
+    return this.subscriptions.downgrade(
+      id,
+      dto.planId,
+      req.user?.id,
+      dto.reason,
+    );
   }
 
   @Post(':id/suspensions')
   @Permissions('subscription.subscription.manage')
   @ApiOperation({ summary: 'Suspend a subscription' })
-  suspend(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) {
-    return this.subscriptions.suspend(id, 'Suspended by admin', req.user?.id);
+  suspend(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SuspendSubscriptionDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.subscriptions.suspend(
+      id,
+      dto.reason || 'Suspended by admin',
+      req.user?.id,
+    );
   }
 
   @Post(':id/reactivations')
@@ -114,7 +128,12 @@ export class PlatformSubscriptionsController {
     @Body() dto: CancelSubscriptionDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.subscriptions.cancel(id, !!dto.immediate, req.user?.id);
+    return this.subscriptions.cancel(
+      id,
+      !!dto.immediate,
+      req.user?.id,
+      dto.reason,
+    );
   }
 
   @Post(':id/renewals')

@@ -4,7 +4,11 @@ import { PlatformPlansService } from '../../platform/catalog/plans/platform-plan
 
 @ApiTags('tenant-plans')
 @ApiSecurity('role')
-@ApiHeader({ name: 'role', enum: ['superuser', 'admin', 'user'], required: true })
+@ApiHeader({
+  name: 'role',
+  enum: ['superuser', 'admin', 'user'],
+  required: true,
+})
 @Controller('api/v1/tenant/plans')
 export class TenantPlansController {
   constructor(private readonly plans: PlatformPlansService) {}
@@ -12,12 +16,6 @@ export class TenantPlansController {
   @Get()
   @ApiOperation({ summary: 'List active plans' })
   async findAll() {
-    return this.plans.findAll({
-      status: 'ACTIVE',
-      page: 1,
-      limit: 100,
-      sortBy: 'createdAt',
-      order: 'desc',
-    } as any);
+    return this.plans.findActivePlansForTenant();
   }
 }

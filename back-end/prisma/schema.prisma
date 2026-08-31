@@ -266,16 +266,23 @@ model OrganizationSubscription {
 }
 
 model SubscriptionHistory {
-  id             String             @id @default(uuid()) @db.Uuid
-  subscriptionId String             @db.Uuid
+  id             String              @id @default(uuid()) @db.Uuid
+  subscriptionId String              @db.Uuid
   status         SubscriptionStatus
-  action         String             @db.VarChar(100)
-  note           String?            @db.Text
-  actorStaffId   String?            @db.Uuid
-  createdAt      DateTime           @default(now())
+  previousStatus SubscriptionStatus?
+  newStatus      SubscriptionStatus?
+  previousPlanId String?             @db.Uuid
+  newPlanId      String?             @db.Uuid
+  action         String              @db.VarChar(100)
+  note           String?             @db.Text
+  metadata       Json?
+  actorStaffId   String?             @db.Uuid
+  createdAt      DateTime            @default(now())
 
   subscription OrganizationSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   actorStaff   PlatformStaff?           @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
 
   @@index([subscriptionId, createdAt])
+  @@index([previousPlanId])
+  @@index([newPlanId])
 }
