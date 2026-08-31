@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +8,12 @@ import { PlatformStaffStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { PlatformPasswordService } from '../auth/platform-password.service';
 import { PlatformSessionService } from '../auth/platform-session.service';
+import {
+  assertEffectiveSuperAdmin,
+  assertPermissionsWithinActorAuthority,
+  PLATFORM_SUPER_ADMIN_ROLE_KEY,
+} from '../common/platform-authority';
+import { runPlatformSerializableTransaction } from '../common/platform-serializable-transaction';
 import { AssignPlatformStaffRoleDto } from './dto/assign-platform-staff-role.dto';
 import { CreatePlatformStaffDto } from './dto/create-platform-staff.dto';
 import { ListPlatformStaffQueryDto } from './dto/list-platform-staff-query.dto';
@@ -22,14 +27,6 @@ import {
   toSafePlatformStaff,
   toSafePlatformStaffRoleAssignment,
 } from './platform-staff.types';
-
-const SUPER_ADMIN_ROLE_KEY = 'PLATFORM_SUPER_ADMIN';
-const SERIALIZABLE_RETRY_LIMIT = 3;
-
-interface SerializableConflict {
-  code: string;
-  message: string;
-}
 
 export interface PaginatedPlatformStaff {
   items: PlatformStaffResponse[];
@@ -109,7 +106,10 @@ export class PlatformStaffService {
             }),
             transaction.platformRole.findUnique({
               where: { id: dto.roleId },
-              select: safePlatformRoleSelect,
+              select: {
+                ...safePlatformRoleSelect,
+                rolePermissions: { select: { permissionId: true } },
+              },
             }),
           ]);
           if (!staff) {
@@ -130,11 +130,18 @@ export class PlatformStaffService {
               message: 'Inactive platform roles cannot be assigned.',
             });
           }
-          if (role.key === SUPER_ADMIN_ROLE_KEY) {
-            await this.assertEffectiveSuperAdmin(
-              authenticatedStaffId,
-              transaction,
-            );
+          await assertPermissionsWithinActorAuthority(
+            transaction,
+            authenticatedStaffId,
+            role.rolePermissions?.map(({ permissionId }) => permissionId) ?? [],
+            {
+              code: 'ROLE_ASSIGNMENT_EXCEEDS_ACTOR_AUTHORITY',
+              message:
+                'The role contains permissions outside your current authority.',
+            },
+          );
+          if (role.key === PLATFORM_SUPER_ADMIN_ROLE_KEY) {
+            await assertEffectiveSuperAdmin(transaction, authenticatedStaffId);
           }
 
           const assignment = await transaction.platformStaffRole.create({
@@ -188,16 +195,13 @@ export class PlatformStaffService {
           throw this.assignmentNotFound();
         }
 
-        if (role.key === SUPER_ADMIN_ROLE_KEY) {
-          await this.assertEffectiveSuperAdmin(
-            authenticatedStaffId,
-            transaction,
-          );
+        if (role.key === PLATFORM_SUPER_ADMIN_ROLE_KEY) {
+          await assertEffectiveSuperAdmin(transaction, authenticatedStaffId);
         }
 
         if (
           staff.status === PlatformStaffStatus.ACTIVE &&
-          role.key === SUPER_ADMIN_ROLE_KEY &&
+          role.key === PLATFORM_SUPER_ADMIN_ROLE_KEY &&
           role.isActive
         ) {
           const effectiveSuperAdmins = await transaction.platformStaff.count({
@@ -205,7 +209,10 @@ export class PlatformStaffService {
               status: PlatformStaffStatus.ACTIVE,
               roles: {
                 some: {
-                  role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
+                  role: {
+                    key: PLATFORM_SUPER_ADMIN_ROLE_KEY,
+                    isActive: true,
+                  },
                 },
               },
             },
@@ -286,7 +293,10 @@ export class PlatformStaffService {
           status: true,
           roles: {
             where: {
-              role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
+              role: {
+                key: PLATFORM_SUPER_ADMIN_ROLE_KEY,
+                isActive: true,
+              },
             },
             select: { roleId: true },
           },
@@ -314,7 +324,10 @@ export class PlatformStaffService {
             status: PlatformStaffStatus.ACTIVE,
             roles: {
               some: {
-                role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
+                role: {
+                  key: PLATFORM_SUPER_ADMIN_ROLE_KEY,
+                  isActive: true,
+                },
               },
             },
           },
@@ -348,56 +361,90 @@ export class PlatformStaffService {
     });
   }
 
-  async reactivate(id: string): Promise<PlatformStaffResponse> {
-    const target = await this.prisma.platformStaff.findUnique({
-      where: { id },
-      select: { status: true },
-    });
-    if (!target) {
-      throw this.notFound();
-    }
-    if (target.status !== PlatformStaffStatus.INACTIVE) {
-      throw this.invalidTransition(target.status, PlatformStaffStatus.ACTIVE);
-    }
+  async reactivate(
+    id: string,
+    authenticatedStaffId: string,
+  ): Promise<PlatformStaffResponse> {
+    return this.withSerializableRetry(
+      async (transaction) => {
+        const target = await transaction.platformStaff.findUnique({
+          where: { id },
+          select: {
+            status: true,
+            roles: {
+              where: { role: { isActive: true } },
+              select: {
+                role: {
+                  select: {
+                    key: true,
+                    rolePermissions: { select: { permissionId: true } },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!target) {
+          throw this.notFound();
+        }
+        if (target.status !== PlatformStaffStatus.INACTIVE) {
+          throw this.invalidTransition(
+            target.status,
+            PlatformStaffStatus.ACTIVE,
+          );
+        }
 
-    const updated = await this.prisma.platformStaff.updateMany({
-      where: { id, status: PlatformStaffStatus.INACTIVE },
-      data: { status: PlatformStaffStatus.ACTIVE },
-    });
-    if (updated.count !== 1) {
-      throw new ConflictException({
+        await assertPermissionsWithinActorAuthority(
+          transaction,
+          authenticatedStaffId,
+          target.roles.flatMap(({ role }) =>
+            role.rolePermissions.map(({ permissionId }) => permissionId),
+          ),
+          {
+            code: 'STAFF_REACTIVATION_EXCEEDS_ACTOR_AUTHORITY',
+            message:
+              'The staff member would regain permissions outside your current authority.',
+          },
+        );
+        if (
+          target.roles.some(
+            ({ role }) => role.key === PLATFORM_SUPER_ADMIN_ROLE_KEY,
+          )
+        ) {
+          await assertEffectiveSuperAdmin(transaction, authenticatedStaffId);
+        }
+
+        const updated = await transaction.platformStaff.updateMany({
+          where: { id, status: PlatformStaffStatus.INACTIVE },
+          data: { status: PlatformStaffStatus.ACTIVE },
+        });
+        if (updated.count !== 1) {
+          throw new ConflictException({
+            code: 'PLATFORM_STAFF_REACTIVATION_CONFLICT',
+            message: 'The platform staff status changed during reactivation.',
+          });
+        }
+        const staff = await transaction.platformStaff.findUniqueOrThrow({
+          where: { id },
+          select: safePlatformStaffSelect,
+        });
+        return toSafePlatformStaff(staff);
+      },
+      {
         code: 'PLATFORM_STAFF_REACTIVATION_CONFLICT',
-        message: 'The platform staff status changed during reactivation.',
-      });
-    }
-    return this.findOne(id);
+        message: 'The reactivation conflicted with another staff update.',
+      },
+    );
   }
 
-  private async withSerializableRetry<T>(
+  private withSerializableRetry<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
-    conflict: SerializableConflict = {
+    conflict = {
       code: 'PLATFORM_STAFF_DEACTIVATION_CONFLICT',
       message: 'The deactivation conflicted with another staff update.',
     },
   ): Promise<T> {
-    for (let attempt = 1; attempt <= SERIALIZABLE_RETRY_LIMIT; attempt += 1) {
-      try {
-        return await this.prisma.$transaction(operation, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
-      } catch (error) {
-        if (!this.isSerializationFailure(error)) {
-          throw error;
-        }
-        if (attempt === SERIALIZABLE_RETRY_LIMIT) {
-          throw new ConflictException({
-            code: conflict.code,
-            message: conflict.message,
-          });
-        }
-      }
-    }
-    throw new Error('Serializable transaction retry limit was not enforced.');
+    return runPlatformSerializableTransaction(this.prisma, operation, conflict);
   }
 
   private buildWhere(
@@ -453,13 +500,6 @@ export class PlatformStaffService {
     throw error;
   }
 
-  private isSerializationFailure(error: unknown): boolean {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2034'
-    );
-  }
-
   private notFound(): NotFoundException {
     return new NotFoundException({
       code: 'PLATFORM_STAFF_NOT_FOUND',
@@ -474,30 +514,6 @@ export class PlatformStaffService {
     });
     if (!staff) {
       throw this.notFound();
-    }
-  }
-
-  private async assertEffectiveSuperAdmin(
-    staffId: string,
-    transaction: Prisma.TransactionClient,
-  ): Promise<void> {
-    const effectiveSuperAdmin = await transaction.platformStaff.findFirst({
-      where: {
-        id: staffId,
-        status: PlatformStaffStatus.ACTIVE,
-        roles: {
-          some: {
-            role: { key: SUPER_ADMIN_ROLE_KEY, isActive: true },
-          },
-        },
-      },
-      select: { id: true },
-    });
-    if (!effectiveSuperAdmin) {
-      throw new ForbiddenException({
-        code: 'EFFECTIVE_SUPER_ADMIN_REQUIRED',
-        message: 'An effective Super Admin is required for this operation.',
-      });
     }
   }
 

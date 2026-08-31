@@ -220,6 +220,65 @@ describe('PlatformStaffService', () => {
     );
   });
 
+  it('allows role assignment only when target permissions are within actor authority', async () => {
+    const permissionId = 'ca55aa6f-b715-44d3-8903-bb213d5f6a08';
+    const strongerRole = {
+      ...baseRole,
+      rolePermissions: [{ permissionId }],
+    };
+    const allowedTransaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest.fn().mockResolvedValue({
+          roles: [{ role: { rolePermissions: [{ permissionId }] } }],
+        }),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(strongerRole),
+      },
+      platformStaffRole: {
+        create: jest.fn().mockResolvedValue(baseAssignment),
+      },
+    };
+    const deniedTransaction = {
+      platformStaff: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: PlatformStaffStatus.ACTIVE }),
+        findFirst: jest.fn().mockResolvedValue({ roles: [] }),
+      },
+      platformRole: {
+        findUnique: jest.fn().mockResolvedValue(strongerRole),
+      },
+      platformStaffRole: { create: jest.fn() },
+    };
+
+    await expect(
+      serviceWith({
+        $transaction: jest.fn(
+          (
+            operation: (client: typeof allowedTransaction) => Promise<unknown>,
+          ) => operation(allowedTransaction),
+        ),
+      }).assignRole(
+        baseStaff.id,
+        { roleId: strongerRole.id },
+        baseAssignment.assignedByStaffId,
+      ),
+    ).resolves.toEqual(baseAssignment);
+    await expect(
+      serviceWith({
+        $transaction: jest.fn(
+          (operation: (client: typeof deniedTransaction) => Promise<unknown>) =>
+            operation(deniedTransaction),
+        ),
+      }).assignRole(baseStaff.id, { roleId: strongerRole.id }, baseStaff.id),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deniedTransaction.platformStaffRole.create).not.toHaveBeenCalled();
+  });
+
   it('rejects assignment to suspended staff or from an inactive role', async () => {
     const suspendedTransaction = {
       platformStaff: {
@@ -584,42 +643,147 @@ describe('PlatformStaffService', () => {
   });
 
   it('reactivates only inactive staff and does not recreate sessions', async () => {
-    const findUnique = jest
-      .fn()
-      .mockResolvedValueOnce({ status: PlatformStaffStatus.INACTIVE })
-      .mockResolvedValueOnce({
-        ...baseStaff,
-        status: PlatformStaffStatus.ACTIVE,
-      });
-    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const transaction = {
+      platformStaff: {
+        findUnique: jest.fn().mockResolvedValue({
+          status: PlatformStaffStatus.INACTIVE,
+          roles: [],
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          ...baseStaff,
+          status: PlatformStaffStatus.ACTIVE,
+        }),
+      },
+    };
     const sessions = { revokeAllForStaff: jest.fn() };
     const service = serviceWith(
-      { platformStaff: { findUnique, updateMany } },
+      {
+        $transaction: jest.fn(
+          (operation: (client: typeof transaction) => Promise<unknown>) =>
+            operation(transaction),
+        ),
+      },
       undefined,
       sessions,
     );
 
-    await expect(service.reactivate(baseStaff.id)).resolves.toMatchObject({
-      status: PlatformStaffStatus.ACTIVE,
-    });
-    expect(updateMany).toHaveBeenCalledWith({
+    await expect(
+      service.reactivate(baseStaff.id, baseAssignment.assignedByStaffId),
+    ).resolves.toMatchObject({ status: PlatformStaffStatus.ACTIVE });
+    expect(transaction.platformStaff.updateMany).toHaveBeenCalledWith({
       where: { id: baseStaff.id, status: PlatformStaffStatus.INACTIVE },
       data: { status: PlatformStaffStatus.ACTIVE },
     });
     expect(sessions.revokeAllForStaff).not.toHaveBeenCalled();
   });
 
-  it('rejects suspended staff reactivation', async () => {
-    const service = serviceWith({
+  it('reactivates staff only when restored permissions are within actor authority', async () => {
+    const permissionId = '0f575087-fe13-426f-941d-2eadc9a8f857';
+    const target = {
+      status: PlatformStaffStatus.INACTIVE,
+      roles: [
+        {
+          role: {
+            key: 'CUSTOM_OPERATIONS',
+            rolePermissions: [{ permissionId }],
+          },
+        },
+      ],
+    };
+    const allowedTransaction = {
       platformStaff: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ status: PlatformStaffStatus.SUSPENDED }),
+        findUnique: jest.fn().mockResolvedValue(target),
+        findFirst: jest.fn().mockResolvedValue({
+          roles: [{ role: { rolePermissions: [{ permissionId }] } }],
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(baseStaff),
       },
+    };
+    const deniedTransaction = {
+      platformStaff: {
+        findUnique: jest.fn().mockResolvedValue(target),
+        findFirst: jest.fn().mockResolvedValue({ roles: [] }),
+        updateMany: jest.fn(),
+      },
+    };
+
+    await expect(
+      serviceWith({
+        $transaction: jest.fn(
+          (
+            operation: (client: typeof allowedTransaction) => Promise<unknown>,
+          ) => operation(allowedTransaction),
+        ),
+      }).reactivate(baseStaff.id, baseAssignment.assignedByStaffId),
+    ).resolves.toEqual(baseStaff);
+    await expect(
+      serviceWith({
+        $transaction: jest.fn(
+          (operation: (client: typeof deniedTransaction) => Promise<unknown>) =>
+            operation(deniedTransaction),
+        ),
+      }).reactivate(baseStaff.id, baseAssignment.assignedByStaffId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deniedTransaction.platformStaff.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('requires an effective Super Admin to reactivate a Super Admin target', async () => {
+    const permissionId = '9f30bfd2-8276-4304-b440-bd4ea5bed09f';
+    const target = {
+      status: PlatformStaffStatus.INACTIVE,
+      roles: [
+        {
+          role: {
+            key: 'PLATFORM_SUPER_ADMIN',
+            rolePermissions: [{ permissionId }],
+          },
+        },
+      ],
+    };
+    const transaction = {
+      platformStaff: {
+        findUnique: jest.fn().mockResolvedValue(target),
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce({
+            roles: [{ role: { rolePermissions: [{ permissionId }] } }],
+          })
+          .mockResolvedValueOnce(null),
+        updateMany: jest.fn(),
+      },
+    };
+
+    await expect(
+      serviceWith({
+        $transaction: jest.fn(
+          (operation: (client: typeof transaction) => Promise<unknown>) =>
+            operation(transaction),
+        ),
+      }).reactivate(baseStaff.id, baseAssignment.assignedByStaffId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(transaction.platformStaff.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects suspended staff reactivation', async () => {
+    const transaction = {
+      platformStaff: {
+        findUnique: jest.fn().mockResolvedValue({
+          status: PlatformStaffStatus.SUSPENDED,
+          roles: [],
+        }),
+      },
+    };
+    const service = serviceWith({
+      $transaction: jest.fn(
+        (operation: (client: typeof transaction) => Promise<unknown>) =>
+          operation(transaction),
+      ),
     });
 
-    await expect(service.reactivate(baseStaff.id)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.reactivate(baseStaff.id, baseAssignment.assignedByStaffId),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -69,8 +69,11 @@ export class PlatformStaffController {
   @Post(':id/reactivations')
   @Permissions('platform.staff.activate')
   @ApiOperation({ summary: 'Reactivate inactive platform staff' })
-  reactivate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.staff.reactivate(id);
+  reactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentPlatformStaff() authenticatedStaff: PlatformStaffIdentity,
+  ) {
+    return this.staff.reactivate(id, authenticatedStaff.id);
   }
 
   @Get(':staffId/roles')
