@@ -8,7 +8,7 @@ describe('access-token memory session', () => {
     setAccessToken('memory-only-token');
 
     expect(getAccessToken()).toBe('memory-only-token');
-    expect(localStorage.length).toBe(0);
-    expect(sessionStorage.length).toBe(0);
+    expect(globalThis.localStorage?.length ?? 0).toBe(0);
+    expect(globalThis.sessionStorage?.length ?? 0).toBe(0);
   });
 });

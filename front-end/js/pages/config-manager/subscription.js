@@ -8,6 +8,7 @@
     // UI Elements
     var plansContainer = document.getElementById('plans-container');
     var currentSubContainer = document.getElementById('current-subscription-container');
+    var billingContainer = document.getElementById('billing-container');
     var actionModal = document.getElementById('action-modal');
 
     // Run layout init synchronously so sidebar is populated before dashboard.js binds events on DOMContentLoaded
@@ -22,6 +23,7 @@
     var currentSub = null;       // null = no subscription, object = has subscription
     var authState = 'UNKNOWN';   // UNKNOWN, AUTHENTICATED, AUTH_MISSING, AUTH_EXPIRED
     var availablePlans = [];
+    var customerBilling = null;
 
     /**
      * Check whether the existing customer session includes a tenant access token.
@@ -58,6 +60,7 @@
           authState = 'AUTH_MISSING';
           currentSub = null;
           renderCurrentSubscription();
+          renderBilling();
       }
     }
 
@@ -91,6 +94,7 @@
           currentSub = res || null;
           authState = 'AUTHENTICATED';
           renderCurrentSubscription();
+          loadCustomerBilling();
           // Re-render plans to update action buttons now that we know current subscription
           if (availablePlans.length > 0) {
             renderPlans();
@@ -109,6 +113,7 @@
             currentSub = null;
           }
           renderCurrentSubscription();
+          renderBilling();
           // Re-render plans to update action buttons
           if (availablePlans.length > 0) {
             renderPlans();
@@ -120,9 +125,32 @@
       if (hasTenantToken()) {
         loadPlans();
         loadCurrentSubscription();
+        loadCustomerBilling();
       } else {
         loadPlans();
+        renderBilling();
       }
+    }
+
+    function loadCustomerBilling() {
+      if (!hasTenantToken()) {
+        customerBilling = null;
+        renderBilling();
+        return;
+      }
+
+      billingContainer.innerHTML = '<div class="card" style="padding:24px;"><p style="color:var(--text-secondary);margin:0;">Loading billing information...</p></div>';
+      api.request('/api/v1/tenant/billing/current')
+        .then(function(res) {
+          customerBilling = res || null;
+          renderBilling();
+        })
+        .catch(function(err) {
+          billingContainer.innerHTML = '<div class="card" style="padding:24px;border:1px solid rgba(239,68,68,0.3);">' +
+            '<h3 style="color:var(--red);margin:0 0 8px 0;">Billing unavailable</h3>' +
+            '<p style="color:var(--text-secondary);margin:0;">' + (err.message || 'Unable to load billing history.') + '</p>' +
+          '</div>';
+        });
     }
 
     function renderCurrentSubscription() {
@@ -181,6 +209,189 @@
           '<p style="margin:6px 0 0;font-size:12px;color:var(--text-secondary);">' + datesStr + '</p>' +
         '</div>' +
       '</div>';
+    }
+
+    function renderBilling() {
+      if (!billingContainer) return;
+
+      if (!hasTenantToken()) {
+        billingContainer.innerHTML = '<div class="card" style="padding:24px;border:1px solid rgba(245,158,11,0.3);">' +
+          '<h3 style="color:var(--warning);margin:0 0 8px 0;">Billing requires authentication</h3>' +
+          '<p style="color:var(--text-secondary);margin:0;">Sign out and sign back in to view invoices, payments, and checkout actions.</p>' +
+        '</div>';
+        return;
+      }
+
+      if (!customerBilling) {
+        billingContainer.innerHTML = '<div class="card" style="padding:24px;"><p style="color:var(--text-secondary);margin:0;">No billing history yet.</p></div>';
+        return;
+      }
+
+      var current = customerBilling.current;
+      var invoices = customerBilling.invoices || [];
+      var payments = customerBilling.payments || [];
+      var currentInvoice = invoices.find(function(invoice) {
+        return invoice.status === 'PENDING' || invoice.status === 'ISSUED' || invoice.status === 'OVERDUE';
+      });
+      var currentSummary = current
+        ? current.currency + ' ' + current.amount + ' / ' + String(current.billingInterval || '').toLowerCase()
+        : 'No active subscription billing period';
+
+      billingContainer.innerHTML =
+        '<h2 style="font-size:1.25rem;margin:0 0 16px 0;">Billing</h2>' +
+        '<div class="card" style="padding:24px;margin-bottom:24px;">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">' +
+            '<div>' +
+              '<h3 style="margin:0 0 8px 0;">Current billing</h3>' +
+              '<p style="margin:0;color:var(--text-secondary);font-size:14px;">' + currentSummary + '</p>' +
+              '<p style="margin:8px 0 0;color:var(--text-secondary);font-size:13px;">Next billing date: ' + formatDate(current && current.nextBillingDate) + '</p>' +
+            '</div>' +
+            '<button class="btn btn-primary" id="btn-pay-current-invoice">' + (currentInvoice ? 'Pay Invoice' : 'Create Invoice') + '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;">' +
+          '<div class="card" style="padding:24px;">' +
+            '<h3 style="margin:0 0 16px 0;">Invoice history</h3>' +
+            renderInvoiceList(invoices) +
+          '</div>' +
+          '<div class="card" style="padding:24px;">' +
+            '<h3 style="margin:0 0 16px 0;">Payment history</h3>' +
+            renderPaymentList(payments) +
+          '</div>' +
+        '</div>';
+
+      var payButton = document.getElementById('btn-pay-current-invoice');
+      if (payButton) {
+        payButton.onclick = function() { startPayment(payButton); };
+      }
+    }
+
+    function renderInvoiceList(invoices) {
+      if (!invoices.length) {
+        return '<p style="color:var(--text-secondary);margin:0;">No invoices have been generated yet.</p>';
+      }
+      return invoices.slice(0, 8).map(function(invoice) {
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--border-default);">' +
+          '<div>' +
+            '<strong style="display:block;">' + invoice.invoiceNumber + '</strong>' +
+            '<span style="color:var(--text-secondary);font-size:13px;">' + formatDate(invoice.issueDate) + '</span>' +
+          '</div>' +
+          '<div style="text-align:right;">' +
+            '<strong style="display:block;">' + invoice.currency + ' ' + invoice.totalAmount + '</strong>' +
+            '<span class="badge ' + badgeForBillingStatus(invoice.status) + '">' + invoice.status + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderPaymentList(payments) {
+      if (!payments.length) {
+        return '<p style="color:var(--text-secondary);margin:0;">No payment attempts yet.</p>';
+      }
+      return payments.slice(0, 8).map(function(payment) {
+        return '<div style="padding:12px 0;border-top:1px solid var(--border-default);">' +
+          '<div style="display:flex;justify-content:space-between;gap:12px;">' +
+            '<strong>' + payment.currency + ' ' + payment.amount + '</strong>' +
+            '<span class="badge ' + badgeForBillingStatus(payment.status) + '">' + payment.status + '</span>' +
+          '</div>' +
+          '<p style="color:var(--text-secondary);font-size:13px;margin:6px 0 0;">' + (payment.providerReference || payment.providerOrderId || 'No provider reference yet') + '</p>' +
+          (payment.failureReason ? '<p style="color:var(--red);font-size:13px;margin:6px 0 0;">' + payment.failureReason + '</p>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    function badgeForBillingStatus(status) {
+      if (status === 'PAID' || status === 'SUCCEEDED') return 'badge-green';
+      if (status === 'FAILED' || status === 'VOID') return 'badge-red';
+      return 'badge-yellow';
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Not provided';
+      return new Date(value).toLocaleDateString();
+    }
+
+    function startPayment(button) {
+      if (!hasTenantToken()) {
+        alert('Please sign out and sign back in before managing billing.');
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Preparing checkout...';
+
+      api.request('/api/v1/tenant/billing/razorpay-orders/current', {
+        method: 'POST',
+        body: {}
+      }).then(function(order) {
+        openRazorpayCheckout(order, button);
+      }).catch(function(err) {
+        button.disabled = false;
+        button.textContent = 'Try Again';
+        alert('Unable to prepare checkout: ' + (err.message || 'Billing error'));
+      });
+    }
+
+    function openRazorpayCheckout(order, button) {
+      if (!window.Razorpay) {
+        button.disabled = false;
+        button.textContent = 'Try Again';
+        alert('Razorpay Checkout did not load. Please check your connection and try again.');
+        return;
+      }
+
+      var checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'FinStack',
+        description: 'Subscription invoice payment',
+        order_id: order.orderId,
+        handler: function(response) {
+          api.request('/api/v1/tenant/billing/razorpay-payments/verifications', {
+            method: 'POST',
+            body: {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature
+            }
+          }).then(function() {
+            button.disabled = false;
+            button.textContent = 'Payment Verified';
+            loadCurrentSubscription();
+            loadCustomerBilling();
+          }).catch(function(err) {
+            button.disabled = false;
+            button.textContent = 'Verify Failed';
+            alert('Payment verification failed: ' + (err.message || 'Unable to verify payment'));
+          });
+        },
+        modal: {
+          ondismiss: function() {
+            button.disabled = false;
+            button.textContent = 'Pay Invoice';
+          }
+        }
+      });
+
+      checkout.on('payment.failed', function(response) {
+        var error = response && response.error ? response.error : {};
+        api.request('/api/v1/tenant/billing/razorpay-payments/failures', {
+          method: 'POST',
+          body: {
+            orderId: order.orderId,
+            paymentId: error.metadata && error.metadata.payment_id,
+            code: error.code,
+            reason: error.description || error.reason
+          }
+        }).finally(function() {
+          button.disabled = false;
+          button.textContent = 'Try Again';
+          loadCustomerBilling();
+        });
+      });
+
+      checkout.open();
     }
 
     /**

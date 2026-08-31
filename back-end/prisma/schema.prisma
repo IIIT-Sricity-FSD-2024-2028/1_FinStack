@@ -45,6 +45,8 @@ model Organization {
   updatedAt           DateTime           @updatedAt
 
   subscriptions OrganizationSubscription[]
+  invoices      Invoice[]
+  payments      SubscriptionPayment[]
 
   @@index([status, createdAt])
   @@index([createdAt])
@@ -168,6 +170,7 @@ model Plan {
   updatedAt       DateTime                   @updatedAt
   planFeatures    PlanFeature[]
   subscriptions   OrganizationSubscription[]
+  invoices        Invoice[]
 
   @@index([status])
   @@index([billingInterval])
@@ -239,6 +242,23 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PENDING
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
 model OrganizationSubscription {
   id                  String             @id @default(uuid()) @db.Uuid
   organizationId      String             @db.Uuid
@@ -259,10 +279,99 @@ model OrganizationSubscription {
   organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   plan         Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
   history      SubscriptionHistory[]
+  invoices     Invoice[]
+  payments     SubscriptionPayment[]
 
   @@index([organizationId])
   @@index([status])
   @@index([currentPeriodEnd])
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+
+model Invoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  invoiceNumber      String        @unique @default(dbgenerated("'INV-' || to_char(CURRENT_DATE, 'YYYYMM') || '-' || lpad(nextval('\"InvoiceNumberSequence\"'::regclass)::text, 6, '0')")) @db.VarChar(40)
+  organizationId     String        @db.Uuid
+  subscriptionId     String?       @db.Uuid
+  planId             String?       @db.Uuid
+  status             InvoiceStatus @default(PENDING)
+  subtotal           Decimal       @db.Decimal(18, 4)
+  taxAmount          Decimal       @default(0) @db.Decimal(18, 4)
+  totalAmount        Decimal       @db.Decimal(18, 4)
+  currency           String        @db.Char(3)
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+  issueDate          DateTime      @default(now())
+  dueDate            DateTime
+  paidAt             DateTime?
+  voidedAt           DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription OrganizationSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  plan         Plan?                     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  payments     SubscriptionPayment[]
+
+  @@index([organizationId])
+  @@index([subscriptionId])
+  @@index([planId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+}
+
+model SubscriptionPayment {
+  id                String                    @id @default(uuid()) @db.Uuid
+  organizationId    String                    @db.Uuid
+  invoiceId         String?                   @db.Uuid
+  subscriptionId    String?                   @db.Uuid
+  amount            Decimal                   @db.Decimal(18, 4)
+  currency          String                    @db.Char(3)
+  status            SubscriptionPaymentStatus @default(PENDING)
+  provider          String?                   @db.VarChar(50)
+  providerReference String?                   @unique @db.VarChar(160)
+  providerOrderId   String?                   @unique @db.VarChar(160)
+  paymentMethod     String?                   @db.VarChar(80)
+  failureCode       String?                   @db.VarChar(120)
+  failureReason     String?                   @db.VarChar(500)
+  paidAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invoice      Invoice?                  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  subscription OrganizationSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([provider])
+  @@index([createdAt])
+}
+
+model PaymentProviderWebhookEvent {
+  id                String    @id @default(uuid()) @db.Uuid
+  provider          String    @db.VarChar(50)
+  eventId           String    @db.VarChar(180)
+  eventType         String    @db.VarChar(120)
+  providerPaymentId String?   @db.VarChar(160)
+  providerOrderId   String?   @db.VarChar(160)
+  status            String    @db.VarChar(40)
+  payload           Json?
+  receivedAt        DateTime  @default(now())
+  processedAt       DateTime?
+
+  @@unique([provider, eventId])
+  @@index([eventType])
+  @@index([providerPaymentId])
+  @@index([providerOrderId])
+  @@index([receivedAt])
 }
 
 model SubscriptionHistory {

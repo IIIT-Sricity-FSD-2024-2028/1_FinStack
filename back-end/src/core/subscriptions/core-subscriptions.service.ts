@@ -44,10 +44,12 @@ export class CoreSubscriptionsService {
 
     return {
       items,
-      total,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
     };
   }
 
@@ -66,7 +68,36 @@ export class CoreSubscriptionsService {
     if (!sub) {
       throw new NotFoundException('Subscription not found');
     }
-    return sub;
+    const [openInvoices, overdueInvoices, failedPayments, lastPayment] =
+      await Promise.all([
+        this.prisma.invoice.count({
+          where: {
+            subscriptionId: id,
+            status: { in: ['ISSUED', 'PENDING', 'OVERDUE'] },
+          },
+        }),
+        this.prisma.invoice.count({
+          where: { subscriptionId: id, status: 'OVERDUE' },
+        }),
+        this.prisma.subscriptionPayment.count({
+          where: { subscriptionId: id, status: 'FAILED' },
+        }),
+        this.prisma.subscriptionPayment.findFirst({
+          where: { subscriptionId: id, status: 'SUCCEEDED' },
+          orderBy: { paidAt: 'desc' },
+        }),
+      ]);
+
+    return {
+      ...sub,
+      billing: {
+        openInvoices,
+        overdueInvoices,
+        failedPayments,
+        lastPaymentAt: lastPayment?.paidAt ?? null,
+        nextInvoiceAt: sub.currentPeriodEnd,
+      },
+    };
   }
 
   async findByOrganizationId(organizationId: string) {

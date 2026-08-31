@@ -2259,6 +2259,219 @@
         ]
       }
     },
+    "/api/v1/tenant/billing/current": {
+      "get": {
+        "operationId": "TenantBillingController_getCurrentBilling",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Get current organization billing state",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices": {
+      "get": {
+        "operationId": "TenantBillingController_listInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "List current organization invoices",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/payments": {
+      "get": {
+        "operationId": "TenantBillingController_listPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "List current organization subscription payments",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices/current": {
+      "post": {
+        "operationId": "TenantBillingController_ensureCurrentInvoice",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create or return current subscription invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices/{invoiceId}/razorpay-orders": {
+      "post": {
+        "operationId": "TenantBillingController_createOrder",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create Razorpay test order for an invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-orders/current": {
+      "post": {
+        "operationId": "TenantBillingController_createCurrentOrder",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create Razorpay test order for current invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-payments/verifications": {
+      "post": {
+        "operationId": "TenantBillingController_verifyPayment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRazorpayPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Verify Razorpay checkout payment signature",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-payments/failures": {
+      "post": {
+        "operationId": "TenantBillingController_recordFailure",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRazorpayFailureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Persist safe Razorpay checkout failure state",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
     "/api/v1/platform/auth/login": {
       "post": {
         "operationId": "PlatformAuthController_login",
@@ -2576,6 +2789,196 @@
         "summary": "Archive a cancelled organization",
         "tags": [
           "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/overview": {
+      "get": {
+        "operationId": "PlatformBillingController_getOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get platform billing overview",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/revenue": {
+      "get": {
+        "operationId": "PlatformBillingController_getRevenue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get revenue summary and breakdowns",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/invoices": {
+      "get": {
+        "operationId": "PlatformBillingController_listInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List platform invoices",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/invoices/{id}": {
+      "get": {
+        "operationId": "PlatformBillingController_getInvoice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get platform invoice details",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments": {
+      "get": {
+        "operationId": "PlatformBillingController_listPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List platform subscription payments",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments/failed": {
+      "get": {
+        "operationId": "PlatformBillingController_listFailedPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List failed subscription payments",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments/{id}": {
+      "get": {
+        "operationId": "PlatformBillingController_getPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get subscription payment details",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/razorpay/webhooks": {
+      "post": {
+        "operationId": "PlatformBillingWebhookController_processWebhook",
+        "parameters": [
+          {
+            "name": "x-razorpay-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-razorpay-event-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Process Razorpay billing webhook",
+        "tags": [
+          "Platform billing webhooks"
         ]
       }
     },
@@ -3866,6 +4269,14 @@
           "adminPassword",
           "planId"
         ]
+      },
+      "VerifyRazorpayPaymentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RecordRazorpayFailureDto": {
+        "type": "object",
+        "properties": {}
       },
       "PlatformLoginDto": {
         "type": "object",

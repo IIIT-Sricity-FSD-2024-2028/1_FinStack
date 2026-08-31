@@ -4,6 +4,7 @@ import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { PublicOnlyRoute } from '../auth/PublicOnlyRoute';
 import { LoginPage } from '../features/auth/LoginPage';
 import { UnauthorizedPage } from '../features/auth/UnauthorizedPage';
+import { BillingPage } from '../features/billing/BillingPage';
 import { HealthPage } from '../features/health/HealthPage';
 import { FeatureCreatePage } from '../features/features/FeatureCreatePage';
 import { FeatureDetailPage } from '../features/features/FeatureDetailPage';
@@ -120,6 +121,29 @@ export function AppRouter() {
             path="subscriptions/:subscriptionId"
             element={<SubscriptionDetailPage />}
           />
+
+          <Route element={<PermissionRoute permission="billing.billing.view" />}>
+            <Route
+              path="billing"
+              element={<BillingPage view="overview" />}
+            />
+          </Route>
+          <Route element={<PermissionRoute permission="billing.invoice.view" />}>
+            <Route
+              path="billing/invoices"
+              element={<BillingPage view="invoices" />}
+            />
+          </Route>
+          <Route element={<PermissionRoute permission="billing.payment.view" />}>
+            <Route
+              path="billing/payments"
+              element={<BillingPage view="payments" />}
+            />
+            <Route
+              path="billing/failed-payments"
+              element={<BillingPage view="failed" />}
+            />
+          </Route>
         </Route>
       </Route>
 

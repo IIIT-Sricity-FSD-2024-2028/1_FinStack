@@ -29,6 +29,13 @@ describe('CoreSubscriptionsService', () => {
     platformAuditLog: {
       create: jest.fn(),
     },
+    invoice: {
+      count: jest.fn(),
+    },
+    subscriptionPayment: {
+      count: jest.fn(),
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn().mockImplementation((cb) => cb(mockPrisma)),
   };
 

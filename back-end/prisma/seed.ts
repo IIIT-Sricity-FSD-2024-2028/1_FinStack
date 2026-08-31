@@ -21,6 +21,13 @@ const permissions = [
   ['subscription.feature.manage', 'Manage product features'],
   ['subscription.subscription.view', 'View organization subscriptions'],
   ['subscription.subscription.manage', 'Manage organization subscriptions'],
+  ['billing.billing.view', 'View billing overview'],
+  ['billing.billing.manage', 'Manage billing operations'],
+  ['billing.invoice.view', 'View SaaS invoices'],
+  ['billing.invoice.manage', 'Manage SaaS invoices'],
+  ['billing.payment.view', 'View subscription payments'],
+  ['billing.payment.manage', 'Manage subscription payments'],
+  ['billing.revenue.view', 'View subscription revenue'],
 ] as const;
 
 const roles = [
@@ -78,6 +85,25 @@ async function seedCatalog(prisma: PrismaClient): Promise<string> {
       skipDuplicates: true,
     }),
   ]);
+
+  const billingRole = seededRoles.find((role) => role.key === 'BILLING_STAFF');
+  if (billingRole) {
+    const billingPermissions = seededPermissions.filter((permission) =>
+      permission.key.startsWith('billing.'),
+    );
+    await prisma.$transaction([
+      prisma.platformRolePermission.deleteMany({
+        where: { roleId: billingRole.id },
+      }),
+      prisma.platformRolePermission.createMany({
+        data: billingPermissions.map((permission) => ({
+          roleId: billingRole.id,
+          permissionId: permission.id,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
+  }
 
   return superAdmin.id;
 }
@@ -474,7 +500,7 @@ export async function seedProductCatalog(prisma: PrismaClient): Promise<void> {
 
 export async function seedDemoOrganization(
   prisma: PrismaClient,
-): Promise<void> {
+): Promise<string> {
   const existing = await prisma.organization.findFirst({
     where: {
       OR: [
@@ -501,15 +527,108 @@ export async function seedDemoOrganization(
       where: { id: existing.id },
       data,
     });
-    return;
+    return existing.id;
   }
 
-  await prisma.organization.create({
+  const organization = await prisma.organization.create({
     data: {
       ...data,
       status: 'PROVISIONING',
     },
   });
+  return organization.id;
+}
+
+export async function seedDemoBilling(prisma: PrismaClient): Promise<void> {
+  const organization = await prisma.organization.findFirst({
+    where: { slug: 'finstack-tech-01' },
+  });
+  const plan = await prisma.plan.findUnique({
+    where: { key: 'PROFESSIONAL' },
+  });
+  if (!organization || !plan) {
+    return;
+  }
+
+  const periodStart = new Date();
+  periodStart.setDate(1);
+  periodStart.setHours(0, 0, 0, 0);
+  const periodEnd = new Date(periodStart);
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+  let subscription = await prisma.organizationSubscription.findFirst({
+    where: {
+      organizationId: organization.id,
+      status: { in: ['ACTIVE', 'TRIAL', 'EXPIRING', 'GRACE_PERIOD'] },
+    },
+  });
+
+  if (!subscription) {
+    subscription = await prisma.organizationSubscription.create({
+      data: {
+        organizationId: organization.id,
+        planId: plan.id,
+        status: 'ACTIVE',
+        billingInterval: plan.billingInterval,
+        currency: plan.currency,
+        priceAtSubscription: plan.basePrice,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+      },
+    });
+  }
+
+  let invoice = await prisma.invoice.findFirst({
+    where: {
+      organizationId: organization.id,
+      subscriptionId: subscription.id,
+      status: 'PAID',
+    },
+  });
+
+  if (!invoice) {
+    invoice = await prisma.invoice.create({
+      data: {
+        organizationId: organization.id,
+        subscriptionId: subscription.id,
+        planId: plan.id,
+        status: 'PAID',
+        subtotal: subscription.priceAtSubscription,
+        taxAmount: 0,
+        totalAmount: subscription.priceAtSubscription,
+        currency: subscription.currency,
+        billingPeriodStart: subscription.currentPeriodStart,
+        billingPeriodEnd: subscription.currentPeriodEnd,
+        dueDate: new Date(),
+        paidAt: new Date(),
+      },
+    });
+  }
+
+  const successfulPayment = await prisma.subscriptionPayment.findFirst({
+    where: {
+      invoiceId: invoice.id,
+      status: 'SUCCEEDED',
+    },
+  });
+
+  if (!successfulPayment) {
+    await prisma.subscriptionPayment.create({
+      data: {
+        organizationId: organization.id,
+        invoiceId: invoice.id,
+        subscriptionId: subscription.id,
+        amount: invoice.totalAmount,
+        currency: invoice.currency,
+        status: 'SUCCEEDED',
+        provider: 'RAZORPAY',
+        providerReference: `seed_pay_${invoice.id.replaceAll('-', '').slice(0, 18)}`,
+        providerOrderId: `seed_order_${invoice.id.replaceAll('-', '').slice(0, 16)}`,
+        paymentMethod: 'card',
+        paidAt: invoice.paidAt || new Date(),
+      },
+    });
+  }
 }
 
 async function main(): Promise<void> {
@@ -531,6 +650,9 @@ async function main(): Promise<void> {
 
     await seedDemoOrganization(prisma);
     console.log('Demo organization seed completed.');
+
+    await seedDemoBilling(prisma);
+    console.log('Demo billing seed completed.');
   } finally {
     await prisma.$disconnect();
   }
