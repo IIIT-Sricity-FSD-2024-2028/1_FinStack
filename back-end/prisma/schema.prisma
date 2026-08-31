@@ -23,6 +23,40 @@ enum OrganizationStatus {
   ARCHIVED
 }
 
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketCategory {
+  ACCOUNT
+  BILLING
+  SUBSCRIPTION
+  TECHNICAL
+  EXPENSE_MODULE
+  PAYMENT
+  RECONCILIATION
+  COMPLIANCE
+  OTHER
+}
+
+enum TicketMessageAuthorType {
+  TENANT_USER
+  PLATFORM_STAFF
+}
+
 model Organization {
   id                  String             @id @default(uuid()) @db.Uuid
   name                String             @db.VarChar(180)
@@ -43,24 +77,28 @@ model Organization {
   archivedAt          DateTime?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+  supportTickets      SupportTicket[]
 
   @@index([status, createdAt])
   @@index([createdAt])
 }
 
 model PlatformStaff {
-  id            String                @id @default(uuid()) @db.Uuid
-  firstName     String                @db.VarChar(100)
-  lastName      String                @db.VarChar(100)
-  email         String                @unique @db.VarChar(320)
-  passwordHash  String                @db.VarChar(255)
-  status        PlatformStaffStatus   @default(ACTIVE)
-  lastLoginAt   DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  roles         PlatformStaffRole[]   @relation("PlatformStaffRoles")
-  assignedRoles PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
-  authSessions  PlatformAuthSession[]
+  id             String                @id @default(uuid()) @db.Uuid
+  firstName      String                @db.VarChar(100)
+  lastName       String                @db.VarChar(100)
+  email          String                @unique @db.VarChar(320)
+  passwordHash   String                @db.VarChar(255)
+  status         PlatformStaffStatus   @default(ACTIVE)
+  lastLoginAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  roles          PlatformStaffRole[]   @relation("PlatformStaffRoles")
+  assignedRoles  PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
+  authSessions   PlatformAuthSession[]
+  ticketMessages TicketMessage[]       @relation("TicketMessageStaffAuthor")
+  ticketNotes    TicketInternalNote[]  @relation("TicketInternalNoteStaff")
+  ticketStatuses TicketStatusHistory[] @relation("TicketStatusChangedByStaff")
 
   @@index([status, createdAt])
 }
@@ -127,4 +165,80 @@ model PlatformAuthSession {
 
   @@index([staffId, revokedAt])
   @@index([expiresAt])
+}
+
+model SupportTicket {
+  id              String                @id @default(uuid()) @db.Uuid
+  ticketNumber    String                @unique @db.VarChar(40)
+  organizationId  String                @db.Uuid
+  requesterUserId String?               @db.Uuid
+  requesterName   String?               @db.VarChar(160)
+  requesterEmail  String?               @db.VarChar(320)
+  category        TicketCategory
+  priority        TicketPriority
+  subject         String                @db.VarChar(200)
+  description     String                @db.Text
+  status          TicketStatus          @default(OPEN)
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  messages        TicketMessage[]
+  internalNotes   TicketInternalNote[]
+  statusHistory   TicketStatusHistory[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id            String                  @id @default(uuid()) @db.Uuid
+  ticketId      String                  @db.Uuid
+  authorType    TicketMessageAuthorType
+  authorUserId  String?                 @db.Uuid
+  authorStaffId String?                 @db.Uuid
+  message       String                  @db.Text
+  createdAt     DateTime                @default(now())
+  ticket        SupportTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorStaff   PlatformStaff?          @relation("TicketMessageStaffAuthor", fields: [authorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([authorStaffId])
+  @@index([authorUserId])
+}
+
+model TicketInternalNote {
+  id        String        @id @default(uuid()) @db.Uuid
+  ticketId  String        @db.Uuid
+  staffId   String        @db.Uuid
+  note      String        @db.Text
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staff     PlatformStaff @relation("TicketInternalNoteStaff", fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@index([staffId])
+}
+
+model TicketStatusHistory {
+  id               String         @id @default(uuid()) @db.Uuid
+  ticketId         String         @db.Uuid
+  previousStatus   TicketStatus?
+  newStatus        TicketStatus
+  changedByStaffId String?        @db.Uuid
+  changedByUserId  String?        @db.Uuid
+  note             String?        @db.Text
+  createdAt        DateTime       @default(now())
+  ticket           SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedByStaff   PlatformStaff? @relation("TicketStatusChangedByStaff", fields: [changedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([newStatus])
+  @@index([changedByStaffId])
+  @@index([changedByUserId])
 }

@@ -284,6 +284,18 @@ h1 {
   margin-bottom: var(--space-3);
 }
 
+.support-filter-bar {
+  grid-template-columns:
+    minmax(220px, 1fr)
+    minmax(130px, 170px)
+    minmax(130px, 170px)
+    minmax(150px, 190px)
+    minmax(190px, 230px)
+    minmax(130px, 170px)
+    minmax(130px, 170px)
+    auto;
+}
+
 .filter-bar input,
 .filter-bar select {
   width: 100%;
@@ -403,6 +415,14 @@ h1 {
 .organization-summary {
   grid-column: span 2;
   margin-bottom: 0;
+}
+
+.support-detail-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.support-detail-grid .organization-summary {
+  grid-column: span 2;
 }
 
 .detail-card {
@@ -553,6 +573,103 @@ h1 {
   color: #fca5a5;
 }
 
+.support-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.support-main-column,
+.support-side-column {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.support-panel {
+  min-height: 0;
+}
+
+.support-panel h2 {
+  margin: 0 0 var(--space-2);
+}
+
+.support-thread,
+.support-history,
+.support-action-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.thread-item,
+.history-item {
+  padding: var(--space-2);
+  border: 1px solid #263244;
+  border-radius: 10px;
+  background: #0b1220;
+}
+
+.thread-item div,
+.history-item {
+  display: grid;
+  gap: 5px;
+}
+
+.thread-item strong,
+.history-item strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.thread-item span,
+.history-item span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.thread-item p,
+.history-item p {
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+
+.support-action-form {
+  margin-top: var(--space-2);
+}
+
+.support-action-form label {
+  display: grid;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.support-action-form input,
+.support-action-form select,
+.support-action-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  outline: none;
+  background: #0b1220;
+  color: var(--color-text);
+}
+
+.support-action-form textarea {
+  padding: 12px;
+  resize: vertical;
+}
+
+.support-action-form input:focus,
+.support-action-form select:focus,
+.support-action-form textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 15%);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -595,11 +712,14 @@ h1 {
 
   .filter-bar,
   .form-grid,
-  .detail-grid {
+  .detail-grid,
+  .support-filter-bar,
+  .support-layout {
     grid-template-columns: 1fr;
   }
 
-  .organization-summary {
+  .organization-summary,
+  .support-detail-grid .organization-summary {
     grid-column: span 1;
   }
 

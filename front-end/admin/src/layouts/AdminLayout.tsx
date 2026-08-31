@@ -35,6 +35,17 @@ export function AdminLayout() {
               Organizations
             </NavLink>
           </PermissionGate>
+          <PermissionGate permission="support.ticket.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? ' nav-item-active' : ''}`
+              }
+              to="/support/tickets"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Support
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>

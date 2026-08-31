@@ -15,6 +15,16 @@ const permissions = [
   ['platform.staff.disable', 'Disable platform staff'],
   ['platform.role.view', 'View platform roles and permissions'],
   ['platform.role.manage', 'Manage platform roles and permissions'],
+  ['support.ticket.view', 'View support tickets'],
+  ['support.ticket.create', 'Create support tickets'],
+  [
+    'support.ticket.update',
+    'Update support ticket metadata and ordinary lifecycle status',
+  ],
+  ['support.ticket.reply', 'Reply to support tickets'],
+  ['support.ticket.note', 'Add internal support ticket notes'],
+  ['support.ticket.resolve', 'Resolve support tickets'],
+  ['support.ticket.escalate', 'Escalate support tickets'],
 ] as const;
 
 const roles = [
