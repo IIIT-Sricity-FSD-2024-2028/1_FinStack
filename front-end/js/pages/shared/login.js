@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (role === 'configuration_manager') {
         tenantLogin(employeeId, orgId, password).then(function (result) {
           if (!window.FinStackTenantSession) {
-            throw new Error('Tenant session handling is unavailable. Please refresh and try again.');
+            throw new Error('Tenant session handling is unavailable. Please perform a Hard Refresh (Ctrl+F5 or Cmd+Shift+R) and try again.');
           }
           window.FinStackTenantSession.setTenantSession(result);
           showSuccess('Login successful! Redirecting...');

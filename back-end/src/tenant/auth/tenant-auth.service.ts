@@ -19,11 +19,25 @@ export class TenantAuthService {
 
   async login(dto: TenantLoginDto): Promise<TenantAuthResponse> {
     if (!dto.email && !dto.employeeId) throw this.invalidCredentials();
+
+    const organization = await this.prisma.organization.findUnique({
+      where: {
+        slug: dto.organizationId.trim(),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!organization) throw this.invalidCredentials();
+
+    const organizationId = organization.id;
+
     const user = dto.email
       ? await this.prisma.tenantUser.findUnique({
           where: {
             organizationId_email: {
-              organizationId: dto.organizationId,
+              organizationId,
               email: dto.email.trim().toLowerCase(),
             },
           },
@@ -31,12 +45,14 @@ export class TenantAuthService {
       : await this.prisma.tenantUser.findUnique({
           where: {
             organizationId_employeeId: {
-              organizationId: dto.organizationId,
+              organizationId,
               employeeId: dto.employeeId!.trim(),
             },
           },
         });
+
     let valid = false;
+
     if (user) {
       try {
         valid = await argon2.verify(user.passwordHash, dto.password);
@@ -44,9 +60,13 @@ export class TenantAuthService {
         valid = false;
       }
     }
-    if (!user || !valid || user.status !== TenantUserStatus.ACTIVE)
+
+    if (!user || !valid || user.status !== TenantUserStatus.ACTIVE) {
       throw this.invalidCredentials();
+    }
+
     const identity = this.identity(user);
+
     return {
       accessToken: await this.tokens.sign(identity),
       expiresIn: this.tokens.accessTokenTtlSeconds,
@@ -58,19 +78,27 @@ export class TenantAuthService {
   async authenticate(token: string): Promise<TenantAuthContext> {
     try {
       const claims = await this.tokens.verify(token);
+
       if (claims.type !== 'tenant-access' || !claims.sub || !claims.orgId) {
         throw new Error('Invalid tenant token claims.');
       }
+
       const user = await this.prisma.tenantUser.findUnique({
         where: { id: claims.sub },
       });
+
       if (
         !user ||
         user.organizationId !== claims.orgId ||
         user.status !== TenantUserStatus.ACTIVE
-      )
+      ) {
         throw new Error('Invalid tenant identity.');
-      return { user: this.identity(user), organizationId: user.organizationId };
+      }
+
+      return {
+        user: this.identity(user),
+        organizationId: user.organizationId,
+      };
     } catch {
       throw new UnauthorizedException({
         code: 'INVALID_TENANT_ACCESS_TOKEN',
