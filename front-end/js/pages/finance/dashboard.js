@@ -79,27 +79,18 @@
 {"tone":"red","title":"Travel variance alert","text":"EXP-1010 is above corridor average and is under additional review.","time":"2 hours ago"}
 ],
         audit: [
-{"time":"08:42 AM","user":"System","action":"Bank Sync Completed","entity":"TXN-7783 to TXN-7792 imported"},
+{"time":"08:42 AM","user":"System","action":"Bank Sync Pending","entity":"Awaiting backend transaction data"},
 {"time":"09:02 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1001"},
 {"time":"09:08 AM","user":"Finance Officer","action":"Released Payment","entity":"PB-228"},
 {"time":"09:18 AM","user":"Risk Engine","action":"Duplicate Match Found","entity":"EXP-1008"},
 {"time":"09:31 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1003"},
 {"time":"09:44 AM","user":"Finance Officer","action":"Scheduled Payment","entity":"PB-229"},
-{"time":"10:05 AM","user":"Finance Officer","action":"Reconciliation Run","entity":"EXP-1001 ↔ TXN-7783"},
+{"time":"10:05 AM","user":"Finance Officer","action":"Reconciliation Run","entity":"Backend transaction review"},
 {"time":"10:18 AM","user":"Finance Officer","action":"Queued Payment Batch","entity":"PB-230"},
 {"time":"10:27 AM","user":"Analytics","action":"Generated Report","entity":"RPT-13"},
 {"time":"10:58 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1009"}
 ],
-        reconciliation: [
-{"id":"REC-201","expense":"EXP-1001","bankRef":"TXN-7783","variance":0,"status":"matched"},
-{"id":"REC-202","expense":"EXP-1002","bankRef":"TXN-7784","variance":0,"status":"matched"},
-{"id":"REC-203","expense":"EXP-1003","bankRef":"TXN-7785","variance":0,"status":"matched"},
-{"id":"REC-204","expense":"EXP-1004","bankRef":"TXN-7786","variance":0,"status":"matched"},
-{"id":"REC-205","expense":"EXP-1006","bankRef":"TXN-7788","variance":0,"status":"ready"},
-{"id":"REC-206","expense":"EXP-1007","bankRef":"TXN-7789","variance":0,"status":"ready"},
-{"id":"REC-207","expense":"EXP-1008","bankRef":"TXN-7790","variance":0,"status":"mismatch"},
-{"id":"REC-208","expense":"EXP-1010","bankRef":"TXN-7792","variance":0,"status":"ready"}
-],
+        reconciliation: [],
         autoMatch: false,
         lastReconciliationRun: 'Not executed today'
 
@@ -279,7 +270,7 @@
             unread: true
           });
         }
-        const releasable = payments.filter(batch => batch.status !== 'paid');
+        const releasable = payments.filter(batch => batch.status === 'pending');
         if (releasable.length) {
           alerts.push({
             tone: 'cyan',
@@ -292,29 +283,45 @@
         return alerts;
       }
 
-      function buildTransactionId(expense) {
-        const numeric = String(expense.id || '').replace(/\D/g, '').slice(-4);
-        return `TXN-${(numeric || '0').padStart(4, '0')}`;
+      function buildSharedTransactions(transactions, expenses) {
+        const expenseById = new Map((expenses || []).map(expense => [expense.id, expense]));
+        return (transactions || [])
+          .filter(transaction => expenseById.has(transaction.expenseId))
+          .map(transaction => {
+            const expense = expenseById.get(transaction.expenseId) || {};
+            return {
+              id: transaction.id,
+              expenseId: transaction.expenseId,
+              employeeId: transaction.employeeId,
+              employee: expense.employee || transaction.employeeId || '-',
+              category: expense.category || transaction.categoryId || '-',
+              bank: 'Bank Sandbox',
+              amount: Number(transaction.amount || 0),
+              date: (transaction.processedAt || transaction.transactionDate || transaction.createdAt || '').slice(0, 10),
+              status: transaction.status || 'pending',
+              processedAt: transaction.processedAt || '',
+              transactionDate: transaction.transactionDate || '',
+              merchant: transaction.merchant || expense.merchant || '',
+              paymentMethod: transaction.paymentMethod || expense.paymentMethod || '',
+              workflowStatus: expense.workflowStatus || ''
+            };
+          });
       }
 
-      function getTransactionBank(expense) {
-        const banks = ['HDFC', 'ICICI', 'Axis', 'SBI', 'Kotak'];
-        const seed = String(expense.id || expense.employeeId || expense.employee || '')
-          .split('')
-          .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        return expense.bank || banks[seed % banks.length];
-      }
-
-      function buildSharedTransactions(expenses) {
-        return (expenses || [])
-          .filter(expense => expense.workflowStatus === 'paid')
-          .map(expense => ({
-            id: buildTransactionId(expense),
-            expenseId: expense.id,
-            bank: getTransactionBank(expense),
-            amount: Number(expense.amount || 0),
-            date: (expense.paidAt || expense.updatedAt || expense.date || expense.created || '').slice(0, 10),
-            status: 'matched'
+      function buildSharedReconciliation(transactions, expenses) {
+        const expenseById = new Map((expenses || []).map(expense => [expense.id, expense]));
+        return (transactions || [])
+          .filter(transaction => transaction.status === 'processed' || transaction.status === 'reconciled')
+          .filter(transaction => expenseById.has(transaction.expenseId))
+          .map(transaction => ({
+            id: transaction.id,
+            transactionId: transaction.id,
+            expense: transaction.expenseId,
+            bankRef: transaction.id,
+            amount: Number(transaction.amount || 0),
+            variance: 0,
+            status: transaction.status === 'reconciled' ? 'matched' : 'ready',
+            transactionStatus: transaction.status
           }));
       }
 
@@ -413,17 +420,9 @@
             scheduled: batch.scheduled
           }));
 
-        state.transactions = buildSharedTransactions(allExpenses);
-
-        state.reconciliation = state.expenses
-          .filter(expense => ['approved', 'paid', 'flagged', 'pending'].includes(expense.status) && expense.workflowStatus !== 'manager_review' && expense.workflowStatus !== 'returned')
-          .map((expense, index) => ({
-            id: `REC-${201 + index}`,
-            expense: expense.id,
-            bankRef: `TXN-${7783 + index}`,
-            variance: 0,
-            status: expense.status === 'flagged' ? 'mismatch' : expense.status === 'paid' ? 'matched' : 'ready'
-          }));
+        const backendTransactions = typeof window.FinStackStore.getTransactions === 'function' ? window.FinStackStore.getTransactions() : [];
+        state.transactions = buildSharedTransactions(backendTransactions, allExpenses);
+        state.reconciliation = buildSharedReconciliation(backendTransactions, allExpenses);
 
         state.activities = buildFinanceActivities(auditLogs);
 
@@ -957,10 +956,11 @@
             <div>
               <div style="font-weight:800; color:white; margin-bottom:6px;">${escapeHtml(item.id)}</div>
               <div class="muted">${escapeHtml(item.expense)} ↔ ${escapeHtml(item.bankRef)}</div>
+              <div class="muted">${item.status === 'matched' ? 'Matched / Reconciled' : 'Ready to Reconcile'}</div>
               <div class="muted">Variance: ${formatINR(item.variance)}</div>
             </div>
             <div class="inline-actions">
-              <button class="table-btn view" onclick="matchReconciliation('${item.id}')">${item.status === 'matched' ? 'Matched' : 'Match'}</button>
+              ${item.status === 'ready' ? `<button class="table-btn review" onclick="matchReconciliation('${item.id}')">Reconcile</button>` : `<button class="table-btn view" disabled>Reconciled</button>`}
               <button class="table-btn review" onclick="investigateMismatch('${item.id}')">Investigate</button>
             </div>
           </div>
@@ -976,9 +976,23 @@
             <td>${formatINR(txn.amount)}</td>
             <td>${escapeHtml(txn.date)}</td>
             <td><span class="status ${txn.status}">${capitalize(txn.status)}</span></td>
-            <td><div class="inline-actions"><button class="table-btn view" onclick="viewTransaction('${txn.id}')">Open</button><button class="table-btn review" onclick="reconcileTransaction('${txn.id}')">Reconcile</button></div></td>
+            <td><div class="inline-actions">${transactionActions(txn)}</div></td>
           </tr>
         `).join('') || `<tr><td colspan="6" class="empty-row">No transactions available.</td></tr>`;
+      }
+
+      function transactionActions(txn) {
+        const open = `<button class="table-btn view" onclick="viewTransaction('${txn.id}')">Open</button>`;
+        if (txn.status === 'pending') {
+          return `${open}<button class="table-btn approve" onclick="simulateBankSuccess('${txn.id}')">Test: Simulate Success</button><button class="table-btn reject" onclick="simulateBankFailure('${txn.id}')">Test: Simulate Failure</button>`;
+        }
+        if (txn.status === 'processed') {
+          return `${open}<button class="table-btn review" onclick="reconcileTransaction('${txn.id}')">Reconcile</button>`;
+        }
+        if (txn.status === 'reconciled') {
+          return `${open}<button class="table-btn view" disabled>Completed</button>`;
+        }
+        return open;
       }
 
       function renderFlagged() {
@@ -1000,8 +1014,8 @@
             <td>${escapeHtml(item.id)}</td>
             <td>${item.count}</td>
             <td>${formatINR(item.total)}</td>
-            <td><span class="status ${item.status === 'approved' ? 'approved' : item.status === 'paid' ? 'paid' : 'pending'}">${capitalize(item.status)}</span></td>
-            <td><div class="inline-actions"><button class="table-btn approve" onclick="releasePayment('${item.id}')">Release</button><button class="table-btn view" onclick="viewPayment('${item.id}')">View</button></div></td>
+            <td><span class="status ${item.status === 'processing' ? 'processed' : item.status === 'paid' ? 'paid' : 'pending'}">${item.status === 'processing' ? 'Processing / Sent to Bank' : capitalize(item.status)}</span></td>
+            <td><div class="inline-actions">${item.status === 'pending' ? `<button class="table-btn approve" onclick="releasePayment('${item.id}')">Release Payment</button>` : `<button class="table-btn view" disabled>Sent to Bank</button>`}<button class="table-btn view" onclick="viewPayment('${item.id}')">View</button></div></td>
           </tr>
         `).join('') || `<tr><td colspan="5" class="empty-row">No payment batches.</td></tr>`;
       }
@@ -1507,11 +1521,7 @@
 
       function matchReconciliation(id) {
         const item = state.reconciliation.find(r => r.id === id); if (!item) return;
-        item.status = 'matched'; item.variance = 0;
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderReconciliation(); updateMetrics();
-        logActivity('Finance Officer', 'Matched Reconciliation', id);
-        showToast(`${id} matched.`);
+        reconcileTransaction(item.transactionId || item.id);
       }
       function investigateMismatch(id) {
         const item = state.reconciliation.find(r => r.id === id); if (!item) return;
@@ -1523,6 +1533,15 @@
 
       function viewTransaction(id) {
         const txn = state.transactions.find(t => t.id === id); if (!txn) return;
+        const actions = [{ label: 'Close', variant: 'btn-outline', onClick: closeModal }];
+        if (txn.status === 'pending') {
+          actions.push(
+            { label: 'Test: Simulate Success', variant: 'btn-primary', onClick: () => { simulateBankSuccess(id); closeModal(); } },
+            { label: 'Test: Simulate Failure', variant: 'btn-outline', onClick: () => { simulateBankFailure(id); closeModal(); } }
+          );
+        } else if (txn.status === 'processed') {
+          actions.push({ label: 'Reconcile', variant: 'btn-primary', onClick: () => { reconcileTransaction(id); closeModal(); } });
+        }
         openModal({
           title: 'Transaction Details',
           subtitle: id,
@@ -1535,21 +1554,40 @@
                   <div><div class="expense-label">Bank</div><div class="expense-value">${escapeHtml(txn.bank)}</div></div>
                   <div><div class="expense-label">Amount</div><div class="expense-value big">${formatINR(txn.amount)}</div></div>
                   <div><div class="expense-label">Date</div><div class="expense-value">${escapeHtml(txn.date)}</div></div>
+                  <div><div class="expense-label">Expense</div><div class="expense-value">${escapeHtml(txn.expenseId || '-')}</div></div>
                   <div class="full"><div class="expense-label">Status</div><div class="expense-value">${escapeHtml(capitalize(txn.status))}</div></div>
                 </div>
               </div>
             </div>`,
-          actions: [
-            { label: 'Close', variant: 'btn-outline', onClick: closeModal },
-            { label: 'Reconcile', variant: 'btn-primary', onClick: () => { reconcileTransaction(id); closeModal(); } }
-          ]
+          actions: actions
         });
+      }
+      function simulateBankSuccess(id) {
+        if (!window.FinStackStore || typeof window.FinStackStore.simulateBankSuccess !== 'function') return showToast('Bank Sandbox is unavailable.');
+        const result = window.FinStackStore.simulateBankSuccess(id);
+        syncSharedFinanceState();
+        renderTransactions(); renderReconciliation(); renderPayments(); updateMetrics();
+        if (!result) return showToast('Bank Sandbox success could not be applied.');
+        logActivity('Bank Sandbox', 'Simulated Success', id);
+        showToast(`${id} marked processed by Bank Sandbox.`);
+      }
+      function simulateBankFailure(id) {
+        if (!window.FinStackStore || typeof window.FinStackStore.simulateBankFailure !== 'function') return showToast('Bank Sandbox is unavailable.');
+        const result = window.FinStackStore.simulateBankFailure(id);
+        syncSharedFinanceState();
+        renderTransactions(); renderReconciliation(); renderPayments(); updateMetrics();
+        if (!result) return showToast('Bank Sandbox failure could not be applied.');
+        logActivity('Bank Sandbox', 'Simulated Failure', id);
+        showToast(`${id} marked failed by Bank Sandbox.`);
       }
       function reconcileTransaction(id) {
         const txn = state.transactions.find(t => t.id === id); if (!txn) return;
-        txn.status = 'approved';
+        if (!window.FinStackStore || typeof window.FinStackStore.reconcileTransaction !== 'function') return showToast('Reconciliation service is unavailable.');
+        const result = window.FinStackStore.reconcileTransaction(id);
+        syncSharedFinanceState();
         state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderTransactions(); updateMetrics();
+        renderTransactions(); renderReconciliation(); renderPayments(); renderExpenses(); updateMetrics();
+        if (!result) return showToast('Transaction could not be reconciled.');
         logActivity('Finance Officer', 'Reconciled Transaction', id);
         showToast(`${id} reconciled.`);
       }
@@ -1705,11 +1743,12 @@
 
       function releasePayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
+        if (item.status !== 'pending') return showToast(`${id} is already sent to Bank Sandbox.`);
         window.FinStackStore.releasePaymentBatch(id);
         syncSharedFinanceState();
-        renderPayments(); renderExpenses(); renderReconciliation(); updateMetrics();
+        renderPayments(); renderExpenses(); renderTransactions(); renderReconciliation(); updateMetrics();
         logActivity('Finance Officer', 'Released Payment Batch', id);
-        showToast(`${id} payment batch released.`);
+        showToast(`${id} sent to Bank Sandbox.`);
       }
       function viewPayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
@@ -1913,7 +1952,7 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
       // inline handlers exposure
       Object.assign(window, {
         openActivity, resolveAlert, dismissAlert, viewExpense, reviewExpense, approveReview, rejectReview, flagReview, requestInfo,
-        matchReconciliation, investigateMismatch, viewTransaction, reconcileTransaction, viewFlagged, escalateFlagged,
+        matchReconciliation, investigateMismatch, viewTransaction, simulateBankSuccess, simulateBankFailure, reconcileTransaction, viewFlagged, escalateFlagged,
         releasePayment, viewPayment, openReport, viewReportSummary, previewReport, toggleReportPin, scheduleReport, cloneReport,
         compareReports, generateExecutivePack, openReportRun, openAudit, markFinanceNotificationRead, deleteFinanceNotification
       });
@@ -2073,12 +2112,13 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
 
       // reconciliation
       document.getElementById('runReconciliationBtn').addEventListener('click', () => {
+        syncSharedFinanceState();
         state.lastReconciliationRun = `Last run at ${nowLabel()}`;
         renderReconciliation(); updateMetrics(); logActivity('Finance Officer', 'Reconciliation Run', 'Manual reconciliation'); showToast('Reconciliation executed.');
       });
       document.getElementById('autoMatchBtn').addEventListener('click', () => {
         state.autoMatch = !state.autoMatch;
-        if (state.autoMatch) state.reconciliation.forEach(item => { if (item.variance === 0) item.status = 'matched'; });
+        syncSharedFinanceState();
         renderReconciliation(); updateMetrics(); logActivity('Finance Officer', state.autoMatch ? 'Enabled Auto Match' : 'Disabled Auto Match', 'Reconciliation'); showToast(`Auto match ${state.autoMatch ? 'enabled' : 'disabled'}.`);
       });
 

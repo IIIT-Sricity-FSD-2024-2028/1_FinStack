@@ -3605,6 +3605,8 @@ img {
       .status.pending { background: rgba(245,158,11,.14); color:#FCD34D; }
       .status.flagged { background: rgba(236,72,153,.14); color:#F9A8D4; }
       .status.paid, .status.matched { background: rgba(34,211,238,.12); color:#67E8F9; }
+      .status.processed, .status.reconciled { background: rgba(34,211,238,.12); color:#67E8F9; }
+      .status.failed { background: rgba(239,68,68,.14); color:#FCA5A5; }
       .status.ready { background: rgba(148,163,184,.14); color:#E2E8F0; }
       .kv-list { display:grid; gap: 12px; }
       .kv {
@@ -4713,6 +4715,8 @@ td {
 .status.pending { background: rgba(245,158,11,.12) !important; color: var(--warning) !important; }
 .status.flagged { background: rgba(239,68,68,.12) !important; color: var(--danger) !important; }
 .status.paid, .status.matched { background: rgba(34,211,238,.12) !important; color: var(--accent) !important; }
+.status.processed, .status.reconciled { background: rgba(34,211,238,.12) !important; color: var(--accent) !important; }
+.status.failed { background: rgba(239,68,68,.12) !important; color: var(--danger) !important; }
 .table-btn.view, .table-btn.review, .table-btn.approve, .table-btn.reject, .table-btn.escalate {
   background: transparent !important;
   border: 1px solid var(--border) !important;
