@@ -471,19 +471,25 @@
 
     function buildPaymentBatches() {
         var approved = state.expenses.filter(function (expense) {
-            return expense.workflowStatus === 'approved_for_payment' || expense.workflowStatus === 'payment_processing';
+            return expense.workflowStatus === 'approved_for_payment';
+        });
+        var processing = state.expenses.filter(function (expense) {
+            return expense.workflowStatus === 'payment_processing';
         });
         var batches = [];
-        if (approved.length) {
+        function addBatch(id, expenses, status) {
+            if (!expenses.length) return;
             batches.push({
-                id: 'PB-001',
-                expenseIds: approved.map(function (expense) { return expense.id; }),
-                count: approved.length,
-                total: approved.reduce(function (sum, expense) { return sum + Number(expense.amount || 0); }, 0),
-                status: approved.some(function (expense) { return expense.workflowStatus === 'payment_processing'; }) ? 'approved' : 'pending',
+                id: id,
+                expenseIds: expenses.map(function (expense) { return expense.id; }),
+                count: expenses.length,
+                total: expenses.reduce(function (sum, expense) { return sum + Number(expense.amount || 0); }, 0),
+                status: status,
                 scheduled: new Date().toISOString().slice(0, 10)
             });
         }
+        addBatch('PB-001', approved, 'pending');
+        addBatch('PB-002', processing, 'processing');
         return batches;
     }
 
@@ -1342,13 +1348,33 @@
             batch.expenseIds.forEach(function (expenseId) {
                 var existingExpense = state.expenses.find(function (expense) { return expense.id === expenseId; });
                 if (!existingExpense || existingExpense.workflowStatus === 'paid') return;
-                updateExpenseInternal(expenseId, function (expense) {
-                    expense.workflowStatus = 'paid';
-                    expense.status = 'approved';
-                    expense.paidAt = nowIso();
-                    pushHistoryEntryOnce(expense, 'paid', 'Paid', 'Reimbursement released in payment batch ' + batchId + '.');
-                    addNotification({ recipientEmployeeId: expense.employeeId, recipientRole: 'expense_submitter', title: 'Reimbursement Released', message: 'Your reimbursement has been processed', type: 'success', relatedExpenseId: expense.id, actionType: 'finance_reimbursement_processed_submitter' });
+                var existingTransaction = state.transactions.find(function (transaction) {
+                    return transaction.expenseId === expenseId && ['pending', 'processed', 'failed', 'reconciled'].indexOf(transaction.status) !== -1;
                 });
+                updateExpenseInternal(expenseId, function (expense) {
+                    expense.workflowStatus = 'payment_processing';
+                    expense.status = 'approved';
+                    delete expense.paidAt;
+                    pushHistoryEntryOnce(expense, 'payment_released', 'Payment Released to Bank', 'Payment batch ' + batchId + ' submitted for bank processing.');
+                    addNotification({ recipientEmployeeId: expense.employeeId, recipientRole: 'expense_submitter', title: 'Payment Sent to Bank', message: 'Your reimbursement has been sent for bank processing.', type: 'info', relatedExpenseId: expense.id, actionType: 'finance_payment_processing_submitter' });
+                });
+                if (!existingTransaction) {
+                    state.transactions.unshift({
+                        id: makeId('TXN'),
+                        expenseId: existingExpense.id,
+                        employeeId: existingExpense.employeeId,
+                        organizationId: existingExpense.organizationId,
+                        amount: Number(existingExpense.amount || 0),
+                        currency: existingExpense.currency || 'INR',
+                        merchant: existingExpense.merchant || '',
+                        categoryId: existingExpense.categoryId,
+                        paymentMethod: existingExpense.paymentMethod || 'personal-card',
+                        status: 'pending',
+                        transactionDate: nowIso(),
+                        createdAt: nowIso(),
+                        updatedAt: nowIso()
+                    });
+                }
             });
             addAuditLog(financeUser, 'Released Payment Batch', 'Payment Batch', batchId, 'Success');
             writeStoredState(state);
@@ -1619,26 +1645,9 @@
         storeApi.releasePaymentBatch = function (batchId) {
             var batch = buildPaymentBatches().find(function (item) { return item.id === batchId; });
             if (!batch) return null;
-            batch.expenseIds.forEach(function (expenseId) {
-                var expense = storeApi.getExpenseById(expenseId);
-                if (!expense) return;
-                transitionExpense(expenseId, { workflowStatus: 'paid', status: 'approved', paidAt: nowIso() }, 'paid', 'Paid', 'Reimbursement released in payment batch ' + batchId + '.');
-                tryApi('/transactions', 'POST', {
-                    expenseId: expense.id,
-                    employeeId: expense.employeeId,
-                    organizationId: expense.organizationId,
-                    amount: Number(expense.amount || 0),
-                    currency: expense.currency || 'INR',
-                    merchant: expense.merchant,
-                    categoryId: expense.categoryId,
-                    paymentMethod: expense.paymentMethod || 'personal-card',
-                    status: 'processed',
-                    transactionDate: new Date().toISOString(),
-                    processedAt: new Date().toISOString()
-                }, null);
-            });
+            var result = tryApi('/transactions/payment-batches/' + encodeURIComponent(batchId) + '/release', 'POST', { expenseIds: batch.expenseIds }, null);
             refreshFromBackendSync();
-            return deepClone(batch);
+            return result || deepClone(batch);
         };
 
         storeApi.markNotificationRead = function (id) {
@@ -1661,6 +1670,15 @@
         };
         storeApi.updateTransaction = function (id, updates) {
             return tryApi('/transactions/' + encodeURIComponent(id), 'PATCH', updates, null);
+        };
+        storeApi.simulateBankSuccess = function (id) {
+            return tryApi('/transactions/' + encodeURIComponent(id) + '/bank-sandbox/success', 'POST', {}, null);
+        };
+        storeApi.simulateBankFailure = function (id) {
+            return tryApi('/transactions/' + encodeURIComponent(id) + '/bank-sandbox/failure', 'POST', {}, null);
+        };
+        storeApi.reconcileTransaction = function (id) {
+            return tryApi('/transactions/' + encodeURIComponent(id) + '/reconcile', 'POST', {}, null);
         };
         storeApi.deleteTransaction = function (id) {
             return !!tryApi('/transactions/' + encodeURIComponent(id), 'DELETE', undefined, false);
