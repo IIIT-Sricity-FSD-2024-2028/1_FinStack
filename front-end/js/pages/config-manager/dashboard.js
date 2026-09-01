@@ -622,13 +622,10 @@ function rejectRequest(requestId) {
 }
 
 function loadDashboardMetrics() {
-  var tenantToken = sessionStorage.getItem('finstackTenantAccessToken');
-  if (tenantToken) {
-    var apiBase = window.FinStackApi && window.FinStackApi.baseUrl ? window.FinStackApi.baseUrl : 'http://localhost:3000';
-    fetch(apiBase + '/api/v1/tenant/subscription', { headers: { Authorization: 'Bearer ' + tenantToken } })
-      .then(function (response) { return response.json(); })
+  if (window.FinStackTenantSession && window.FinStackTenantSession.isTenantAuthenticated()) {
+    window.FinStackTenantSession.request('/api/v1/tenant/subscription')
       .then(function (payload) {
-        var subscription = payload.data || payload;
+        var subscription = payload;
         if (!subscription || !subscription.plan) return;
         var labels = document.querySelectorAll('.metric-label');
         var values = document.querySelectorAll('.metric-value');
@@ -641,7 +638,9 @@ function loadDashboardMetrics() {
         if (labels[3]) labels[3].textContent = 'Employee Seats';
         if (values[3]) values[3].textContent = String(subscription.employeeCount);
       })
-      .catch(function () {});
+      .catch(function (error) {
+        if (error && error.code === 'TENANT_SESSION_EXPIRED') return;
+      });
   }
   /* Dynamic metrics from store */
   var state = window.FinStackStore.getState();

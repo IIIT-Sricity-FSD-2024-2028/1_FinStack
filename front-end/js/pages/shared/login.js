@@ -183,11 +183,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (role === 'configuration_manager') {
         tenantLogin(employeeId, orgId, password).then(function (result) {
-          sessionStorage.setItem('finstackTenantAccessToken', result.accessToken);
-          sessionStorage.setItem('finstackTenantUser', JSON.stringify(result.user));
-          var tenantSession = { id: result.user.id, employeeId: result.user.employeeId, fullName: result.user.firstName + ' ' + result.user.lastName, email: result.user.email, role: 'configuration_manager', roles: ['configuration_manager'], organizationId: result.organizationId, loginAt: new Date().toISOString() };
-          sessionStorage.setItem('finstackUserSession', JSON.stringify(tenantSession));
-          localStorage.setItem('currentUser', JSON.stringify(tenantSession));
+          if (!window.FinStackTenantSession) {
+            throw new Error('Tenant session handling is unavailable. Please refresh and try again.');
+          }
+          window.FinStackTenantSession.setTenantSession(result);
           showSuccess('Login successful! Redirecting...');
           setTimeout(function () { window.location.href = roleRoutes.configuration_manager; }, 300);
         }).catch(function (error) { showError(error.message || 'Login failed.'); });

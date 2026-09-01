@@ -5,7 +5,6 @@
     window.FinStackApi && window.FinStackApi.baseUrl
       ? window.FinStackApi.baseUrl
       : "http://localhost:3000";
-  var token = sessionStorage.getItem("finstackTenantAccessToken");
   var plans = [];
   var currentSubscription = null;
 
@@ -15,21 +14,10 @@
   }
 
   function request(path, options) {
-    options = options || {};
-    return fetch(base + path, {
-      method: options.method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token,
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    }).then(function (response) {
-      return response.text().then(function (text) {
-        var payload = text ? JSON.parse(text) : null;
-        if (!response.ok) throw new Error(errorMessage(payload));
-        return payload && payload.data ? payload.data : payload;
-      });
-    });
+    if (!window.FinStackTenantSession) {
+      return Promise.reject(new Error("Tenant session handling is unavailable."));
+    }
+    return window.FinStackTenantSession.request(path, options);
   }
 
   function esc(value) {
@@ -377,6 +365,7 @@
             })
               .then(load)
               .catch(function (error) {
+                if (error && error.code === "TENANT_SESSION_EXPIRED") return;
                 showError(error.message);
               });
           },
@@ -384,6 +373,7 @@
         checkout.open();
       })
       .catch(function (error) {
+        if (error && error.code === "TENANT_SESSION_EXPIRED") return;
         showError(error.message);
       });
   }
@@ -501,6 +491,7 @@
           }
         })
         .catch(function (error) {
+          if (error && error.code === "TENANT_SESSION_EXPIRED") return;
           confirmButton.disabled = false;
           showError(error.message);
         });
@@ -574,6 +565,7 @@
               "</span></div>";
           })
           .catch(function (error) {
+            if (error && error.code === "TENANT_SESSION_EXPIRED") return;
             showError(error.message);
           });
       }
@@ -606,13 +598,14 @@
         return load();
       })
       .catch(function (error) {
+        if (error && error.code === "TENANT_SESSION_EXPIRED") return;
         button.disabled = false;
         showError(error.message);
       });
   }
 
   function load() {
-    if (!token) {
+    if (!window.FinStackTenantSession || !window.FinStackTenantSession.isTenantAuthenticated()) {
       window.location.href = "../../login.html?role=configuration_manager";
       return Promise.resolve();
     }
@@ -626,6 +619,7 @@
         render(result[0], result[1], result[2]);
       })
       .catch(function (error) {
+        if (error && error.code === "TENANT_SESSION_EXPIRED") return;
         showError(error.message);
       });
   }
