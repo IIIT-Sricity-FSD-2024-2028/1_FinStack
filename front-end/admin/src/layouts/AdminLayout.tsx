@@ -4,13 +4,16 @@ import { useAuth } from '../auth/useAuth';
 
 function NavigationItem({
   to,
+  end,
   children,
 }: {
   to: string;
-  children: string;
+  end?: boolean;
+  children: ReactNode;
 }) {
   return (
     <NavLink
+      end={end}
       className={({ isActive }) =>
         `nav-item${isActive ? ' nav-item-active' : ''}`
       }
@@ -39,7 +42,6 @@ function NavigationGroup({
 
 export function AdminLayout() {
   const { auth, hasPermission, logout } = useAuth();
-
   const canViewOrganizations = hasPermission('platform.organization.view');
   const canViewStaff = hasPermission('platform.staff.view');
   const canViewRoles = hasPermission('platform.role.view');
@@ -53,7 +55,7 @@ export function AdminLayout() {
     hasPermission('billing.invoice.view') ||
     hasPermission('billing.payment.view');
   const canViewSupport = hasPermission('support.ticket.view');
-
+  const canCreateSupportTicket = hasPermission('support.ticket.create');
   return (
     <div className="admin-shell">
       <aside className="sidebar">
@@ -108,6 +110,7 @@ export function AdminLayout() {
                   Subscriptions
                 </NavigationItem>
               )}
+
               {canViewBilling && (
                 <NavigationItem to="/billing">
                   Billing & revenue
@@ -118,9 +121,15 @@ export function AdminLayout() {
 
           {canViewSupport && (
             <NavigationGroup label="Support">
-              <NavigationItem to="/support/tickets">
+              <NavigationItem to="/support/tickets" end>
                 Support tickets
               </NavigationItem>
+
+              {canCreateSupportTicket && (
+                <NavigationItem to="/support/tickets/new">
+                  New ticket
+                </NavigationItem>
+              )}
             </NavigationGroup>
           )}
         </nav>
@@ -133,6 +142,7 @@ export function AdminLayout() {
           <span>
             {auth?.staff.firstName} {auth?.staff.lastName}
           </span>
+
           <button
             className="button button-secondary button-compact"
             type="button"

@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createSupportTicket } from '../../services/api/platform-support';
+import { getOrganizations } from '../../services/api/platform-organizations';
+import type { Organization } from '../../types/organization';
 import type {
   SupportTicketPayload,
   TicketCategory,
@@ -22,8 +24,34 @@ const initialForm: SupportTicketPayload = {
 export function SupportTicketCreatePage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<SupportTicketPayload>(initialForm);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getOrganizations({ page: 1, limit: 100, sortBy: 'name', order: 'asc' })
+      .then((result) => {
+        if (active) {
+          setOrganizations(result.items);
+          setLoading(false);
+        }
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : 'Organizations could not be loaded.'
+          );
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,10 +104,10 @@ export function SupportTicketCreatePage() {
       <div className="status-card form-panel">
         <form className="login-form organization-form" onSubmit={submit}>
           <label>
-            Organization ID
-            <input
+            Organization
+            <select
               required
-              maxLength={36}
+              disabled={loading}
               value={form.organizationId}
               onChange={(event) =>
                 setForm((current) => ({
@@ -87,11 +115,20 @@ export function SupportTicketCreatePage() {
                   organizationId: event.target.value,
                 }))
               }
-            />
+            >
+              <option value="">
+                {loading ? 'Loading organizations...' : 'Select an organization'}
+              </option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="form-grid">
             <label>
-              Requester user ID
+              <span className="optional-label">Requester user ID (optional)</span>
               <input
                 maxLength={36}
                 value={form.requesterUserId}
@@ -104,7 +141,7 @@ export function SupportTicketCreatePage() {
               />
             </label>
             <label>
-              Requester name
+              <span className="optional-label">Requester name (optional)</span>
               <input
                 maxLength={160}
                 value={form.requesterName}
@@ -117,7 +154,7 @@ export function SupportTicketCreatePage() {
               />
             </label>
             <label>
-              Requester email
+              <span className="optional-label">Requester email (optional)</span>
               <input
                 type="email"
                 maxLength={320}

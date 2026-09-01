@@ -6,19 +6,14 @@ import {
   addSupportTicketInternalNote,
   replyToSupportTicket,
   transitionSupportTicketStatus,
-  updateSupportTicket,
 } from '../../services/api/platform-support';
 import type {
   SupportStaffRef,
-  SupportTicketUpdatePayload,
-  TicketCategory,
   TicketStatus,
 } from '../../types/support';
 import {
   formatDate,
   supportLabel,
-  ticketCategories,
-  ticketPriorities,
   ticketTone,
   transitionPermission,
   transitionTargets,
@@ -26,7 +21,7 @@ import {
 import { useSupportTicket } from './useSupportTicket';
 
 function staffName(staff: SupportStaffRef | null): string {
-  if (!staff) return 'Unknown staff';
+  if (!staff) return 'System';
   return `${staff.firstName} ${staff.lastName}`;
 }
 
@@ -71,24 +66,7 @@ export function SupportTicketDetailPage() {
     }
   }
 
-  async function saveMetadata(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!data) return;
-    const formData = new FormData(event.currentTarget);
-    const payload: SupportTicketUpdatePayload = {
-      requesterName:
-        String(formData.get('requesterName') ?? '').trim() || undefined,
-      requesterEmail:
-        String(formData.get('requesterEmail') ?? '').trim() || undefined,
-      category: String(formData.get('category')) as TicketCategory,
-      priority: String(formData.get('priority')) as SupportTicketUpdatePayload['priority'],
-      subject: String(formData.get('subject') ?? '').trim(),
-      description: String(formData.get('description') ?? '').trim(),
-    };
-    await runAction('metadata', 'Support ticket could not be updated.', async () => {
-      await updateSupportTicket(data.id, payload);
-    });
-  }
+
 
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,20 +102,57 @@ export function SupportTicketDetailPage() {
 
   return (
     <section aria-labelledby="support-ticket-detail-title">
-      <div className="page-header">
+      <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
-          <p className="eyebrow">Ticket detail</p>
-          <h1 id="support-ticket-detail-title">
-            {data?.ticketNumber ?? 'Support ticket'}
-          </h1>
-          <p className="page-description">
-            Review customer context, staff replies, private notes, and lifecycle
-            history.
+          <p className="eyebrow" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Link to="/support/tickets" style={{ color: 'inherit', textDecoration: 'none' }}>Support</Link>
+            <span>/</span>
+            <Link to="/support/tickets" style={{ color: 'inherit', textDecoration: 'none' }}>Tickets</Link>
+            <span>/</span>
+            <span>{data?.ticketNumber ?? '...'}</span>
           </p>
+          <h1 id="support-ticket-detail-title" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
+            {data?.subject ?? 'Support ticket'}
+            {data && (
+              <>
+                <span className={`status-pill status-pill-${ticketTone(data.status)}`} style={{ fontSize: '13px' }}>
+                  {supportLabel(data.status)}
+                </span>
+                <span className="status-pill status-pill-available" style={{ fontSize: '13px' }}>
+                  {supportLabel(data.priority)}
+                </span>
+              </>
+            )}
+          </h1>
         </div>
-        <Link className="button button-secondary button-link" to="/support/tickets">
-          Back to tickets
-        </Link>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link className="button button-secondary button-link" to="/support/tickets">
+            Back to tickets
+          </Link>
+          {availableTransitions.length > 0 && (
+            <form onSubmit={submitStatus} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                aria-label="Next ticket status"
+                value={targetStatus}
+                onChange={(event) => setSelectedTargetStatus(event.target.value as TicketStatus)}
+                style={{ height: '40px', padding: '0 12px', borderRadius: '9px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', boxSizing: 'border-box' }}
+              >
+                {availableTransitions.map((status) => (
+                  <option key={status} value={status}>
+                    {supportLabel(status)}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={`button ${targetStatus === 'RESOLVED' || targetStatus === 'CLOSED' ? '' : 'button-secondary'}`}
+                disabled={submitting !== null || !targetStatus}
+                type="submit"
+              >
+                {submitting === 'status' ? 'Updating...' : 'Update status'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       {loading && (
@@ -161,67 +176,47 @@ export function SupportTicketDetailPage() {
 
       {!loading && data && (
         <>
-          <div className="detail-grid support-detail-grid">
-            <div className="summary-banner organization-summary">
-              <span
-                className={`status-dot status-dot-${ticketTone(data.status)}`}
-                aria-hidden="true"
-              />
-              <div>
-                <strong>{data.subject}</strong>
-                <span>
-                  {supportLabel(data.status)} for {data.organization.name}
-                </span>
-              </div>
-            </div>
-            <article className="status-card detail-card">
-              <span>Priority</span>
-              <strong>{supportLabel(data.priority)}</strong>
-            </article>
-            <article className="status-card detail-card">
-              <span>Category</span>
-              <strong>{supportLabel(data.category)}</strong>
-            </article>
-            <article className="status-card detail-card">
-              <span>First response</span>
-              <strong>{formatDate(data.firstResponseAt)}</strong>
-            </article>
-            <article className="status-card detail-card">
-              <span>Resolved</span>
-              <strong>{formatDate(data.resolvedAt)}</strong>
-            </article>
-          </div>
-
           {actionError && (
-            <div className="state-panel state-panel-error" role="alert">
+            <div className="state-panel state-panel-error" role="alert" style={{ marginBottom: '24px' }}>
               <strong>{actionError}</strong>
             </div>
           )}
 
-          <div className="support-layout">
+          <div className="two-column-layout">
             <div className="support-main-column">
+              <article className="status-card support-panel" style={{ marginBottom: '24px' }}>
+                <div className="status-card-heading">
+                  <h2>Description</h2>
+                </div>
+                <div className="message-body" style={{ padding: '12px' }}>
+                  {data.description}
+                </div>
+              </article>
+
               <article className="status-card support-panel">
                 <div className="status-card-heading">
-                  <h2>Messages</h2>
-                  <span className="muted-copy">{data.messages.length} total</span>
+                  <h2>Conversation</h2>
+                  <span className="muted-copy">{data.messages.length} replies</span>
                 </div>
                 <div className="support-thread">
                   {data.messages.length === 0 ? (
-                    <p className="muted-copy">No messages have been added yet.</p>
+                    <p className="muted-copy">No replies have been added yet.</p>
                   ) : (
-                    data.messages.map((message) => (
-                      <div className="thread-item" key={message.id}>
-                        <div>
-                          <strong>
-                            {message.authorType === 'PLATFORM_STAFF'
-                              ? staffName(message.authorStaff)
-                              : 'Tenant requester'}
-                          </strong>
-                          <span>{formatDate(message.createdAt)}</span>
+                    data.messages.map((message) => {
+                      const isStaff = message.authorType === 'PLATFORM_STAFF';
+                      return (
+                        <div className={`message-card ${isStaff ? 'staff' : 'customer'}`} key={message.id}>
+                          <div className="message-header">
+                            <strong>
+                              {isStaff ? staffName(message.authorStaff) : (data.requesterName || 'Tenant requester')}
+                              {isStaff && <span style={{ marginLeft: '8px', color: 'var(--color-primary)' }}>(Staff)</span>}
+                            </strong>
+                            <span>{formatDate(message.createdAt)}</span>
+                          </div>
+                          <div className="message-body">{message.message}</div>
                         </div>
-                        <p>{message.message}</p>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
                 <PermissionGate
@@ -237,26 +232,57 @@ export function SupportTicketDetailPage() {
                       required
                       rows={4}
                       maxLength={5000}
-                      placeholder="Write a staff reply"
+                      placeholder="Write a staff reply to the customer..."
                       value={reply}
                       onChange={(event) => setReply(event.target.value)}
+                      style={{ width: '100%', marginBottom: '12px' }}
                     />
-                    <button
-                      className="button"
-                      disabled={submitting !== null || !reply.trim()}
-                      type="submit"
-                    >
-                      {submitting === 'reply' ? 'Sending...' : 'Send reply'}
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        className="button"
+                        disabled={submitting !== null || !reply.trim()}
+                        type="submit"
+                      >
+                        {submitting === 'reply' ? 'Sending...' : 'Send reply'}
+                      </button>
+                    </div>
                   </form>
                 </PermissionGate>
               </article>
+            </div>
 
-              <article className="status-card support-panel">
+            <aside className="support-side-column">
+              <article className="status-card support-panel" style={{ marginBottom: '24px' }}>
+                <h2>Ticket Metadata</h2>
+                <div className="permission-list" style={{ marginTop: '16px' }}>
+                  <div className="permission-row" style={{ padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+                    <span className="muted-copy">Organization</span>
+                    <strong>{data.organization.name}</strong>
+                  </div>
+                  <div className="permission-row" style={{ padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+                    <span className="muted-copy">Requester</span>
+                    <strong>{data.requesterName || 'Unknown'} {data.requesterEmail ? `(${data.requesterEmail})` : ''}</strong>
+                  </div>
+                  <div className="permission-row" style={{ padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+                    <span className="muted-copy">Category</span>
+                    <strong>{supportLabel(data.category)}</strong>
+                  </div>
+                  <div className="permission-row" style={{ padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+                    <span className="muted-copy">Created</span>
+                    <strong>{formatDate(data.createdAt)}</strong>
+                  </div>
+                  <div className="permission-row" style={{ padding: '8px 0' }}>
+                    <span className="muted-copy">Updated</span>
+                    <strong>{formatDate(data.updatedAt)}</strong>
+                  </div>
+                </div>
+              </article>
+
+              <article className="status-card support-panel" style={{ marginBottom: '24px' }}>
                 <div className="status-card-heading">
-                  <h2>Internal notes</h2>
+                  <h2>Internal Notes</h2>
                   <span className="muted-copy">
-                    {data.internalNotes.length} total
+                    {data.internalNotes.length} notes
                   </span>
                 </div>
                 <div className="support-thread">
@@ -264,10 +290,10 @@ export function SupportTicketDetailPage() {
                     <p className="muted-copy">No internal notes have been added.</p>
                   ) : (
                     data.internalNotes.map((item) => (
-                      <div className="thread-item" key={item.id}>
-                        <div>
+                      <div className="internal-note-item" key={item.id}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                           <strong>{staffName(item.staff)}</strong>
-                          <span>{formatDate(item.createdAt)}</span>
+                          <span className="muted-copy">{formatDate(item.createdAt)}</span>
                         </div>
                         <p>{item.note}</p>
                       </div>
@@ -276,186 +302,50 @@ export function SupportTicketDetailPage() {
                 </div>
                 <PermissionGate
                   permission="support.ticket.note"
-                  fallback={
-                    <p className="muted-copy">
-                      You do not have permission to add internal notes.
-                    </p>
-                  }
                 >
                   <form className="support-action-form" onSubmit={submitNote}>
                     <textarea
                       required
-                      rows={3}
+                      rows={2}
                       maxLength={5000}
-                      placeholder="Add a private internal note"
+                      placeholder="Add a private internal note..."
                       value={note}
                       onChange={(event) => setNote(event.target.value)}
+                      style={{ width: '100%', marginBottom: '12px' }}
                     />
-                    <button
-                      className="button"
-                      disabled={submitting !== null || !note.trim()}
-                      type="submit"
-                    >
-                      {submitting === 'note' ? 'Adding...' : 'Add note'}
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        className="button button-secondary"
+                        disabled={submitting !== null || !note.trim()}
+                        type="submit"
+                      >
+                        {submitting === 'note' ? 'Adding...' : 'Add note'}
+                      </button>
+                    </div>
                   </form>
                 </PermissionGate>
               </article>
-            </div>
-
-            <aside className="support-side-column">
-              <article className="status-card support-panel">
-                <h2>Status</h2>
-                <span
-                  className={`status-pill status-pill-${ticketTone(data.status)}`}
-                >
-                  {supportLabel(data.status)}
-                </span>
-                {transitionTargets(data.status).length === 0 ? (
-                  <p className="muted-copy">No further transitions are available.</p>
-                ) : availableTransitions.length === 0 ? (
-                  <p className="muted-copy">
-                    You do not have permission for the available transitions.
-                  </p>
-                ) : (
-                  <form className="support-action-form" onSubmit={submitStatus}>
-                    <select
-                      aria-label="Next ticket status"
-                      value={targetStatus}
-                      onChange={(event) =>
-                        setSelectedTargetStatus(event.target.value as TicketStatus)
-                      }
-                    >
-                      {availableTransitions.map((status) => (
-                        <option key={status} value={status}>
-                          {supportLabel(status)}
-                        </option>
-                      ))}
-                    </select>
-                    <textarea
-                      rows={3}
-                      maxLength={1000}
-                      placeholder="Transition note"
-                      value={statusNote}
-                      onChange={(event) => setStatusNote(event.target.value)}
-                    />
-                    <button
-                      className="button"
-                      disabled={submitting !== null || !targetStatus}
-                      type="submit"
-                    >
-                      {submitting === 'status' ? 'Updating...' : 'Update status'}
-                    </button>
-                  </form>
-                )}
-              </article>
 
               <article className="status-card support-panel">
-                <h2>History</h2>
-                <div className="support-history">
+                <h2>Status History</h2>
+                <div style={{ marginTop: '16px' }}>
                   {data.statusHistory.length === 0 ? (
                     <p className="muted-copy">No status history recorded.</p>
                   ) : (
                     data.statusHistory.map((item) => (
-                      <div className="history-item" key={item.id}>
-                        <strong>{supportLabel(item.newStatus)}</strong>
-                        <span>
-                          {item.previousStatus
-                            ? `From ${supportLabel(item.previousStatus)}`
-                            : 'Initial status'}{' '}
-                          by {staffName(item.changedByStaff)}
-                        </span>
-                        <span>{formatDate(item.createdAt)}</span>
-                        {item.note && <p>{item.note}</p>}
+                      <div className="timeline-item" key={item.id}>
+                        <div className="timeline-header">
+                          <strong>{supportLabel(item.newStatus)}</strong>
+                          <span className="timeline-meta">{formatDate(item.createdAt)}</span>
+                        </div>
+                        <div className="timeline-meta">
+                          {item.previousStatus ? `From ${supportLabel(item.previousStatus)}` : 'Initial status'} by {staffName(item.changedByStaff)}
+                        </div>
+                        {item.note && <div className="timeline-note">{item.note}</div>}
                       </div>
                     ))
                   )}
                 </div>
-              </article>
-
-              <article className="status-card support-panel">
-                <h2>Metadata</h2>
-                <PermissionGate
-                  permission="support.ticket.update"
-                  fallback={
-                    <p className="muted-copy">
-                      You do not have permission to update ticket metadata.
-                    </p>
-                  }
-                >
-                  <form className="support-action-form" onSubmit={saveMetadata}>
-                    <label>
-                      Requester name
-                      <input
-                        maxLength={160}
-                        name="requesterName"
-                        defaultValue={data.requesterName ?? ''}
-                      />
-                    </label>
-                    <label>
-                      Requester email
-                      <input
-                        type="email"
-                        maxLength={320}
-                        name="requesterEmail"
-                        defaultValue={data.requesterEmail ?? ''}
-                      />
-                    </label>
-                    <label>
-                      Category
-                      <select
-                        name="category"
-                        defaultValue={data.category}
-                      >
-                        {ticketCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {supportLabel(category)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Priority
-                      <select
-                        name="priority"
-                        defaultValue={data.priority}
-                      >
-                        {ticketPriorities.map((priority) => (
-                          <option key={priority} value={priority}>
-                            {supportLabel(priority)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Subject
-                      <input
-                        required
-                        minLength={3}
-                        maxLength={200}
-                        name="subject"
-                        defaultValue={data.subject}
-                      />
-                    </label>
-                    <label>
-                      Description
-                      <textarea
-                        required
-                        rows={5}
-                        maxLength={5000}
-                        name="description"
-                        defaultValue={data.description}
-                      />
-                    </label>
-                    <button
-                      className="button"
-                      disabled={submitting !== null}
-                      type="submit"
-                    >
-                      {submitting === 'metadata' ? 'Saving...' : 'Save metadata'}
-                    </button>
-                  </form>
-                </PermissionGate>
               </article>
             </aside>
           </div>
