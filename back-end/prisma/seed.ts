@@ -21,6 +21,11 @@ const permissions = [
   ['subscription.plan.manage', 'Manage subscription plans'],
   ['subscription.feature.view', 'View product features'],
   ['subscription.feature.manage', 'Manage product features'],
+  ['subscription.subscription.view', 'View organization subscriptions'],
+  ['subscription.subscription.manage', 'Manage organization subscriptions'],
+  ['billing.invoice.view', 'View subscription invoices'],
+  ['billing.payment.view', 'View subscription payments'],
+  ['billing.revenue.view', 'View billing and revenue metrics'],
 ] as const;
 
 const roles = [
@@ -65,6 +70,24 @@ async function seedCatalog(prisma: PrismaClient): Promise<string> {
     throw new Error('The platform super administrator role was not seeded.');
   }
 
+  const billingStaff = seededRoles.find(
+    (role) => role.key === 'BILLING_STAFF',
+  );
+  if (!billingStaff) {
+    throw new Error('The billing staff role was not seeded.');
+  }
+
+  const billingPermissionKeys = new Set([
+    'subscription.subscription.view',
+    'subscription.subscription.manage',
+    'billing.invoice.view',
+    'billing.payment.view',
+    'billing.revenue.view',
+  ]);
+  const billingPermissions = seededPermissions.filter((permission) =>
+    billingPermissionKeys.has(permission.key),
+  );
+
   await prisma.$transaction([
     prisma.platformRolePermission.deleteMany({
       where: { roleId: superAdmin.id },
@@ -72,6 +95,13 @@ async function seedCatalog(prisma: PrismaClient): Promise<string> {
     prisma.platformRolePermission.createMany({
       data: seededPermissions.map((permission) => ({
         roleId: superAdmin.id,
+        permissionId: permission.id,
+      })),
+      skipDuplicates: true,
+    }),
+    prisma.platformRolePermission.createMany({
+      data: billingPermissions.map((permission) => ({
+        roleId: billingStaff.id,
         permissionId: permission.id,
       })),
       skipDuplicates: true,
