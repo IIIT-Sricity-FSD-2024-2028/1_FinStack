@@ -46,6 +46,13 @@
   function getCurrentSession() {
     try {
       var raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem('currentUser');
+      if (!raw) {
+        var tenantRaw = sessionStorage.getItem('finstackTenantUser');
+        var tenant = tenantRaw ? JSON.parse(tenantRaw) : null;
+        if (tenant && sessionStorage.getItem('finstackTenantAccessToken')) {
+          raw = JSON.stringify({ id: tenant.id, employeeId: tenant.employeeId, fullName: tenant.firstName + ' ' + tenant.lastName, email: tenant.email, role: 'configuration_manager', roles: ['configuration_manager'], organizationId: tenant.organizationId, loginAt: new Date().toISOString() });
+        }
+      }
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
@@ -59,6 +66,8 @@
 
   function clearSession() {
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem('finstackTenantAccessToken');
+    sessionStorage.removeItem('finstackTenantUser');
     localStorage.removeItem('currentUser');
   }
 

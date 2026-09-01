@@ -50,6 +50,10 @@ async function bootstrap() {
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'platform-access-token',
     )
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'tenant-access-token',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -108,9 +108,13 @@
                   placeholder="e.g. Acme Corp" required></div>
               <div><label class="form-label">Org Email</label><input type="email" class="form-input" id="reg-org-email"
                   placeholder="contact@company.com" required></div>
+              <div><label class="form-label">Plan</label><select class="form-input" id="reg-plan-id" required><option value="">Loading plans...</option></select><p id="reg-plan-help" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">Choose an active plan to start your subscription.</p></div>
+              <div><label class="form-label">Number of Employees</label><input type="number" min="1" step="1" class="form-input" id="reg-employee-count" placeholder="e.g. 25" required><p style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">Used to calculate your recurring subscription price.</p></div>
+              <div id="reg-price-preview" style="grid-column:1 / -1;display:none;padding:16px;border:1px solid var(--border-default);border-radius:var(--radius-lg);text-align:left;"></div>
+              <div id="reg-addon-options" style="grid-column:1 / -1;display:none;"></div>
               <div>
                 <label class="form-label">Company Size</label>
-                <select class="form-input" required id="reg-org-size">
+                <select class="form-input" id="reg-org-size">
                   <option value="">Select company size</option>
                   <option value="1-10 employees">1-10 employees</option>
                   <option value="11-50 employees">11-50 employees</option>
@@ -159,8 +163,8 @@
                     <circle cx="9" cy="7" r="4" />
                     <line x1="19" x2="19" y1="8" y2="14" />
                     <line x1="22" x2="16" y1="11" y2="11" />
-                  </svg><input type="text" class="form-input has-icon" placeholder="e.g. CFG-1001" required id="reg-admin-employee-id"></div>
-                <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">This ID will be used to login. Letters, numbers, hyphens only.</p>
+                  </svg><input type="text" class="form-input has-icon" placeholder="Generated after registration" id="reg-admin-employee-id"></div>
+                <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">A secure employee ID is generated for the Configuration Manager.</p>
               </div>
               <div>
                 <label class="form-label">Admin Email</label>
@@ -328,8 +332,7 @@
           </div>
           <h2 style="font-size:1.875rem;font-weight:700;color:white;margin-bottom:16px;">Organization Created
             Successfully!</h2>
-          <p style="font-size:1rem;color:var(--text-secondary);margin-bottom:32px;">Your organization has been set up.
-            You can now access your dashboard and start managing your financial workflows.</p>
+          <p style="font-size:1rem;color:var(--text-secondary);margin-bottom:32px;">Your organization and configuration-manager account are ready. Sign in to continue.</p>
           <div
             style="background:var(--bg-deepest);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:24px;margin-bottom:32px;text-align:left;">
             <div style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:8px;">Organization Details:</div>
@@ -339,12 +342,16 @@
                 id="success-org-id" style="color:var(--cyan);font-weight:600;"></span></div>
             <div style="font-size:0.875rem;color:var(--text-secondary);margin-top:8px;">Employee ID: <span
                 id="success-admin-emp-id" style="color:var(--cyan);font-weight:600;"></span></div>
+            <div style="font-size:0.875rem;color:var(--text-secondary);margin-top:8px;">Selected plan: <span
+                id="success-plan" style="color:var(--text-primary);font-weight:600;"></span></div>
+            <div style="font-size:0.875rem;color:var(--text-secondary);margin-top:8px;">Subscription status: <span
+                id="success-subscription-status" style="color:var(--text-primary);font-weight:600;"></span></div>
             <div style="margin-top:16px;padding:12px;border-radius:var(--radius-lg);background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);">
-              <p style="font-size:0.8125rem;color:var(--purple-light);margin:0;">💡 Use the Organization ID + Employee ID + Password to login as Configuration Manager.</p>
+              <p style="font-size:0.8125rem;color:var(--purple-light);margin:0;">Use the Organization ID plus your email or employee ID and password to sign in as Configuration Manager.</p>
             </div>
           </div>
           <a href="../../login.html" class="btn btn-primary btn-full" style="padding:14px;">
-            Go to Login <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px"
+            Continue to Login <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px"
               height="18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M5 12h14" />
@@ -357,7 +364,6 @@
   </div>
 
   <script src="../../js/api.js"></script>
-  <script src="../../js/state.js"></script>
   <script src="../../js/pages/shared/register.js"></script>
 </body>
 

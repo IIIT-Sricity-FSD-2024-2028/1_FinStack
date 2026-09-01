@@ -46,9 +46,42 @@ model Organization {
   subscriptions        OrganizationSubscription[]
   invoices             Invoice[]
   subscriptionPayments SubscriptionPayment[]
+  tenantUsers          TenantUser[]
 
   @@index([status, createdAt])
   @@index([createdAt])
+}
+
+enum TenantUserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TenantRole {
+  CONFIGURATION_MANAGER
+  EXPENSE_SUBMITTER
+  MANAGER
+  FINANCE_OFFICER
+  COMPLIANCE_OFFICER
+}
+
+model TenantUser {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  employeeId     String           @db.VarChar(80)
+  firstName      String           @db.VarChar(100)
+  lastName       String           @db.VarChar(100)
+  email          String           @db.VarChar(320)
+  passwordHash   String           @db.VarChar(255)
+  role           TenantRole       @default(EXPENSE_SUBMITTER)
+  status         TenantUserStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@unique([organizationId, employeeId])
+  @@index([organizationId, status])
 }
 
 model PlatformStaff {
@@ -156,20 +189,22 @@ enum FeatureValueType {
 }
 
 model Plan {
-  id              String                     @id @default(uuid()) @db.Uuid
-  key             String                     @unique @db.VarChar(100)
-  name            String                     @unique @db.VarChar(150)
-  description     String?                    @db.Text
-  status          PlanStatus                 @default(ACTIVE)
-  billingInterval BillingInterval
-  basePrice       Decimal                    @db.Decimal(18, 4)
-  currency        String                     @default("INR") @db.Char(3)
-  trialDays       Int?
-  createdAt       DateTime                   @default(now())
-  updatedAt       DateTime                   @updatedAt
-  planFeatures    PlanFeature[]
-  subscriptions   OrganizationSubscription[]
-  invoices        Invoice[]
+  id                      String                     @id @default(uuid()) @db.Uuid
+  key                     String                     @unique @db.VarChar(100)
+  name                    String                     @unique @db.VarChar(150)
+  description             String?                    @db.Text
+  status                  PlanStatus                 @default(ACTIVE)
+  billingInterval         BillingInterval
+  basePrice               Decimal                    @db.Decimal(18, 4)
+  currency                String                     @default("INR") @db.Char(3)
+  trialDays               Int?
+  includedEmployeeCount   Int                        @default(1)
+  additionalEmployeePrice Decimal                    @default(0) @db.Decimal(18, 4)
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  planFeatures            PlanFeature[]
+  subscriptions           OrganizationSubscription[]
+  invoices                Invoice[]
 
   @@index([status])
   @@index([billingInterval])
@@ -191,15 +226,17 @@ model Feature {
 }
 
 model PlanFeature {
-  id        String   @id @default(uuid()) @db.Uuid
-  planId    String   @db.Uuid
-  featureId String   @db.Uuid
-  enabled   Boolean  @default(true)
-  value     Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  feature   Feature  @relation(fields: [featureId], references: [id], onDelete: Restrict)
+  id         String   @id @default(uuid()) @db.Uuid
+  planId     String   @db.Uuid
+  featureId  String   @db.Uuid
+  enabled    Boolean  @default(true)
+  isAddOn    Boolean  @default(false)
+  addOnPrice Decimal  @default(0) @db.Decimal(18, 4)
+  value      Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Restrict)
 
   @@unique([planId, featureId])
   @@index([featureId])
@@ -263,6 +300,9 @@ model OrganizationSubscription {
   billingInterval     BillingInterval
   currency            String                @db.Char(3)
   priceAtSubscription Decimal               @db.Decimal(18, 4)
+  employeeCount       Int                   @default(1)
+  employeeAmount      Decimal               @default(0) @db.Decimal(18, 4)
+  featureAmount       Decimal               @default(0) @db.Decimal(18, 4)
   currentPeriodStart  DateTime?
   currentPeriodEnd    DateTime?
   trialStartAt        DateTime?
@@ -313,6 +353,9 @@ model Invoice {
   subtotal           Decimal                  @db.Decimal(18, 4)
   taxAmount          Decimal                  @default(0) @db.Decimal(18, 4)
   totalAmount        Decimal                  @db.Decimal(18, 4)
+  employeeCount      Int                      @default(1)
+  employeeAmount     Decimal                  @default(0) @db.Decimal(18, 4)
+  featureAmount      Decimal                  @default(0) @db.Decimal(18, 4)
   currency           String                   @db.Char(3)
   billingPeriodStart DateTime?
   billingPeriodEnd   DateTime?

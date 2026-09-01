@@ -75,6 +75,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (successBox) successBox.style.display = 'none';
   }
 
+  function tenantLogin(identifier, organizationId, password) {
+    var body = { organizationId: organizationId, password: password };
+    if (identifier.indexOf('@') !== -1) body.email = identifier;
+    else body.employeeId = identifier;
+    return fetch(getApiBaseUrl() + '/api/v1/tenant/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (response) {
+      return response.text().then(function (text) { var payload = text ? JSON.parse(text) : null; if (!response.ok) throw new Error(getErrorMessage(payload, 'Invalid tenant credentials.')); return payload && payload.data ? payload.data : payload; });
+    });
+  }
+
   function getApiBaseUrl() {
     return window.FinStackApi && window.FinStackApi.baseUrl
       ? window.FinStackApi.baseUrl
@@ -171,6 +180,19 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!employeeId) { showError('Employee ID is required.'); return; }
       if (!password) { showError('Password is required.'); return; }
       if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+
+      if (role === 'configuration_manager') {
+        tenantLogin(employeeId, orgId, password).then(function (result) {
+          sessionStorage.setItem('finstackTenantAccessToken', result.accessToken);
+          sessionStorage.setItem('finstackTenantUser', JSON.stringify(result.user));
+          var tenantSession = { id: result.user.id, employeeId: result.user.employeeId, fullName: result.user.firstName + ' ' + result.user.lastName, email: result.user.email, role: 'configuration_manager', roles: ['configuration_manager'], organizationId: result.organizationId, loginAt: new Date().toISOString() };
+          sessionStorage.setItem('finstackUserSession', JSON.stringify(tenantSession));
+          localStorage.setItem('currentUser', JSON.stringify(tenantSession));
+          showSuccess('Login successful! Redirecting...');
+          setTimeout(function () { window.location.href = roleRoutes.configuration_manager; }, 300);
+        }).catch(function (error) { showError(error.message || 'Login failed.'); });
+        return;
+      }
 
       var credentials = {
         employeeId: employeeId,

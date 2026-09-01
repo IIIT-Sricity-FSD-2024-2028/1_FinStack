@@ -616,6 +616,10 @@ export class PlatformBillingService {
         billingReason: InvoiceBillingReason;
         billingPeriodStart: Date | null;
         billingPeriodEnd: Date | null;
+        totalAmount: Prisma.Decimal;
+        employeeCount: number;
+        employeeAmount: Prisma.Decimal;
+        featureAmount: Prisma.Decimal;
       };
       subscription: {
         id: string;
@@ -662,7 +666,10 @@ export class PlatformBillingService {
         status: SubscriptionStatus.ACTIVE,
         billingInterval: plan.billingInterval,
         currency: plan.currency,
-        priceAtSubscription: plan.basePrice,
+        priceAtSubscription: payment.invoice.totalAmount ?? plan.basePrice,
+        employeeCount: payment.invoice.employeeCount ?? 1,
+        employeeAmount: payment.invoice.employeeAmount ?? new Prisma.Decimal(0),
+        featureAmount: payment.invoice.featureAmount ?? new Prisma.Decimal(0),
         currentPeriodStart:
           payment.invoice.billingPeriodStart ?? input.occurredAt,
         currentPeriodEnd: payment.invoice.billingPeriodEnd,

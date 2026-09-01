@@ -35,6 +35,10 @@ function renderSidebar() {
         <i data-lucide="shield" style="width:20px;height:20px;"></i>
         <span class="sidebar-item-text">Roles & Access</span>
       </a>
+      <a href="subscription.html" class="sidebar-item">
+        <i data-lucide="credit-card" style="width:20px;height:20px;"></i>
+        <span class="sidebar-item-text">Subscription</span>
+      </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-title">Expense Config</div>
@@ -143,7 +147,7 @@ function initLayout(breadcrumb) {
   /* Intercept logout links to clear session */
   function handleLogout(e) {
     e.preventDefault();
-    sessionStorage.removeItem('finstackUserSession');
+    if (window.FinStackGuard) window.FinStackGuard.clearSession();
     window.location.href = '../../login.html';
   }
 
@@ -540,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (link.style.color === 'var(--red)' || link.textContent.trim().toLowerCase().includes('logout')) {
       link.addEventListener('click', function (e) {
         e.preventDefault();
-        sessionStorage.removeItem('finstackUserSession');
+        if (window.FinStackGuard) window.FinStackGuard.clearSession();
         window.location.href = '../../login.html';
       });
     }
@@ -618,6 +622,27 @@ function rejectRequest(requestId) {
 }
 
 function loadDashboardMetrics() {
+  var tenantToken = sessionStorage.getItem('finstackTenantAccessToken');
+  if (tenantToken) {
+    var apiBase = window.FinStackApi && window.FinStackApi.baseUrl ? window.FinStackApi.baseUrl : 'http://localhost:3000';
+    fetch(apiBase + '/api/v1/tenant/subscription', { headers: { Authorization: 'Bearer ' + tenantToken } })
+      .then(function (response) { return response.json(); })
+      .then(function (payload) {
+        var subscription = payload.data || payload;
+        if (!subscription || !subscription.plan) return;
+        var labels = document.querySelectorAll('.metric-label');
+        var values = document.querySelectorAll('.metric-value');
+        if (labels[0]) labels[0].textContent = 'Organization';
+        if (values[0]) values[0].textContent = subscription.organization.name;
+        if (labels[1]) labels[1].textContent = 'Current Plan';
+        if (values[1]) values[1].textContent = subscription.plan.name;
+        if (labels[2]) labels[2].textContent = 'Recurring Price';
+        if (values[2]) values[2].textContent = subscription.currency + ' ' + subscription.priceAtSubscription;
+        if (labels[3]) labels[3].textContent = 'Employee Seats';
+        if (values[3]) values[3].textContent = String(subscription.employeeCount);
+      })
+      .catch(function () {});
+  }
   /* Dynamic metrics from store */
   var state = window.FinStackStore.getState();
   var expenses = state.expenses || [];

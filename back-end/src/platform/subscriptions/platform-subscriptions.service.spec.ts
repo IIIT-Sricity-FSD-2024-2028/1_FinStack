@@ -146,6 +146,97 @@ describe('PlatformSubscriptionsService', () => {
     });
   });
 
+  it('calculates seat and selected add-on charges from the Plan on the server', async () => {
+    let capturedSubscriptionCreate: unknown;
+    let capturedInvoiceCreate: unknown;
+    const addOn = {
+      id: '50000000-0000-4000-8000-000000000001',
+      planId: plan.id,
+      featureId: '60000000-0000-4000-8000-000000000001',
+      enabled: true,
+      isAddOn: true,
+      addOnPrice: new Prisma.Decimal('250'),
+      value: null,
+      feature: {
+        id: '60000000-0000-4000-8000-000000000001',
+        key: 'PRIORITY_SUPPORT',
+        name: 'Priority support',
+      },
+    };
+    const pricedPlan = {
+      ...plan,
+      includedEmployeeCount: 2,
+      additionalEmployeePrice: new Prisma.Decimal('100'),
+      planFeatures: [addOn],
+    };
+    const quotedSubscription = {
+      ...subscription,
+      employeeCount: 4,
+      employeeAmount: new Prisma.Decimal('200'),
+      featureAmount: new Prisma.Decimal('250'),
+      priceAtSubscription: new Prisma.Decimal('3449'),
+      plan: pricedPlan,
+    };
+    const quotedInvoice = {
+      ...invoice,
+      employeeCount: 4,
+      employeeAmount: new Prisma.Decimal('200'),
+      featureAmount: new Prisma.Decimal('250'),
+      subtotal: new Prisma.Decimal('3449'),
+      totalAmount: new Prisma.Decimal('3449'),
+      plan: { id: pricedPlan.id, key: pricedPlan.key, name: pricedPlan.name },
+    };
+    const tx = {
+      organization: { findUnique: jest.fn().mockResolvedValue(organization) },
+      plan: { findUnique: jest.fn().mockResolvedValue(pricedPlan) },
+      organizationSubscription: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn((args: unknown) => {
+          capturedSubscriptionCreate = args;
+          return Promise.resolve(quotedSubscription);
+        }),
+      },
+      subscriptionHistory: { create: jest.fn().mockResolvedValue({}) },
+      invoice: {
+        create: jest.fn((args: unknown) => {
+          capturedInvoiceCreate = args;
+          return Promise.resolve(quotedInvoice);
+        }),
+      },
+      platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const service = serviceWithPrisma({ $transaction: transactionWith(tx) });
+
+    await service.assign(
+      {
+        organizationId: organization.id,
+        planId: pricedPlan.id,
+        employeeCount: 4,
+        featureIds: [addOn.featureId],
+      },
+      'actor-id',
+    );
+
+    const subscriptionCreate = capturedSubscriptionCreate as {
+      data: Record<string, unknown>;
+    };
+    const invoiceCreate = capturedInvoiceCreate as {
+      data: Record<string, unknown>;
+    };
+    expect(subscriptionCreate.data).toMatchObject({
+      employeeCount: 4,
+      employeeAmount: new Prisma.Decimal('200'),
+      featureAmount: new Prisma.Decimal('250'),
+      priceAtSubscription: new Prisma.Decimal('3449'),
+    });
+    expect(invoiceCreate.data).toMatchObject({
+      employeeCount: 4,
+      employeeAmount: new Prisma.Decimal('200'),
+      featureAmount: new Prisma.Decimal('250'),
+      totalAmount: new Prisma.Decimal('3449'),
+    });
+  });
+
   it('rejects a second effective subscription before writing', async () => {
     const tx = {
       organization: { findUnique: jest.fn().mockResolvedValue(organization) },

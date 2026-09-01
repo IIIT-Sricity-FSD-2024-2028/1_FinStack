@@ -57,6 +57,21 @@ const REACTIVATABLE_STATUSES: SubscriptionStatus[] = [
 export class PlatformSubscriptionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async quote(
+    planId: string,
+    employeeCount: number,
+    featureIds: string[] = [],
+  ) {
+    const plan = await this.prisma.plan.findUnique({
+      where: { id: planId },
+      include: {
+        planFeatures: { where: { enabled: true }, include: { feature: true } },
+      },
+    });
+    if (!plan || plan.status !== PlanStatus.ACTIVE) this.planNotFound();
+    return this.calculateQuote(plan, employeeCount, featureIds);
+  }
+
   async findAll(
     query: ListSubscriptionsQueryDto,
   ): Promise<PaginatedDto<SubscriptionDto>> {
@@ -123,107 +138,7 @@ export class PlatformSubscriptionsService {
     try {
       return await runPlatformSerializableTransaction(
         this.prisma,
-        async (tx) => {
-          const [organization, plan, existing] = await Promise.all([
-            tx.organization.findUnique({
-              where: { id: dto.organizationId },
-              select: { id: true },
-            }),
-            tx.plan.findUnique({ where: { id: dto.planId } }),
-            tx.organizationSubscription.findFirst({
-              where: {
-                organizationId: dto.organizationId,
-                status: { in: EFFECTIVE_SUBSCRIPTION_STATUSES },
-              },
-              select: { id: true },
-            }),
-          ]);
-          if (!organization) {
-            throw new NotFoundException({
-              code: 'ORGANIZATION_NOT_FOUND',
-              message: 'Organization not found.',
-            });
-          }
-          if (!plan) this.planNotFound();
-          if (plan.status !== PlanStatus.ACTIVE) {
-            throw new ConflictException({
-              code: 'PLAN_INACTIVE',
-              message: 'Only an active plan can be assigned.',
-            });
-          }
-          if (existing) this.effectiveSubscriptionConflict();
-
-          const now = new Date();
-          const hasTrial = (plan.trialDays ?? 0) > 0;
-          const trialEnd = hasTrial
-            ? this.addDays(now, plan.trialDays ?? 0)
-            : null;
-          const status = hasTrial
-            ? SubscriptionStatus.TRIAL
-            : SubscriptionStatus.PENDING_PAYMENT;
-          const subscription = await tx.organizationSubscription.create({
-            data: {
-              organizationId: organization.id,
-              planId: plan.id,
-              status,
-              billingInterval: plan.billingInterval,
-              currency: plan.currency,
-              priceAtSubscription: plan.basePrice,
-              currentPeriodStart: hasTrial ? now : null,
-              currentPeriodEnd: trialEnd,
-              trialStartAt: hasTrial ? now : null,
-              trialEndAt: trialEnd,
-            },
-            include: this.subscriptionInclude(),
-          });
-
-          await tx.subscriptionHistory.create({
-            data: {
-              subscriptionId: subscription.id,
-              action: SubscriptionHistoryAction.ASSIGNED,
-              newStatus: status,
-              newPlanId: plan.id,
-              actorStaffId,
-              note: hasTrial
-                ? `Assigned with the plan's ${plan.trialDays ?? 0}-day trial.`
-                : 'Assigned pending successful payment.',
-            },
-          });
-
-          const billingStart = trialEnd ?? now;
-          const invoice = await this.createInvoice(tx, {
-            subscriptionId: subscription.id,
-            organizationId: organization.id,
-            plan,
-            reason: InvoiceBillingReason.INITIAL,
-            billingPeriodStart: billingStart,
-            billingPeriodEnd: this.addBillingInterval(
-              billingStart,
-              plan.billingInterval,
-            ),
-            dueDate: billingStart,
-            idempotencyKey: `subscription:${subscription.id}:initial`,
-            actorStaffId,
-          });
-
-          await this.audit(
-            tx,
-            actorStaffId,
-            'subscription.assigned',
-            subscription.id,
-            {
-              organizationId: organization.id,
-              planId: plan.id,
-              status,
-              invoiceId: invoice.id,
-            },
-          );
-
-          return {
-            subscription: toSubscriptionDto(subscription),
-            invoice: toInvoiceDto(invoice),
-          };
-        },
+        (tx) => this.assignInTransaction(tx, dto, actorStaffId),
         {
           code: 'SUBSCRIPTION_ASSIGNMENT_CONFLICT',
           message: 'Subscription assignment conflicted with another update.',
@@ -234,10 +149,128 @@ export class PlatformSubscriptionsService {
     }
   }
 
+  async assignInTransaction(
+    tx: Prisma.TransactionClient,
+    dto: AssignSubscriptionDto,
+    actorStaffId: string | null,
+  ) {
+    const [organization, plan, existing] = await Promise.all([
+      tx.organization.findUnique({
+        where: { id: dto.organizationId },
+        select: { id: true },
+      }),
+      tx.plan.findUnique({
+        where: { id: dto.planId },
+        include: {
+          planFeatures: {
+            where: { enabled: true },
+            include: { feature: true },
+          },
+        },
+      }),
+      tx.organizationSubscription.findFirst({
+        where: {
+          organizationId: dto.organizationId,
+          status: { in: EFFECTIVE_SUBSCRIPTION_STATUSES },
+        },
+        select: { id: true },
+      }),
+    ]);
+    if (!organization) {
+      throw new NotFoundException({
+        code: 'ORGANIZATION_NOT_FOUND',
+        message: 'Organization not found.',
+      });
+    }
+    if (!plan) this.planNotFound();
+    if (plan.status !== PlanStatus.ACTIVE) {
+      throw new ConflictException({
+        code: 'PLAN_INACTIVE',
+        message: 'Only an active plan can be assigned.',
+      });
+    }
+    if (existing) this.effectiveSubscriptionConflict();
+
+    const quote = this.calculateQuote(
+      plan,
+      dto.employeeCount ?? 1,
+      dto.featureIds ?? [],
+    );
+
+    const now = new Date();
+    const hasTrial = (plan.trialDays ?? 0) > 0;
+    const trialEnd = hasTrial ? this.addDays(now, plan.trialDays ?? 0) : null;
+    const status = hasTrial
+      ? SubscriptionStatus.TRIAL
+      : SubscriptionStatus.PENDING_PAYMENT;
+    const subscription = await tx.organizationSubscription.create({
+      data: {
+        organizationId: organization.id,
+        planId: plan.id,
+        status,
+        billingInterval: plan.billingInterval,
+        currency: plan.currency,
+        priceAtSubscription: quote.totalAmount,
+        employeeCount: quote.employeeCount,
+        employeeAmount: quote.employeeAmount,
+        featureAmount: quote.featureAmount,
+        currentPeriodStart: hasTrial ? now : null,
+        currentPeriodEnd: trialEnd,
+        trialStartAt: hasTrial ? now : null,
+        trialEndAt: trialEnd,
+      },
+      include: this.subscriptionInclude(),
+    });
+    await tx.subscriptionHistory.create({
+      data: {
+        subscriptionId: subscription.id,
+        action: SubscriptionHistoryAction.ASSIGNED,
+        newStatus: status,
+        newPlanId: plan.id,
+        actorStaffId,
+        note: hasTrial
+          ? `Assigned with the plan's ${plan.trialDays ?? 0}-day trial.`
+          : 'Assigned pending successful payment.',
+      },
+    });
+    const billingStart = trialEnd ?? now;
+    const invoice = await this.createInvoice(tx, {
+      subscriptionId: subscription.id,
+      organizationId: organization.id,
+      plan,
+      reason: InvoiceBillingReason.INITIAL,
+      billingPeriodStart: billingStart,
+      billingPeriodEnd: this.addBillingInterval(
+        billingStart,
+        plan.billingInterval,
+      ),
+      dueDate: billingStart,
+      idempotencyKey: `subscription:${subscription.id}:initial`,
+      actorStaffId,
+      quote,
+    });
+    await this.audit(
+      tx,
+      actorStaffId,
+      'subscription.assigned',
+      subscription.id,
+      {
+        organizationId: organization.id,
+        planId: plan.id,
+        status,
+        invoiceId: invoice.id,
+      },
+    );
+    return {
+      subscription: toSubscriptionDto(subscription),
+      invoice: toInvoiceDto(invoice),
+    };
+  }
+
   async requestPlanChange(
     id: string,
     dto: ChangeSubscriptionPlanDto,
-    actorStaffId: string,
+    actorStaffId: string | null,
   ) {
     try {
       return await runPlatformSerializableTransaction(
@@ -261,7 +294,15 @@ export class PlatformSubscriptionsService {
           }
 
           const [plan, pendingChange] = await Promise.all([
-            tx.plan.findUnique({ where: { id: dto.planId } }),
+            tx.plan.findUnique({
+              where: { id: dto.planId },
+              include: {
+                planFeatures: {
+                  where: { enabled: true },
+                  include: { feature: true },
+                },
+              },
+            }),
             tx.invoice.findFirst({
               where: {
                 subscriptionId: id,
@@ -285,6 +326,12 @@ export class PlatformSubscriptionsService {
             });
           }
 
+          const quote = this.calculateQuote(
+            plan,
+            dto.employeeCount ?? subscription.employeeCount ?? 1,
+            dto.featureIds ?? [],
+          );
+
           const now = new Date();
           const invoice = await this.createInvoice(tx, {
             subscriptionId: subscription.id,
@@ -299,6 +346,7 @@ export class PlatformSubscriptionsService {
             dueDate: now,
             idempotencyKey: `subscription:${subscription.id}:plan-change:${plan.id}:${randomUUID()}`,
             actorStaffId,
+            quote,
           });
           await tx.subscriptionHistory.create({
             data: {
@@ -348,7 +396,7 @@ export class PlatformSubscriptionsService {
   async cancel(
     id: string,
     dto: CancelSubscriptionDto,
-    actorStaffId: string,
+    actorStaffId: string | null,
   ): Promise<SubscriptionDto> {
     return runPlatformSerializableTransaction(
       this.prisma,
@@ -402,7 +450,10 @@ export class PlatformSubscriptionsService {
     );
   }
 
-  async reactivate(id: string, actorStaffId: string): Promise<SubscriptionDto> {
+  async reactivate(
+    id: string,
+    actorStaffId: string | null,
+  ): Promise<SubscriptionDto> {
     try {
       return await runPlatformSerializableTransaction(
         this.prisma,
@@ -535,7 +586,13 @@ export class PlatformSubscriptionsService {
       billingPeriodEnd: Date;
       dueDate: Date;
       idempotencyKey: string;
-      actorStaffId: string;
+      actorStaffId: string | null;
+      quote?: {
+        totalAmount: Prisma.Decimal;
+        employeeAmount: Prisma.Decimal;
+        featureAmount: Prisma.Decimal;
+        employeeCount: number;
+      };
     },
   ) {
     const invoice = await tx.invoice.create({
@@ -546,8 +603,11 @@ export class PlatformSubscriptionsService {
         subscriptionId: input.subscriptionId,
         planId: input.plan.id,
         billingReason: input.reason,
-        subtotal: input.plan.basePrice,
-        totalAmount: input.plan.basePrice,
+        subtotal: input.quote?.totalAmount ?? input.plan.basePrice,
+        totalAmount: input.quote?.totalAmount ?? input.plan.basePrice,
+        employeeCount: input.quote?.employeeCount ?? 1,
+        employeeAmount: input.quote?.employeeAmount ?? new Prisma.Decimal(0),
+        featureAmount: input.quote?.featureAmount ?? new Prisma.Decimal(0),
         currency: input.plan.currency,
         billingPeriodStart: input.billingPeriodStart,
         billingPeriodEnd: input.billingPeriodEnd,
@@ -565,11 +625,62 @@ export class PlatformSubscriptionsService {
         organizationId: input.organizationId,
         planId: input.plan.id,
         billingReason: input.reason,
-        amount: input.plan.basePrice.toString(),
+        amount: (input.quote?.totalAmount ?? input.plan.basePrice).toString(),
         currency: input.plan.currency,
       },
     );
     return invoice;
+  }
+
+  private calculateQuote(
+    plan: Prisma.PlanGetPayload<{
+      include: { planFeatures: { include: { feature: true } } };
+    }>,
+    employeeCount: number,
+    featureIds: string[],
+  ) {
+    if (!Number.isInteger(employeeCount) || employeeCount < 1) {
+      throw new ConflictException({
+        code: 'EMPLOYEE_COUNT_INVALID',
+        message: 'Employee count must be a positive whole number.',
+      });
+    }
+    const selected = new Set(featureIds);
+    const addOns = plan.planFeatures.filter(
+      (item) => item.isAddOn && selected.has(item.featureId),
+    );
+    if (selected.size !== addOns.length) {
+      throw new ConflictException({
+        code: 'FEATURE_ADDON_INVALID',
+        message: 'One or more selected add-ons are not available on this plan.',
+      });
+    }
+    const includedEmployees = plan.includedEmployeeCount ?? 1;
+    const additionalEmployeePrice =
+      plan.additionalEmployeePrice ?? new Prisma.Decimal(0);
+    const additionalEmployees = Math.max(0, employeeCount - includedEmployees);
+    const employeeAmount = additionalEmployeePrice.mul(additionalEmployees);
+    const featureAmount = addOns.reduce(
+      (sum, item) => sum.add(item.addOnPrice ?? new Prisma.Decimal(0)),
+      new Prisma.Decimal(0),
+    );
+    const totalAmount = plan.basePrice.add(employeeAmount).add(featureAmount);
+    return {
+      baseAmount: plan.basePrice,
+      includedEmployees,
+      employeeCount,
+      additionalEmployees,
+      employeeAmount,
+      featureAmount,
+      featureAddons: addOns.map((item) => ({
+        featureId: item.featureId,
+        name: item.feature.name,
+        amount: item.addOnPrice ?? new Prisma.Decimal(0),
+      })),
+      totalAmount,
+      currency: plan.currency,
+      billingInterval: plan.billingInterval,
+    };
   }
 
   private audit(

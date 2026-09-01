@@ -36,6 +36,8 @@ export interface PlanFeatureDto {
   valueType: FeatureValueType;
   enabled: boolean;
   value: Prisma.JsonValue | null;
+  isAddOn: boolean;
+  addOnPrice: string;
 }
 
 export interface CommercialPlanDto {
@@ -46,6 +48,8 @@ export interface CommercialPlanDto {
   basePrice: string;
   currency: string;
   features: PlanFeatureDto[];
+  includedEmployeeCount: number;
+  additionalEmployeePrice: string;
 }
 
 export interface SubscriptionDto {
@@ -54,6 +58,9 @@ export interface SubscriptionDto {
   billingInterval: BillingInterval;
   currency: string;
   priceAtSubscription: string;
+  employeeCount: number;
+  employeeAmount: string;
+  featureAmount: string;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   trialStartAt: string | null;
@@ -98,6 +105,9 @@ export interface InvoiceDto {
   subtotal: string;
   taxAmount: string;
   totalAmount: string;
+  employeeCount: number;
+  employeeAmount: string;
+  featureAmount: string;
   currency: string;
   billingPeriodStart: string | null;
   billingPeriodEnd: string | null;
@@ -216,6 +226,9 @@ export function toSubscriptionDto(record: SubscriptionRecord): SubscriptionDto {
     billingInterval: record.billingInterval,
     currency: record.currency,
     priceAtSubscription: record.priceAtSubscription.toString(),
+    employeeCount: record.employeeCount ?? 1,
+    employeeAmount: record.employeeAmount?.toString() ?? '0',
+    featureAmount: record.featureAmount?.toString() ?? '0',
     currentPeriodStart: date(record.currentPeriodStart),
     currentPeriodEnd: date(record.currentPeriodEnd),
     trialStartAt: date(record.trialStartAt),
@@ -230,6 +243,9 @@ export function toSubscriptionDto(record: SubscriptionRecord): SubscriptionDto {
       name: record.plan.name,
       billingInterval: record.plan.billingInterval,
       basePrice: record.plan.basePrice.toString(),
+      includedEmployeeCount: record.plan.includedEmployeeCount ?? 1,
+      additionalEmployeePrice:
+        record.plan.additionalEmployeePrice?.toString() ?? '0',
       currency: record.plan.currency,
       features: record.plan.planFeatures
         .map((assignment) => ({
@@ -239,6 +255,8 @@ export function toSubscriptionDto(record: SubscriptionRecord): SubscriptionDto {
           valueType: assignment.feature.valueType,
           enabled: assignment.enabled,
           value: assignment.value,
+          isAddOn: assignment.isAddOn ?? false,
+          addOnPrice: assignment.addOnPrice?.toString() ?? '0',
         }))
         .sort((left, right) => left.key.localeCompare(right.key)),
     },
@@ -275,6 +293,9 @@ export function toInvoiceDto(record: InvoiceRecord): InvoiceDto {
     subtotal: record.subtotal.toString(),
     taxAmount: record.taxAmount.toString(),
     totalAmount: record.totalAmount.toString(),
+    employeeCount: record.employeeCount ?? 1,
+    employeeAmount: (record.employeeAmount ?? 0).toString(),
+    featureAmount: (record.featureAmount ?? 0).toString(),
     currency: record.currency,
     billingPeriodStart: date(record.billingPeriodStart),
     billingPeriodEnd: date(record.billingPeriodEnd),

@@ -103,7 +103,7 @@ export class RazorpayService {
 
   async createPaymentOrder(
     invoiceId: string,
-    actorStaffId: string,
+    actorStaffId?: string,
   ): Promise<SafeRazorpayOrder> {
     const credentials = this.credentials();
     const invoice = await this.prisma.invoice.findUnique({

@@ -114,6 +114,8 @@ export class PlatformPlanFeaturesService {
             planId,
             featureId: dto.featureId,
             enabled: dto.enabled ?? true,
+            isAddOn: dto.isAddOn ?? false,
+            addOnPrice: dto.addOnPrice ?? '0',
             value:
               dto.value !== undefined
                 ? (dto.value as Prisma.InputJsonValue)
@@ -177,6 +179,10 @@ export class PlatformPlanFeaturesService {
         where: { planId_featureId: { planId, featureId } },
         data: {
           ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
+          ...(dto.isAddOn !== undefined ? { isAddOn: dto.isAddOn } : {}),
+          ...(dto.addOnPrice !== undefined
+            ? { addOnPrice: dto.addOnPrice }
+            : {}),
           ...(dto.value !== undefined
             ? { value: dto.value as Prisma.InputJsonValue }
             : {}),
