@@ -57,6 +57,40 @@ export function AdminLayout() {
               Roles
             </NavLink>
           </PermissionGate>
+          <PermissionGate permission="platform.settings.view">
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Platform Settings
+            </NavLink>
+          </PermissionGate>
+
+          <p className="foundation-label" style={{ marginTop: '24px' }}>
+            Products & Plans
+          </p>
+          <PermissionGate permission="subscription.plan.view">
+            <NavLink
+              to="/plans"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Plans
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="subscription.feature.view">
+            <NavLink
+              to="/features"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Features
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>
