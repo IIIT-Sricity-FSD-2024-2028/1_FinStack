@@ -25,6 +25,11 @@ import { PlatformTokenService } from './platform-token.service';
     PlatformAuthenticationGuard,
     PlatformRefreshGuard,
   ],
-  exports: [PlatformAuthService, PlatformAuthenticationGuard],
+  exports: [
+    PlatformAuthService,
+    PlatformAuthenticationGuard,
+    PlatformPasswordService,
+    PlatformSessionService,
+  ],
 })
 export class PlatformAuthModule {}

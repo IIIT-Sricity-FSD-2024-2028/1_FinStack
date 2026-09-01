@@ -13,6 +13,8 @@ const permissions = [
   ['platform.staff.create', 'Create platform staff'],
   ['platform.staff.update', 'Update platform staff'],
   ['platform.staff.disable', 'Disable platform staff'],
+  ['platform.staff.activate', 'Activate platform staff'],
+  ['platform.staff.role.assign', 'Assign and remove platform staff roles'],
   ['platform.role.view', 'View platform roles and permissions'],
   ['platform.role.manage', 'Manage platform roles and permissions'],
   ['subscription.plan.view', 'View subscription plans'],

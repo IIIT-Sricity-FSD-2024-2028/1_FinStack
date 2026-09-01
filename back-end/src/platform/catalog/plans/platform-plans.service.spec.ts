@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BillingInterval, PlanStatus, Prisma } from '@prisma/client';
+import { CreatePlanDto } from './dto/create-plan.dto';
+import { ListPlansQueryDto } from './dto/list-plans-query.dto';
 import { PlatformPlansService } from './platform-plans.service';
 
 const basePlan = {
@@ -21,9 +23,19 @@ function serviceWithPrisma(prisma: Record<string, unknown>) {
   return new PlatformPlansService(prisma as never);
 }
 
+type TransactionCallback<TClient> = (tx: TClient) => Promise<unknown>;
+
+function transactionWith<TClient>(txClient: TClient) {
+  return jest.fn((callback: TransactionCallback<TClient>) =>
+    callback(txClient),
+  );
+}
+
 describe('PlatformPlansService', () => {
   it('lists plans with search, status filter, and pagination', async () => {
-    const findMany = jest.fn().mockResolvedValue([basePlan]);
+    const findMany = jest
+      .fn<Promise<(typeof basePlan)[]>, [Prisma.PlanFindManyArgs]>()
+      .mockResolvedValue([basePlan]);
     const prisma = {
       plan: {
         findMany,
@@ -35,16 +47,16 @@ describe('PlatformPlansService', () => {
     };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.findAll({
-        page: 2,
-        limit: 10,
-        search: 'START',
-        status: 'INACTIVE',
-        sortBy: 'createdAt',
-        order: 'desc',
-      } as any),
-    ).resolves.toMatchObject({
+    const query: ListPlansQueryDto = {
+      page: 2,
+      limit: 10,
+      search: 'START',
+      status: PlanStatus.INACTIVE,
+      sortBy: 'createdAt',
+      order: 'desc',
+    };
+
+    await expect(service.findAll(query)).resolves.toMatchObject({
       items: [basePlan],
       page: 2,
       limit: 10,
@@ -53,10 +65,13 @@ describe('PlatformPlansService', () => {
     });
 
     const findManyArg = findMany.mock.calls[0]?.[0];
+    const where = findManyArg.where;
+    expect(where).toBeDefined();
+    if (!where) throw new Error('Expected plan query filters.');
     expect(findManyArg.skip).toBe(10);
     expect(findManyArg.take).toBe(10);
-    expect(findManyArg.where.status).toBe('INACTIVE');
-    expect(Array.isArray(findManyArg.where.OR)).toBe(true);
+    expect(where.status).toBe('INACTIVE');
+    expect(Array.isArray(where.OR)).toBe(true);
   });
 
   it('lists active tenant plans with assigned feature values', async () => {
@@ -151,25 +166,17 @@ describe('PlatformPlansService', () => {
       plan: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = {
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
-    };
+    const prisma = { $transaction: transactionWith(txClient) };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.create(
-        {
-          key: 'STARTER',
-          name: 'Starter Plan',
-          billingInterval: 'MONTHLY',
-          basePrice: '9.99',
-        } as any,
-        'actor-id',
-      ),
-    ).resolves.toEqual(basePlan);
+    const dto: CreatePlanDto = {
+      key: 'STARTER',
+      name: 'Starter Plan',
+      billingInterval: BillingInterval.MONTHLY,
+      basePrice: '9.99',
+    };
+
+    await expect(service.create(dto, 'actor-id')).resolves.toEqual(basePlan);
 
     expect(txCreate).toHaveBeenCalled();
     expect(txAuditLogCreate).toHaveBeenCalled();
@@ -184,25 +191,19 @@ describe('PlatformPlansService', () => {
       plan: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = {
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
-    };
+    const prisma = { $transaction: transactionWith(txClient) };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.create(
-        {
-          key: 'STARTER',
-          name: 'Starter Plan',
-          billingInterval: 'MONTHLY',
-          basePrice: '9.99',
-        } as any,
-        'actor-id',
-      ),
-    ).rejects.toThrow('Audit failure');
+    const dto: CreatePlanDto = {
+      key: 'STARTER',
+      name: 'Starter Plan',
+      billingInterval: BillingInterval.MONTHLY,
+      basePrice: '9.99',
+    };
+
+    await expect(service.create(dto, 'actor-id')).rejects.toThrow(
+      'Audit failure',
+    );
 
     expect(txCreate).toHaveBeenCalled();
     expect(txAuditLogCreate).toHaveBeenCalled();
@@ -218,34 +219,24 @@ describe('PlatformPlansService', () => {
     const txClient = {
       plan: { create: txCreate },
     };
-    const prisma = {
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
-    };
+    const prisma = { $transaction: transactionWith(txClient) };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.create(
-        {
-          key: 'DUP',
-          name: 'Dup',
-          billingInterval: 'MONTHLY',
-          basePrice: '0',
-        } as any,
-        'actor-id',
-      ),
-    ).rejects.toBeInstanceOf(ConflictException);
+    const dto: CreatePlanDto = {
+      key: 'DUP',
+      name: 'Dup',
+      billingInterval: BillingInterval.MONTHLY,
+      basePrice: '0',
+    };
+
+    await expect(service.create(dto, 'actor-id')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('throws NotFoundException when plan is missing', async () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -261,10 +252,6 @@ describe('PlatformPlansService', () => {
           .fn()
           .mockResolvedValue({ ...basePlan, status: 'ACTIVE' }),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -280,10 +267,6 @@ describe('PlatformPlansService', () => {
           .fn()
           .mockResolvedValue({ ...basePlan, status: 'INACTIVE' }),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 

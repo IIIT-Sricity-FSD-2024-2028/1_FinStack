@@ -4,7 +4,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { FeatureValueType, Prisma } from '@prisma/client';
 import { PlatformPlanFeaturesService } from './platform-plan-features.service';
 
 const basePlan = {
@@ -15,7 +15,7 @@ const basePlan = {
 const baseFeature = {
   id: 'feature-uuid',
   key: 'MAX_USERS',
-  valueType: 'INTEGER',
+  valueType: FeatureValueType.INTEGER,
   isActive: true,
 };
 
@@ -33,6 +33,31 @@ function serviceWithPrisma(prisma: Record<string, unknown>) {
   return new PlatformPlanFeaturesService(prisma as never);
 }
 
+type TransactionCallback<TClient> = (tx: TClient) => Promise<unknown>;
+
+function transactionWith<TClient>(txClient: TClient) {
+  return jest.fn((callback: TransactionCallback<TClient>) =>
+    callback(txClient),
+  );
+}
+
+function prismaForFeatureValue(valueType: FeatureValueType) {
+  const txClient = {
+    planFeature: {
+      create: jest.fn().mockResolvedValue(basePlanFeature),
+    },
+    platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
+  };
+
+  return {
+    plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
+    feature: {
+      findUnique: jest.fn().mockResolvedValue({ ...baseFeature, valueType }),
+    },
+    $transaction: transactionWith(txClient),
+  };
+}
+
 describe('PlatformPlanFeaturesService', () => {
   it('assigns feature successfully', async () => {
     const txCreate = jest.fn().mockResolvedValue(basePlanFeature);
@@ -44,10 +69,7 @@ describe('PlatformPlanFeaturesService', () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
       feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -75,10 +97,7 @@ describe('PlatformPlanFeaturesService', () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
       feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -95,9 +114,7 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('throws ConflictException on duplicate assignment', async () => {
-    const prisma = {
-      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
-      feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
+    const txClient = {
       planFeature: {
         create: jest.fn().mockRejectedValue(
           new Prisma.PrismaClientKnownRequestError('Unique failed', {
@@ -106,10 +123,11 @@ describe('PlatformPlanFeaturesService', () => {
           }),
         ),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
+    };
+    const prisma = {
+      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
+      feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -125,10 +143,6 @@ describe('PlatformPlanFeaturesService', () => {
   it('throws NotFoundException when plan is missing', async () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -141,10 +155,6 @@ describe('PlatformPlanFeaturesService', () => {
     const prisma = {
       plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
       feature: { findUnique: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -154,20 +164,7 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('validates BOOLEAN value type correctly', async () => {
-    const prisma = {
-      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
-      feature: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ ...baseFeature, valueType: 'BOOLEAN' }),
-      },
-      planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
-      platformAuditLog: { create: jest.fn() },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
-    };
+    const prisma = prismaForFeatureValue(FeatureValueType.BOOLEAN);
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -187,20 +184,7 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('validates INTEGER value type correctly', async () => {
-    const prisma = {
-      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
-      feature: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ ...baseFeature, valueType: 'INTEGER' }),
-      },
-      planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
-      platformAuditLog: { create: jest.fn() },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
-    };
+    const prisma = prismaForFeatureValue(FeatureValueType.INTEGER);
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -220,20 +204,7 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('validates DECIMAL value type correctly', async () => {
-    const prisma = {
-      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
-      feature: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ ...baseFeature, valueType: 'DECIMAL' }),
-      },
-      planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
-      platformAuditLog: { create: jest.fn() },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
-    };
+    const prisma = prismaForFeatureValue(FeatureValueType.DECIMAL);
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -253,20 +224,7 @@ describe('PlatformPlanFeaturesService', () => {
   });
 
   it('validates STRING value type correctly', async () => {
-    const prisma = {
-      plan: { findUnique: jest.fn().mockResolvedValue(basePlan) },
-      feature: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ ...baseFeature, valueType: 'STRING' }),
-      },
-      planFeature: { create: jest.fn().mockResolvedValue(basePlanFeature) },
-      platformAuditLog: { create: jest.fn() },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
-    };
+    const prisma = prismaForFeatureValue(FeatureValueType.STRING);
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -296,10 +254,7 @@ describe('PlatformPlanFeaturesService', () => {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -324,10 +279,7 @@ describe('PlatformPlanFeaturesService', () => {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -350,10 +302,7 @@ describe('PlatformPlanFeaturesService', () => {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -376,10 +325,7 @@ describe('PlatformPlanFeaturesService', () => {
       planFeature: {
         findUnique: jest.fn().mockResolvedValue(basePlanFeature),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
 
