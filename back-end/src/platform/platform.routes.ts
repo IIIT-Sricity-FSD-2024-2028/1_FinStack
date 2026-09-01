@@ -8,6 +8,7 @@ import { PlatformPermissionsModule } from './permissions/platform-permissions.mo
 import { PlatformRolesModule } from './roles/platform-roles.module';
 import { PlatformStaffModule } from './staff/platform-staff.module';
 import { PlatformSubscriptionsModule } from './subscriptions/platform-subscriptions.module';
+import { PlatformSupportModule } from './support/platform-support.module';
 
 export const platformRoutes: Routes = [
   { path: 'api/v1/platform', module: PlatformHealthModule },
@@ -19,4 +20,5 @@ export const platformRoutes: Routes = [
   { path: 'api/v1/platform', module: PlatformCatalogModule },
   { path: 'api/v1/platform', module: PlatformSubscriptionsModule },
   { path: 'api/v1/platform', module: PlatformBillingModule },
+  { path: 'api/v1/platform', module: PlatformSupportModule },
 ];
