@@ -89,7 +89,7 @@ export const PlansPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-            
+
             {data.totalPages > 1 && (
               <div className="pagination-bar">
                 <button

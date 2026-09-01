@@ -1,5 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { FeatureValueType, Prisma } from '@prisma/client';
+import { CreateFeatureDto } from './dto/create-feature.dto';
+import { ListFeaturesQueryDto } from './dto/list-features-query.dto';
 import { PlatformFeaturesService } from './platform-features.service';
 
 const baseFeature = {
@@ -17,9 +19,19 @@ function serviceWithPrisma(prisma: Record<string, unknown>) {
   return new PlatformFeaturesService(prisma as never);
 }
 
+type TransactionCallback<TClient> = (tx: TClient) => Promise<unknown>;
+
+function transactionWith<TClient>(txClient: TClient) {
+  return jest.fn((callback: TransactionCallback<TClient>) =>
+    callback(txClient),
+  );
+}
+
 describe('PlatformFeaturesService', () => {
   it('lists features with search, status filter, and pagination', async () => {
-    const findMany = jest.fn().mockResolvedValue([baseFeature]);
+    const findMany = jest
+      .fn<Promise<(typeof baseFeature)[]>, [Prisma.FeatureFindManyArgs]>()
+      .mockResolvedValue([baseFeature]);
     const prisma = {
       feature: {
         findMany,
@@ -31,16 +43,16 @@ describe('PlatformFeaturesService', () => {
     };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.findAll({
-        page: 1,
-        limit: 20,
-        search: 'MAX',
-        isActive: false,
-        sortBy: 'createdAt',
-        order: 'desc',
-      } as any),
-    ).resolves.toMatchObject({
+    const query: ListFeaturesQueryDto = {
+      page: 1,
+      limit: 20,
+      search: 'MAX',
+      isActive: false,
+      sortBy: 'createdAt',
+      order: 'desc',
+    };
+
+    await expect(service.findAll(query)).resolves.toMatchObject({
       items: [baseFeature],
       page: 1,
       limit: 20,
@@ -49,10 +61,13 @@ describe('PlatformFeaturesService', () => {
     });
 
     const findManyArg = findMany.mock.calls[0]?.[0];
+    const where = findManyArg.where;
+    expect(where).toBeDefined();
+    if (!where) throw new Error('Expected feature query filters.');
     expect(findManyArg.skip).toBe(0);
     expect(findManyArg.take).toBe(20);
-    expect(findManyArg.where.isActive).toBe(false);
-    expect(Array.isArray(findManyArg.where.OR)).toBe(true);
+    expect(where.isActive).toBe(false);
+    expect(Array.isArray(where.OR)).toBe(true);
   });
 
   it('creates a feature successfully', async () => {
@@ -62,24 +77,16 @@ describe('PlatformFeaturesService', () => {
       feature: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = {
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
-    };
+    const prisma = { $transaction: transactionWith(txClient) };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.create(
-        {
-          key: 'MAX_USERS',
-          name: 'Max Users',
-          valueType: 'INTEGER',
-        } as any,
-        'actor-id',
-      ),
-    ).resolves.toEqual(baseFeature);
+    const dto: CreateFeatureDto = {
+      key: 'MAX_USERS',
+      name: 'Max Users',
+      valueType: FeatureValueType.INTEGER,
+    };
+
+    await expect(service.create(dto, 'actor-id')).resolves.toEqual(baseFeature);
 
     expect(txCreate).toHaveBeenCalled();
     expect(txAuditLogCreate).toHaveBeenCalled();
@@ -94,24 +101,18 @@ describe('PlatformFeaturesService', () => {
       feature: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = {
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(txClient);
-      }),
-    };
+    const prisma = { $transaction: transactionWith(txClient) };
     const service = serviceWithPrisma(prisma);
 
-    await expect(
-      service.create(
-        {
-          key: 'MAX_USERS',
-          name: 'Max Users',
-          valueType: 'INTEGER',
-        } as any,
-        'actor-id',
-      ),
-    ).rejects.toThrow('Audit failure');
+    const dto: CreateFeatureDto = {
+      key: 'MAX_USERS',
+      name: 'Max Users',
+      valueType: FeatureValueType.INTEGER,
+    };
+
+    await expect(service.create(dto, 'actor-id')).rejects.toThrow(
+      'Audit failure',
+    );
 
     expect(txCreate).toHaveBeenCalled();
     expect(txAuditLogCreate).toHaveBeenCalled();
@@ -120,10 +121,6 @@ describe('PlatformFeaturesService', () => {
   it('throws NotFoundException when feature is missing', async () => {
     const prisma = {
       feature: { findUnique: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -139,10 +136,6 @@ describe('PlatformFeaturesService', () => {
           .fn()
           .mockResolvedValue({ ...baseFeature, isActive: true }),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -158,10 +151,6 @@ describe('PlatformFeaturesService', () => {
           .fn()
           .mockResolvedValue({ ...baseFeature, isActive: false }),
       },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
     };
     const service = serviceWithPrisma(prisma);
 
@@ -171,21 +160,18 @@ describe('PlatformFeaturesService', () => {
   });
 
   it('rejects immutable key/valueType update', async () => {
+    const update = jest
+      .fn<Promise<typeof baseFeature>, [Prisma.FeatureUpdateArgs]>()
+      .mockResolvedValue(baseFeature);
+    const txClient = {
+      feature: { update },
+      platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
     const prisma = {
       feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
-      platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
-      $transaction: jest.fn().mockImplementation(async (cb) => {
-        if (Array.isArray(cb)) return Promise.all(cb);
-        return cb(prisma);
-      }),
+      $transaction: transactionWith(txClient),
     };
     const service = serviceWithPrisma(prisma);
-
-    // key and valueType are not allowed in UpdateFeatureDto, but TypeScript or the service might handle it.
-    // The service explicitly does not accept key/valueType in the update dto. The class-validator drops them or forbids them.
-    // However, if we assume the service itself does not include key/valueType in the Prisma update payload, we can test it.
-    const update = jest.fn().mockResolvedValue(baseFeature);
-    prisma.feature['update'] = update;
 
     await service.update('feature-uuid', { name: 'New Name' }, 'actor-id');
     const updateArg = update.mock.calls[0]?.[0];

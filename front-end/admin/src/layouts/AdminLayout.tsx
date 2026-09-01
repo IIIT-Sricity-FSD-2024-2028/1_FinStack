@@ -35,6 +35,28 @@ export function AdminLayout() {
               Organizations
             </NavLink>
           </PermissionGate>
+          <PermissionGate permission="platform.staff.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? ' nav-item-active' : ''}`
+              }
+              to="/staff"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Staff
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="platform.role.view">
+            <NavLink
+              className={({ isActive }) =>
+                `nav-item${isActive ? ' nav-item-active' : ''}`
+              }
+              to="/roles"
+            >
+              <span className="nav-indicator" aria-hidden="true" />
+              Roles
+            </NavLink>
+          </PermissionGate>
           <PermissionGate permission="platform.settings.view">
             <NavLink
               to="/settings"
