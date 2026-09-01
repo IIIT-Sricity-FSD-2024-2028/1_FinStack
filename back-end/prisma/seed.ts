@@ -25,6 +25,7 @@ const permissions = [
   ['subscription.subscription.manage', 'Manage organization subscriptions'],
   ['billing.invoice.view', 'View subscription invoices'],
   ['billing.payment.view', 'View subscription payments'],
+  ['billing.payment.manage', 'Create and verify subscription payments'],
   ['billing.revenue.view', 'View billing and revenue metrics'],
 ] as const;
 
@@ -82,6 +83,7 @@ async function seedCatalog(prisma: PrismaClient): Promise<string> {
     'subscription.subscription.manage',
     'billing.invoice.view',
     'billing.payment.view',
+    'billing.payment.manage',
     'billing.revenue.view',
   ]);
   const billingPermissions = seededPermissions.filter((permission) =>

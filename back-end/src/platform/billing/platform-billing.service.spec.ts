@@ -324,4 +324,61 @@ describe('PlatformBillingService', () => {
       service.finalizeVerifiedProviderPayment(verifiedInput),
     ).resolves.toMatchObject({ id: paymentOutput.id });
   });
+
+  it('records provider failure without paying the invoice or activating a subscription', async () => {
+    const pendingPayment = {
+      ...paymentOutput,
+      status: SubscriptionPaymentStatus.PENDING,
+      providerReference: null,
+      paidAt: null,
+      failedAt: null,
+      invoice: { ...invoiceSummary, status: InvoiceStatus.PENDING },
+    };
+    const failedPayment = {
+      ...paymentOutput,
+      status: SubscriptionPaymentStatus.FAILED,
+      failedAt: now,
+      invoice: invoiceSummary,
+    };
+    const findPayment = jest
+      .fn()
+      .mockResolvedValueOnce(pendingPayment)
+      .mockResolvedValueOnce(failedPayment);
+    let capturedUpdate: unknown;
+    const tx = {
+      paymentProviderEvent: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'event-failed-id' }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      subscriptionPayment: {
+        findUnique: findPayment,
+        update: jest.fn((args: unknown) => {
+          capturedUpdate = args;
+          return Promise.resolve({});
+        }),
+      },
+      platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const service = serviceWithPrisma({ $transaction: transactionWith(tx) });
+
+    await expect(
+      service.recordVerifiedProviderPaymentFailure({
+        provider: 'razorpay',
+        providerEventId: 'event-failed-1',
+        providerEventType: 'payment.failed',
+        providerOrderId: paymentOutput.providerOrderId,
+        providerReference: 'pay_failed_1',
+        failureCode: 'BAD_REQUEST_ERROR',
+      }),
+    ).resolves.toMatchObject({ status: SubscriptionPaymentStatus.FAILED });
+    expect(
+      (capturedUpdate as { data: Record<string, unknown> }).data,
+    ).toMatchObject({
+      status: SubscriptionPaymentStatus.FAILED,
+      providerReference: 'pay_failed_1',
+      failureCode: 'BAD_REQUEST_ERROR',
+    });
+    expect(tx.paymentProviderEvent.update).toHaveBeenCalled();
+  });
 });

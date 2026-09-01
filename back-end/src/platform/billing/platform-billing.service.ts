@@ -57,6 +57,19 @@ export interface TrustedPaymentFinalizationInput {
   paymentMethod?: string;
   occurredAt: Date;
   payload?: Prisma.InputJsonObject;
+  actorStaffId?: string;
+}
+
+export interface VerifiedProviderPaymentFailureInput {
+  provider: string;
+  providerEventId: string;
+  providerEventType: string;
+  providerOrderId: string;
+  providerReference: string;
+  paymentMethod?: string;
+  failureCode?: string;
+  failureReason?: string;
+  actorStaffId?: string;
 }
 
 @Injectable()
@@ -245,6 +258,165 @@ export class PlatformBillingService {
     }
   }
 
+  async recordVerifiedProviderPaymentFailure(
+    input: VerifiedProviderPaymentFailureInput,
+  ): Promise<PaymentDto> {
+    const provider = this.requiredUpper(input.provider, 'provider');
+    const providerEventId = this.required(
+      input.providerEventId,
+      'providerEventId',
+    );
+    const providerEventType = this.required(
+      input.providerEventType,
+      'providerEventType',
+    );
+    const providerOrderId = this.required(
+      input.providerOrderId,
+      'providerOrderId',
+    );
+    const providerReference = this.required(
+      input.providerReference,
+      'providerReference',
+    );
+
+    try {
+      return await runPlatformSerializableTransaction(
+        this.prisma,
+        async (tx) => {
+          const existingEvent = await tx.paymentProviderEvent.findUnique({
+            where: { provider_eventId: { provider, eventId: providerEventId } },
+            include: { subscriptionPayment: { include: paymentInclude } },
+          });
+          if (existingEvent) {
+            if (
+              existingEvent.status === PaymentProviderEventStatus.PROCESSED &&
+              existingEvent.subscriptionPayment
+            ) {
+              return toPaymentDto(existingEvent.subscriptionPayment);
+            }
+            throw new ConflictException({
+              code: 'PROVIDER_EVENT_IN_PROGRESS',
+              message: 'Provider event has already been received.',
+            });
+          }
+
+          const payment = await tx.subscriptionPayment.findUnique({
+            where: { providerOrderId },
+            include: { invoice: true },
+          });
+          if (!payment || payment.provider !== provider) {
+            throw new NotFoundException({
+              code: 'PAYMENT_NOT_FOUND',
+              message: 'Payment attempt was not found for the provider order.',
+            });
+          }
+          if (
+            payment.providerReference &&
+            payment.providerReference !== providerReference
+          ) {
+            throw new ConflictException({
+              code: 'PAYMENT_IDEMPOTENCY_MISMATCH',
+              message: 'Provider event does not match the recorded payment.',
+            });
+          }
+
+          const event = await tx.paymentProviderEvent.create({
+            data: {
+              provider,
+              eventId: providerEventId,
+              eventType: providerEventType,
+              providerOrderId,
+              providerReference,
+              subscriptionPaymentId: payment.id,
+            },
+          });
+
+          if (payment.status === SubscriptionPaymentStatus.SUCCEEDED) {
+            await tx.paymentProviderEvent.update({
+              where: { id: event.id },
+              data: {
+                status: PaymentProviderEventStatus.PROCESSED,
+                processedAt: new Date(),
+              },
+            });
+            return this.getPaymentDto(tx, payment.id);
+          }
+          if (payment.status !== SubscriptionPaymentStatus.PENDING) {
+            await tx.paymentProviderEvent.update({
+              where: { id: event.id },
+              data: {
+                status: PaymentProviderEventStatus.PROCESSED,
+                processedAt: new Date(),
+              },
+            });
+            return this.getPaymentDto(tx, payment.id);
+          }
+
+          await tx.subscriptionPayment.update({
+            where: { id: payment.id },
+            data: {
+              status: SubscriptionPaymentStatus.FAILED,
+              providerReference,
+              paymentMethod: input.paymentMethod?.trim() || null,
+              failedAt: new Date(),
+              failureCode: input.failureCode?.trim() || null,
+              failureReason:
+                input.failureReason?.trim() ||
+                'Provider reported payment failure.',
+            },
+          });
+          await tx.paymentProviderEvent.update({
+            where: { id: event.id },
+            data: {
+              status: PaymentProviderEventStatus.PROCESSED,
+              processedAt: new Date(),
+            },
+          });
+          await this.audit(
+            tx,
+            input.actorStaffId ?? null,
+            'billing.payment.failed',
+            'SubscriptionPayment',
+            payment.id,
+            {
+              invoiceId: payment.invoiceId,
+              provider,
+              providerEventId,
+              providerReference,
+              failureCode: input.failureCode?.trim() || null,
+            },
+          );
+          return this.getPaymentDto(tx, payment.id);
+        },
+        {
+          code: 'PAYMENT_FAILURE_CONFLICT',
+          message: 'Payment failure processing conflicted with another update.',
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await this.prisma.paymentProviderEvent.findUnique({
+          where: { provider_eventId: { provider, eventId: providerEventId } },
+          include: { subscriptionPayment: { include: paymentInclude } },
+        });
+        if (
+          existing?.status === PaymentProviderEventStatus.PROCESSED &&
+          existing.subscriptionPayment
+        ) {
+          return toPaymentDto(existing.subscriptionPayment);
+        }
+        throw new ConflictException({
+          code: 'PAYMENT_IDEMPOTENCY_CONFLICT',
+          message: 'Payment provider data has already been used.',
+        });
+      }
+      throw error;
+    }
+  }
+
   /**
    * Service-only boundary for a provider adapter that has independently
    * verified capture. Checkout callbacks must never call this directly.
@@ -386,7 +558,7 @@ export class PlatformBillingService {
           });
           await this.audit(
             tx,
-            null,
+            input.actorStaffId ?? null,
             'billing.payment.succeeded',
             'SubscriptionPayment',
             payment.id,
@@ -511,11 +683,12 @@ export class PlatformBillingService {
           paymentId: payment.id,
           providerEventId: input.providerEventId,
         },
+        actorStaffId: input.actorStaffId,
       },
     });
     await this.audit(
       tx,
-      null,
+      input.actorStaffId ?? null,
       auditAction,
       'OrganizationSubscription',
       payment.subscriptionId,
