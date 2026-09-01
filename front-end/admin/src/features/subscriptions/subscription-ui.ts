@@ -5,7 +5,16 @@ export { formatPrice };
 
 export function formatCommercialDate(value: string | null): string {
   if (!value) return 'Not set';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value));
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+  }).format(date);
 }
 
 export function statusLabel(status: SubscriptionStatus | string): string {
@@ -17,10 +26,25 @@ export function statusLabel(status: SubscriptionStatus | string): string {
 }
 
 export function statusTone(status: SubscriptionStatus | string): string {
-  if (status === 'ACTIVE' || status === 'TRIAL' || status === 'PAID' || status === 'SUCCEEDED') return 'available';
+  if (
+    status === 'ACTIVE' ||
+    status === 'TRIAL' ||
+    status === 'PAID' ||
+    status === 'SUCCEEDED'
+  ) {
+    return 'available';
+  }
+
   return 'unavailable';
 }
 
-export function formatMoney(amount: string, currency: string): string {
+export function formatMoney(
+  amount: string | number | null | undefined,
+  currency: string,
+): string {
+  if (amount === null || amount === undefined || amount === '') {
+    return formatPrice(0, currency);
+  }
+
   return formatPrice(amount, currency);
 }
