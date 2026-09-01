@@ -85,4 +85,13 @@ describe('PermissionRoute', () => {
     renderRoute(path, permission, [permission]);
     expect(screen.getByText('Protected page')).toBeVisible();
   });
+
+  it('allows a route when any configured billing permission is granted', () => {
+    render(
+      <AuthContext.Provider value={{ auth: { sessionId: 'session-id', staff: { id: 'staff-id', firstName: 'Ada', lastName: 'Admin', email: 'ada@example.test', status: 'ACTIVE' }, roles: [], permissions: ['billing.invoice.view'] }, initializing: false, login: vi.fn(), logout: vi.fn(), hasPermission: (permission) => permission === 'billing.invoice.view' }}>
+        <MemoryRouter initialEntries={['/billing']}><Routes><Route element={<PermissionRoute anyOf={['billing.revenue.view', 'billing.invoice.view', 'billing.payment.view']} />}><Route path="/billing" element={<span>Billing page</span>} /></Route></Routes></MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByText('Billing page')).toBeVisible();
+  });
 });

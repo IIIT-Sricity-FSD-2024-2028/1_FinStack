@@ -45,4 +45,13 @@ describe('AdminLayout access navigation', () => {
     expect(screen.getByRole('link', { name: 'Billing & revenue' })).toBeVisible();
   });
 
+  it('renders only populated navigation groups for a limited actor', () => {
+    renderLayout(['platform.organization.view']);
+    expect(screen.getByText('Overview')).toBeVisible();
+    expect(screen.getByText('Organizations', { selector: '.nav-group-label' })).toBeVisible();
+    expect(screen.queryByText('People & access')).not.toBeInTheDocument();
+    expect(screen.queryByText('Product & pricing')).not.toBeInTheDocument();
+    expect(screen.queryByText('Commercial')).not.toBeInTheDocument();
+  });
+
 });

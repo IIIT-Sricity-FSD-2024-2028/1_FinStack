@@ -5,6 +5,7 @@ import { PublicOnlyRoute } from '../auth/PublicOnlyRoute';
 import { LoginPage } from '../features/auth/LoginPage';
 import { UnauthorizedPage } from '../features/auth/UnauthorizedPage';
 import { HealthPage } from '../features/health/HealthPage';
+import { PlatformDashboardPage } from '../features/dashboard/PlatformDashboardPage';
 import { OrganizationCreatePage } from '../features/organizations/OrganizationCreatePage';
 import { OrganizationDetailPage } from '../features/organizations/OrganizationDetailPage';
 import { OrganizationsPage } from '../features/organizations/OrganizationsPage';
@@ -34,13 +35,15 @@ export function AppRouter() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<HealthPage />} />
+          <Route index element={<PlatformDashboardPage />} />
           <Route path="health" element={<HealthPage />} />
-          <Route path="organizations" element={<OrganizationsPage />} />
+          <Route element={<PermissionRoute permission="platform.organization.view" />}>
+            <Route path="organizations" element={<OrganizationsPage />} />
+            <Route path="organizations/:id" element={<OrganizationDetailPage />} />
+          </Route>
           <Route element={<PermissionRoute permission="platform.organization.create" />}>
             <Route path="organizations/new" element={<OrganizationCreatePage />} />
           </Route>
-          <Route path="organizations/:id" element={<OrganizationDetailPage />} />
           <Route element={<PermissionRoute permission="platform.staff.view" />}>
             <Route path="staff" element={<StaffPage />} />
             <Route path="staff/:id" element={<StaffDetailPage />} />
@@ -79,7 +82,7 @@ export function AppRouter() {
           <Route element={<PermissionRoute permission="subscription.subscription.manage" />}>
             <Route path="subscriptions/new" element={<SubscriptionCreatePage />} />
           </Route>
-          <Route element={<PermissionRoute permission="billing.revenue.view" />}>
+          <Route element={<PermissionRoute anyOf={['billing.revenue.view', 'billing.invoice.view', 'billing.payment.view']} />}>
             <Route path="billing" element={<BillingPage />} />
           </Route>
         </Route>

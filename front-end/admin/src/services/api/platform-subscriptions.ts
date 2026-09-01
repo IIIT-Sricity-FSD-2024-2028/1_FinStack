@@ -21,6 +21,8 @@ export const platformSubscriptionsApi = {
     pageSize?: number;
     search?: string;
     status?: string;
+    organizationId?: string;
+    planId?: string;
     sortBy?: string;
     order?: 'asc' | 'desc';
   } = {}) =>

@@ -16,9 +16,9 @@ function queryString(query: Record<string, string | number | undefined>): string
 }
 
 export const platformBillingApi = {
-  invoices: (query: { page?: number; pageSize?: number; search?: string; status?: string } = {}) =>
+  invoices: (query: { page?: number; pageSize?: number; search?: string; status?: string; organizationId?: string } = {}) =>
     apiRequest<PaginatedCommercialResult<Invoice>>(`/billing/invoices${queryString(query)}`),
-  payments: (query: { page?: number; pageSize?: number; search?: string; status?: string } = {}) =>
+  payments: (query: { page?: number; pageSize?: number; search?: string; status?: string; organizationId?: string } = {}) =>
     apiRequest<PaginatedCommercialResult<Payment>>(`/billing/payments${queryString(query)}`),
   overview: () => apiRequest<RevenueOverview>('/billing/overview'),
 };

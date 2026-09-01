@@ -38,6 +38,8 @@ export interface CommercialPlanFeature {
   valueType: string;
   enabled: boolean;
   value: unknown;
+  isAddOn: boolean;
+  addOnPrice: string;
 }
 
 export interface CommercialPlan {
@@ -48,6 +50,8 @@ export interface CommercialPlan {
   basePrice: string;
   currency: string;
   features: CommercialPlanFeature[];
+  includedEmployeeCount: number;
+  additionalEmployeePrice: string;
 }
 
 export interface Subscription {
@@ -56,6 +60,9 @@ export interface Subscription {
   billingInterval: BillingInterval;
   currency: string;
   priceAtSubscription: string;
+  employeeCount: number;
+  employeeAmount: string;
+  featureAmount: string;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   trialStartAt: string | null;
@@ -100,6 +107,9 @@ export interface Invoice {
   subtotal: string;
   taxAmount: string;
   totalAmount: string;
+  employeeCount: number;
+  employeeAmount: string;
+  featureAmount: string;
   currency: string;
   billingPeriodStart: string | null;
   billingPeriodEnd: string | null;
