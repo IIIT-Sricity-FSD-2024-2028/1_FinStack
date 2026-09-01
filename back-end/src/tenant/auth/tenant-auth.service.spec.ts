@@ -19,6 +19,7 @@ describe('TenantAuthService', () => {
   };
   const prisma = {
     tenantUser: { findUnique: jest.fn() },
+    organization: { findUnique: jest.fn().mockResolvedValue({ id: 'org-1' }) },
   } as unknown as ConstructorParameters<typeof TenantAuthService>[0];
   const tokens = {
     sign: jest.fn().mockResolvedValue('token'),

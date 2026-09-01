@@ -1,14 +1,16 @@
 import {
   IsEmail,
+  IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
 export class TenantLoginDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
   organizationId!: string;
 
   @IsOptional()

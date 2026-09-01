@@ -119,10 +119,11 @@
     var hero = document.getElementById("subscription-summary");
     var plan = subscription.plan;
     var featureCount = (plan.features || []).length;
-    var paymentLabel =
-      subscription.status === "TRIAL"
+    var paymentLabel = pendingInvoice
+      ? subscription.status === "TRIAL"
         ? "Activate Plan · " + money(pendingInvoice.totalAmount, pendingInvoice.currency)
-        : "Pay Invoice · " + money(pendingInvoice.totalAmount, pendingInvoice.currency);
+        : "Pay Invoice · " + money(pendingInvoice.totalAmount, pendingInvoice.currency)
+      : "";
 
     hero.innerHTML =
       '<div class="subscription-hero-main"><div><div class="subscription-eyebrow">Current plan</div><div class="subscription-plan-title"><h2>' +

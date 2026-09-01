@@ -1,4 +1,4 @@
-.subscription-page { max-width: 1500px; }
+.subscription-page { }
 .subscription-page-header { margin-bottom: 24px; }
 .subscription-page-header p, .section-heading p, .subscription-modal-header p { color: var(--text-secondary); margin-top: 6px; }
 .subscription-hero { padding: 28px; }
@@ -71,3 +71,6 @@
 .plan-quote-total { border-top: 1px solid var(--border-default); color: var(--text-primary); font-weight: 700; margin-top: 6px; padding-top: 12px; }
 @media (max-width: 1024px) { .subscription-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); } .subscription-feature-card { grid-column: 1 / -1; } }
 @media (max-width: 720px) { .subscription-hero, .subscription-current-invoice { padding: 20px; } .subscription-hero-main, .current-invoice-content { flex-direction: column; } .subscription-hero-actions, .current-invoice-actions { width: 100%; } .subscription-hero-actions .btn, .current-invoice-actions .btn { flex: 1; justify-content: center; } .subscription-cancel-button { margin-left: 0; } .subscription-stat-grid, .subscription-insights, .plan-configuration-grid { grid-template-columns: 1fr; } .subscription-feature-lists { flex-direction: column; } .subscription-modal-backdrop { align-items: flex-end; padding: 12px; } .subscription-modal { max-height: calc(100vh - 24px); } .subscription-modal-header, .subscription-modal-footer, .subscription-modal-body { padding-left: 18px; padding-right: 18px; } }
+
+.subscription-insights .card { padding: 24px; }
+.empty-state { padding: 32px; text-align: center; color: var(--text-muted); }
