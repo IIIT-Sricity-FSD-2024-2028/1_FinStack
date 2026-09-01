@@ -21,6 +21,10 @@ import { StaffCreatePage } from '../features/staff/StaffCreatePage';
 import { StaffDetailPage } from '../features/staff/StaffDetailPage';
 import { StaffPage } from '../features/staff/StaffPage';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { BillingPage } from '../features/billing/BillingPage';
+import { SubscriptionCreatePage } from '../features/subscriptions/SubscriptionCreatePage';
+import { SubscriptionDetailPage } from '../features/subscriptions/SubscriptionDetailPage';
+import { SubscriptionsPage } from '../features/subscriptions/SubscriptionsPage';
 
 export function AppRouter() {
   return (
@@ -66,6 +70,17 @@ export function AppRouter() {
           </Route>
           <Route element={<PermissionRoute permission="subscription.plan.manage" />}>
             <Route path="plans/new" element={<PlanCreatePage />} />
+          </Route>
+
+          <Route element={<PermissionRoute permission="subscription.subscription.view" />}>
+            <Route path="subscriptions" element={<SubscriptionsPage />} />
+            <Route path="subscriptions/:id" element={<SubscriptionDetailPage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="subscription.subscription.manage" />}>
+            <Route path="subscriptions/new" element={<SubscriptionCreatePage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="billing.revenue.view" />}>
+            <Route path="billing" element={<BillingPage />} />
           </Route>
         </Route>
       </Route>

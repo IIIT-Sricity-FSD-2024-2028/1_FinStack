@@ -35,4 +35,14 @@ describe('AdminLayout access navigation', () => {
     expect(screen.getByRole('link', { name: 'Roles' })).toBeVisible();
   });
 
+  it('shows commercial navigation only with its view permissions', () => {
+    renderLayout(['subscription.subscription.view']);
+    expect(screen.getByRole('link', { name: 'Subscriptions' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Billing & revenue' })).not.toBeInTheDocument();
+    cleanup();
+    renderLayout(['billing.revenue.view']);
+    expect(screen.queryByRole('link', { name: 'Subscriptions' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Billing & revenue' })).toBeVisible();
+  });
+
 });

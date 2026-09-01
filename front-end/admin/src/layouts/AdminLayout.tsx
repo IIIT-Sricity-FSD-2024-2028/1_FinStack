@@ -91,6 +91,29 @@ export function AdminLayout() {
               Features
             </NavLink>
           </PermissionGate>
+          <p className="foundation-label" style={{ marginTop: '24px' }}>
+            Commercial
+          </p>
+          <PermissionGate permission="subscription.subscription.view">
+            <NavLink
+              to="/subscriptions"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Subscriptions
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="billing.revenue.view">
+            <NavLink
+              to="/billing"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Billing & revenue
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>
