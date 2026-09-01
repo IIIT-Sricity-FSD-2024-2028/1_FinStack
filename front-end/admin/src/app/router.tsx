@@ -8,6 +8,12 @@ import { HealthPage } from '../features/health/HealthPage';
 import { OrganizationCreatePage } from '../features/organizations/OrganizationCreatePage';
 import { OrganizationDetailPage } from '../features/organizations/OrganizationDetailPage';
 import { OrganizationsPage } from '../features/organizations/OrganizationsPage';
+import { RoleCreatePage } from '../features/roles/RoleCreatePage';
+import { RoleDetailPage } from '../features/roles/RoleDetailPage';
+import { RolesPage } from '../features/roles/RolesPage';
+import { StaffCreatePage } from '../features/staff/StaffCreatePage';
+import { StaffDetailPage } from '../features/staff/StaffDetailPage';
+import { StaffPage } from '../features/staff/StaffPage';
 import { AdminLayout } from '../layouts/AdminLayout';
 
 export function AppRouter() {
@@ -32,6 +38,20 @@ export function AppRouter() {
             />
           </Route>
           <Route path="organizations/:id" element={<OrganizationDetailPage />} />
+          <Route element={<PermissionRoute permission="platform.staff.view" />}>
+            <Route path="staff" element={<StaffPage />} />
+            <Route path="staff/:id" element={<StaffDetailPage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="platform.staff.create" />}>
+            <Route path="staff/new" element={<StaffCreatePage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="platform.role.view" />}>
+            <Route path="roles" element={<RolesPage />} />
+            <Route path="roles/:id" element={<RoleDetailPage />} />
+          </Route>
+          <Route element={<PermissionRoute permission="platform.role.manage" />}>
+            <Route path="roles/new" element={<RoleCreatePage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="unauthorized" element={<UnauthorizedPage />} />
