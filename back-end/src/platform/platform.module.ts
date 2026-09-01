@@ -13,6 +13,7 @@ import { PlatformRbacModule } from './rbac/platform-rbac.module';
 import { PlatformRolesModule } from './roles/platform-roles.module';
 import { PlatformStaffModule } from './staff/platform-staff.module';
 import { PlatformSubscriptionsModule } from './subscriptions/platform-subscriptions.module';
+import { PlatformSupportModule } from './support/platform-support.module';
 
 @Module({
   imports: [
@@ -27,10 +28,11 @@ import { PlatformSubscriptionsModule } from './subscriptions/platform-subscripti
     PlatformCatalogModule,
     PlatformSubscriptionsModule,
     PlatformBillingModule,
+    PlatformSupportModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: PlatformAuthenticationGuard },
     { provide: APP_GUARD, useClass: PlatformPermissionGuard },
   ],
 })
-export class PlatformModule {}
+export class PlatformModule { }
