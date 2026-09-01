@@ -22,7 +22,9 @@ export class RolesGuard implements CanActivate {
     const requestPath = request.path.toLowerCase();
     if (
       requestPath === '/api/v1/platform' ||
-      requestPath.startsWith('/api/v1/platform/')
+      requestPath.startsWith('/api/v1/platform/') ||
+      requestPath === '/api/v1/tenant' ||
+      requestPath.startsWith('/api/v1/tenant/')
     ) {
       return true;
     }

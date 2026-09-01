@@ -171,6 +171,8 @@
         nextState.transactions = Array.isArray(nextState.transactions) ? nextState.transactions : [];
         nextState.organizations = Array.isArray(nextState.organizations) ? nextState.organizations : [];
         nextState.accountRequests = Array.isArray(nextState.accountRequests) ? nextState.accountRequests : [];
+        nextState.subscriptions = Array.isArray(nextState.subscriptions) ? nextState.subscriptions : [];
+        nextState.plans = Array.isArray(nextState.plans) ? nextState.plans : [];
         var defaultOrgId = nextState.organizations.length === 1
             ? nextState.organizations[0].organizationId
             : ((nextState.organization && nextState.organization.organizationId) || '');
@@ -211,6 +213,8 @@
         nextState.notifications = backendState.notifications || [];
         nextState.auditLogs = backendState.auditLogs || [];
         nextState.transactions = backendState.transactions || [];
+        nextState.subscriptions = backendState.subscriptions || [];
+        nextState.plans = backendState.plans || [];
         nextState.reports = backendState.reports || {};
         nextState.dashboard = backendState.dashboard || {};
         return normalizeState(nextState);
@@ -521,12 +525,15 @@
         writeStoredState(normalizeState(storedState));
     }
 
-    var ready = fetch(seedUrl)
-        .then(function (response) {
+    var isSubscriptionPage = window.location.pathname.indexOf('/subscription.html') !== -1;
+    var ready = isSubscriptionPage
+        ? Promise.resolve({ version: 0, organizations: [], accountRequests: [], users: [], roles: [], categories: [], policies: [], expenses: [], notifications: [], auditLogs: [] })
+        : fetch(seedUrl).then(function (response) {
             if (!response.ok) throw new Error('Unable to load shared mock data. Status: ' + response.status);
             return response.json();
-        })
-        .then(function (seedState) {
+        });
+
+    ready = ready.then(function (seedState) {
             writeStoredState(normalizeState(deepClone(seedState)));
             if (window.FinStackApi && window.FinStackApi.getAll) {
                 return window.FinStackApi.getAll().then(function (backendState) {
@@ -1670,6 +1677,30 @@
         };
         storeApi.getDashboard = function () {
             return deepClone(state.dashboard || {});
+        };
+
+        /* ===== Subscription APIs ===== */
+        storeApi.getPlans = function () {
+            return deepClone(state.plans || []);
+        };
+        storeApi.getSubscriptions = function () {
+            return deepClone(state.subscriptions || []);
+        };
+        storeApi.getSubscriptionById = function (id) {
+            if (!state || !state.subscriptions) return null;
+            var sub = state.subscriptions.find(function (s) { return s.id === id; });
+            return sub ? deepClone(sub) : null;
+        };
+        storeApi.getOrganizationSubscription = function (organizationId) {
+            if (!state || !state.subscriptions) return null;
+            var sub = state.subscriptions.find(function (s) { return s.organizationId === organizationId; });
+            return sub ? deepClone(sub) : null;
+        };
+        storeApi.createSubscription = function (payload) {
+            return tryApi('/subscriptions', 'POST', payload, null);
+        };
+        storeApi.updateSubscription = function (id, updates) {
+            return tryApi('/subscriptions/' + encodeURIComponent(id), 'PATCH', updates, null);
         };
     })(window.FinStackStore);
 })();

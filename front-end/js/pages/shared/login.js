@@ -95,31 +95,20 @@ document.addEventListener('DOMContentLoaded', function () {
     return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
   }
 
-  function fetchLatestUsers() {
-    return fetch(getApiBaseUrl() + '/users', {
-      method: 'GET',
-      headers: {
-        role: 'superuser',
-        'Content-Type': 'application/json'
-      }
+  function performTenantLogin(credentials) {
+    return fetch(getApiBaseUrl() + '/api/v1/tenant/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
     }).then(function (response) {
       return response.text().then(function (text) {
         var payload = text ? JSON.parse(text) : null;
         if (!response.ok) {
-          throw new Error(getErrorMessage(payload, 'Unable to validate login.'));
+          throw new Error(getErrorMessage(payload, 'Invalid employee ID, organization ID, or password.'));
         }
-        var users = unwrapUsersResponse(payload);
-        return Array.isArray(users) ? users : [];
+        return payload && payload.data ? payload.data : payload;
       });
     });
-  }
-
-  function findMatchingUser(users, credentials) {
-    return users.find(function (user) {
-      return String(user.employeeId || '') === credentials.employeeId &&
-        String(user.organizationId || '') === credentials.organizationId &&
-        String(user.password || '') === credentials.password;
-    }) || null;
   }
 
   function resolveRole(user, selectedRole) {
@@ -178,13 +167,10 @@ document.addEventListener('DOMContentLoaded', function () {
         password: password
       };
 
-      fetchLatestUsers()
-        .then(function (users) {
-          var user = findMatchingUser(users, credentials);
-          if (!user) {
-            showError('Invalid employee ID, organization ID, or password.');
-            return;
-          }
+      performTenantLogin(credentials)
+        .then(function (result) {
+          var user = result.user;
+          var accessToken = result.accessToken;
 
           var resolvedRole = resolveRole(user, role);
 
@@ -196,7 +182,8 @@ document.addEventListener('DOMContentLoaded', function () {
             role: resolvedRole,
             roles: Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : [resolvedRole]),
             organizationId: user.organizationId || orgId,
-            loginAt: new Date().toISOString()
+            loginAt: new Date().toISOString(),
+            accessToken: accessToken
           };
 
           sessionStorage.setItem('finstackUserSession', JSON.stringify(session));

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { FeatureValueType, Prisma } from '@prisma/client';
 import { CreateFeatureDto } from './dto/create-feature.dto';
@@ -32,6 +33,7 @@ describe('PlatformFeaturesService', () => {
     const findMany = jest
       .fn<Promise<(typeof baseFeature)[]>, [Prisma.FeatureFindManyArgs]>()
       .mockResolvedValue([baseFeature]);
+
     const prisma = {
       feature: {
         findMany,
@@ -41,6 +43,7 @@ describe('PlatformFeaturesService', () => {
         .fn()
         .mockImplementation((ops: Array<Promise<unknown>>) => Promise.all(ops)),
     };
+
     const service = serviceWithPrisma(prisma);
 
     const query: ListFeaturesQueryDto = {
@@ -62,8 +65,13 @@ describe('PlatformFeaturesService', () => {
 
     const findManyArg = findMany.mock.calls[0]?.[0];
     const where = findManyArg.where;
+
     expect(where).toBeDefined();
-    if (!where) throw new Error('Expected feature query filters.');
+
+    if (!where) {
+      throw new Error('Expected feature query filters.');
+    }
+
     expect(findManyArg.skip).toBe(0);
     expect(findManyArg.take).toBe(20);
     expect(where.isActive).toBe(false);
@@ -73,11 +81,16 @@ describe('PlatformFeaturesService', () => {
   it('creates a feature successfully', async () => {
     const txCreate = jest.fn().mockResolvedValue(baseFeature);
     const txAuditLogCreate = jest.fn().mockResolvedValue({});
+
     const txClient = {
       feature: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = { $transaction: transactionWith(txClient) };
+
+    const prisma = {
+      $transaction: transactionWith(txClient),
+    };
+
     const service = serviceWithPrisma(prisma);
 
     const dto: CreateFeatureDto = {
@@ -94,14 +107,20 @@ describe('PlatformFeaturesService', () => {
 
   it('fails the transaction if audit log creation fails during feature creation', async () => {
     const txCreate = jest.fn().mockResolvedValue(baseFeature);
+
     const txAuditLogCreate = jest
       .fn()
       .mockRejectedValue(new Error('Audit failure'));
+
     const txClient = {
       feature: { create: txCreate },
       platformAuditLog: { create: txAuditLogCreate },
     };
-    const prisma = { $transaction: transactionWith(txClient) };
+
+    const prisma = {
+      $transaction: transactionWith(txClient),
+    };
+
     const service = serviceWithPrisma(prisma);
 
     const dto: CreateFeatureDto = {
@@ -120,8 +139,11 @@ describe('PlatformFeaturesService', () => {
 
   it('throws NotFoundException when feature is missing', async () => {
     const prisma = {
-      feature: { findUnique: jest.fn().mockResolvedValue(null) },
+      feature: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
     };
+
     const service = serviceWithPrisma(prisma);
 
     await expect(service.findOne('missing-id')).rejects.toBeInstanceOf(
@@ -137,6 +159,7 @@ describe('PlatformFeaturesService', () => {
           .mockResolvedValue({ ...baseFeature, isActive: true }),
       },
     };
+
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -152,6 +175,7 @@ describe('PlatformFeaturesService', () => {
           .mockResolvedValue({ ...baseFeature, isActive: false }),
       },
     };
+
     const service = serviceWithPrisma(prisma);
 
     await expect(
@@ -163,18 +187,31 @@ describe('PlatformFeaturesService', () => {
     const update = jest
       .fn<Promise<typeof baseFeature>, [Prisma.FeatureUpdateArgs]>()
       .mockResolvedValue(baseFeature);
+
     const txClient = {
       feature: { update },
-      platformAuditLog: { create: jest.fn().mockResolvedValue({}) },
+      platformAuditLog: {
+        create: jest.fn().mockResolvedValue({}),
+      },
     };
+
     const prisma = {
-      feature: { findUnique: jest.fn().mockResolvedValue(baseFeature) },
+      feature: {
+        findUnique: jest.fn().mockResolvedValue(baseFeature),
+      },
       $transaction: transactionWith(txClient),
     };
+
     const service = serviceWithPrisma(prisma);
 
-    await service.update('feature-uuid', { name: 'New Name' }, 'actor-id');
+    await service.update(
+      'feature-uuid',
+      { name: 'New Name' },
+      'actor-id',
+    );
+
     const updateArg = update.mock.calls[0]?.[0];
+
     expect(updateArg.data).toHaveProperty('name');
     expect(updateArg.data).not.toHaveProperty('key');
     expect(updateArg.data).not.toHaveProperty('valueType');

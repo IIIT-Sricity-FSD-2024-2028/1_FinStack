@@ -1432,6 +1432,1981 @@
           "dashboard"
         ]
       }
+    },
+    "/api/v1/tenant/subscriptions": {
+      "get": {
+        "operationId": "TenantSubscriptionsController_findAll",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "List subscriptions for current organization",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      },
+      "post": {
+        "operationId": "TenantSubscriptionsController_create",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantCreateSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Start a trial or subscribe to a plan",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tenant/subscriptions/current": {
+      "get": {
+        "operationId": "TenantSubscriptionsController_findCurrent",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Get current organization subscription",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tenant/subscriptions/current/upgrades": {
+      "post": {
+        "operationId": "TenantSubscriptionsController_upgradeCurrent",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantUpdateSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Upgrade current subscription plan",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tenant/subscriptions/current/downgrades": {
+      "post": {
+        "operationId": "TenantSubscriptionsController_downgradeCurrent",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantUpdateSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Downgrade current subscription plan",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tenant/subscriptions/current/cancellations": {
+      "post": {
+        "operationId": "TenantSubscriptionsController_cancelCurrent",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Cancel current subscription at period end",
+        "tags": [
+          "tenant-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tenant/plans": {
+      "get": {
+        "operationId": "TenantPlansController_findAll",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "superuser",
+                "admin",
+                "user"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "role": []
+          }
+        ],
+        "summary": "List active plans",
+        "tags": [
+          "tenant-plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans": {
+      "get": {
+        "operationId": "PlatformPlansController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List, search, and filter plans",
+        "tags": [
+          "Platform plans"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformPlansController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Create a new subscription plan",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans/{id}": {
+      "get": {
+        "operationId": "PlatformPlansController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get plan details",
+        "tags": [
+          "Platform plans"
+        ]
+      },
+      "patch": {
+        "operationId": "PlatformPlansController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Update plan metadata",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans/{id}/activations": {
+      "post": {
+        "operationId": "PlatformPlansController_activate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Activate a plan",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans/{id}/deactivations": {
+      "post": {
+        "operationId": "PlatformPlansController_deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Deactivate a plan",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans/{id}/features": {
+      "get": {
+        "operationId": "PlatformPlansController_findFeatures",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List features assigned to a plan",
+        "tags": [
+          "Platform plans"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformPlansController_assignFeature",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignPlanFeatureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Assign a feature to a plan",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/plans/{id}/features/{featureId}": {
+      "patch": {
+        "operationId": "PlatformPlansController_updateFeature",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featureId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanFeatureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Update a plan feature assignment",
+        "tags": [
+          "Platform plans"
+        ]
+      },
+      "delete": {
+        "operationId": "PlatformPlansController_removeFeature",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featureId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Remove a feature from a plan",
+        "tags": [
+          "Platform plans"
+        ]
+      }
+    },
+    "/api/v1/platform/features": {
+      "get": {
+        "operationId": "PlatformFeaturesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List, search, and filter features",
+        "tags": [
+          "Platform features"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformFeaturesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeatureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Create a new feature definition",
+        "tags": [
+          "Platform features"
+        ]
+      }
+    },
+    "/api/v1/platform/features/{id}": {
+      "get": {
+        "operationId": "PlatformFeaturesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get feature details",
+        "tags": [
+          "Platform features"
+        ]
+      },
+      "patch": {
+        "operationId": "PlatformFeaturesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeatureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Update feature metadata",
+        "tags": [
+          "Platform features"
+        ]
+      }
+    },
+    "/api/v1/platform/features/{id}/activations": {
+      "post": {
+        "operationId": "PlatformFeaturesController_activate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Activate a feature",
+        "tags": [
+          "Platform features"
+        ]
+      }
+    },
+    "/api/v1/platform/features/{id}/deactivations": {
+      "post": {
+        "operationId": "PlatformFeaturesController_deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Deactivate a feature",
+        "tags": [
+          "Platform features"
+        ]
+      }
+    },
+    "/api/v1/tenant/auth/login": {
+      "post": {
+        "operationId": "TenantAuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Login for tenant users",
+        "tags": [
+          "tenant-auth"
+        ]
+      }
+    },
+    "/api/v1/tenant/registrations/organizations": {
+      "post": {
+        "operationId": "TenantRegistrationController_registerOrganization",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantRegisterOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register a tenant organization and start its selected plan trial",
+        "tags": [
+          "tenant-registration"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/current": {
+      "get": {
+        "operationId": "TenantBillingController_getCurrentBilling",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Get current organization billing state",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices": {
+      "get": {
+        "operationId": "TenantBillingController_listInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "List current organization invoices",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/payments": {
+      "get": {
+        "operationId": "TenantBillingController_listPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "List current organization subscription payments",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices/current": {
+      "post": {
+        "operationId": "TenantBillingController_ensureCurrentInvoice",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create or return current subscription invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/invoices/{invoiceId}/razorpay-orders": {
+      "post": {
+        "operationId": "TenantBillingController_createOrder",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create Razorpay test order for an invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-orders/current": {
+      "post": {
+        "operationId": "TenantBillingController_createCurrentOrder",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Create Razorpay test order for current invoice",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-payments/verifications": {
+      "post": {
+        "operationId": "TenantBillingController_verifyPayment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRazorpayPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Verify Razorpay checkout payment signature",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/tenant/billing/razorpay-payments/failures": {
+      "post": {
+        "operationId": "TenantBillingController_recordFailure",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRazorpayFailureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "role": []
+          }
+        ],
+        "summary": "Persist safe Razorpay checkout failure state",
+        "tags": [
+          "tenant-billing"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/login": {
+      "post": {
+        "operationId": "PlatformAuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Authenticate an active platform staff member",
+        "tags": [
+          "Platform authentication"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/refresh": {
+      "post": {
+        "operationId": "PlatformAuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rotate a platform refresh session",
+        "tags": [
+          "Platform authentication"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/logout": {
+      "post": {
+        "operationId": "PlatformAuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke the current platform refresh session",
+        "tags": [
+          "Platform authentication"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/me": {
+      "get": {
+        "operationId": "PlatformAuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Return the current platform identity and access",
+        "tags": [
+          "Platform authentication"
+        ]
+      }
+    },
+    "/api/v1/platform/health": {
+      "get": {
+        "operationId": "PlatformHealthController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Check platform API and database availability",
+        "tags": [
+          "Platform health"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations": {
+      "get": {
+        "operationId": "PlatformOrganizationsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List, search, and filter organizations",
+        "tags": [
+          "Platform organizations"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformOrganizationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Create or provision an organization",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations/{id}": {
+      "get": {
+        "operationId": "PlatformOrganizationsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get organization details",
+        "tags": [
+          "Platform organizations"
+        ]
+      },
+      "patch": {
+        "operationId": "PlatformOrganizationsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Update organization metadata",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations/{id}/suspensions": {
+      "post": {
+        "operationId": "PlatformOrganizationsController_suspend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Suspend an organization",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations/{id}/reactivations": {
+      "post": {
+        "operationId": "PlatformOrganizationsController_reactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Reactivate a suspended organization",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations/{id}/cancellations": {
+      "post": {
+        "operationId": "PlatformOrganizationsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Cancel an organization",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/organizations/{id}/archivals": {
+      "post": {
+        "operationId": "PlatformOrganizationsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Archive a cancelled organization",
+        "tags": [
+          "Platform organizations"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/overview": {
+      "get": {
+        "operationId": "PlatformBillingController_getOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get platform billing overview",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/revenue": {
+      "get": {
+        "operationId": "PlatformBillingController_getRevenue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get revenue summary and breakdowns",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/invoices": {
+      "get": {
+        "operationId": "PlatformBillingController_listInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List platform invoices",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/invoices/{id}": {
+      "get": {
+        "operationId": "PlatformBillingController_getInvoice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get platform invoice details",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments": {
+      "get": {
+        "operationId": "PlatformBillingController_listPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List platform subscription payments",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments/failed": {
+      "get": {
+        "operationId": "PlatformBillingController_listFailedPayments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List failed subscription payments",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/payments/{id}": {
+      "get": {
+        "operationId": "PlatformBillingController_getPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get subscription payment details",
+        "tags": [
+          "Platform billing"
+        ]
+      }
+    },
+    "/api/v1/platform/billing/razorpay/webhooks": {
+      "post": {
+        "operationId": "PlatformBillingWebhookController_processWebhook",
+        "parameters": [
+          {
+            "name": "x-razorpay-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-razorpay-event-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Process Razorpay billing webhook",
+        "tags": [
+          "Platform billing webhooks"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions": {
+      "get": {
+        "operationId": "PlatformSubscriptionsController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Status filter",
+            "schema": {
+              "enum": [
+                "TRIAL",
+                "ACTIVE",
+                "EXPIRING",
+                "GRACE_PERIOD",
+                "SUSPENDED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by organization, plan, or subscription ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Sort field",
+            "schema": {
+              "default": "createdAt",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "currentPeriodEnd",
+                "status",
+                "organizationName",
+                "planName"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size limit",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "List platform subscriptions",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformSubscriptionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Create a new subscription (assign)",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}": {
+      "get": {
+        "operationId": "PlatformSubscriptionsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get subscription details",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/activations": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_activate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Activate a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/upgrades": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_upgrade",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Upgrade a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/downgrades": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_downgrade",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Downgrade a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/suspensions": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_suspend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuspendSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Suspend a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/reactivations": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_reactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Reactivate a suspended subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/cancellations": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Cancel a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/renewals": {
+      "post": {
+        "operationId": "PlatformSubscriptionsController_renew",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Renew a subscription",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
+    },
+    "/api/v1/platform/subscriptions/{id}/history": {
+      "get": {
+        "operationId": "PlatformSubscriptionsController_getHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "platform-access-token": []
+          }
+        ],
+        "summary": "Get subscription history",
+        "tags": [
+          "Platform subscriptions"
+        ]
+      }
     }
   },
   "info": {
@@ -1449,6 +3424,11 @@
         "in": "header",
         "name": "role",
         "description": "RBAC role: superuser, admin, or user"
+      },
+      "platform-access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
       }
     },
     "schemas": {
@@ -2179,6 +4159,194 @@
           },
           "processedAt": {
             "type": "string"
+          }
+        }
+      },
+      "TenantCreateSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "Plan ID"
+          }
+        },
+        "required": [
+          "planId"
+        ]
+      },
+      "TenantUpdateSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "New Plan ID"
+          }
+        },
+        "required": [
+          "planId"
+        ]
+      },
+      "CreatePlanDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePlanDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AssignPlanFeatureDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePlanFeatureDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateFeatureDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateFeatureDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TenantLoginDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TenantRegisterOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "organizationName": {
+            "type": "string"
+          },
+          "organizationEmail": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "companySize": {
+            "type": "string"
+          },
+          "adminName": {
+            "type": "string"
+          },
+          "adminEmployeeId": {
+            "type": "string"
+          },
+          "adminEmail": {
+            "type": "string"
+          },
+          "adminPassword": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Selected Product Catalog plan ID"
+          },
+          "enabledRoles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "expense_submitter",
+                "manager",
+                "finance_officer",
+                "compliance_officer",
+                "configuration_manager"
+              ]
+            }
+          }
+        },
+        "required": [
+          "organizationName",
+          "organizationEmail",
+          "organizationId",
+          "adminName",
+          "adminEmployeeId",
+          "adminEmail",
+          "adminPassword",
+          "planId"
+        ]
+      },
+      "VerifyRazorpayPaymentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RecordRazorpayFailureDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PlatformLoginDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateOrganizationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateOrganizationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AssignSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "planId": {
+            "type": "string",
+            "description": "Plan ID"
+          },
+          "trialDays": {
+            "type": "number",
+            "description": "Trial days",
+            "default": 14
+          }
+        },
+        "required": [
+          "organizationId",
+          "planId"
+        ]
+      },
+      "UpdateSubscriptionPlanDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "New Plan ID"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the plan change"
+          }
+        },
+        "required": [
+          "planId"
+        ]
+      },
+      "SuspendSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Reason for suspension"
+          }
+        }
+      },
+      "CancelSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "immediate": {
+            "type": "boolean",
+            "description": "Cancel immediately instead of at period end"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for cancellation"
           }
         }
       }

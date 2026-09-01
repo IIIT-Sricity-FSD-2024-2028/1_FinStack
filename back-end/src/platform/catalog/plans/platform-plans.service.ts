@@ -64,6 +64,46 @@ export class PlatformPlansService {
     };
   }
 
+  async findActivePlansForTenant() {
+    const plans = await this.prisma.plan.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: [{ basePrice: 'asc' }, { name: 'asc' }],
+      include: {
+        planFeatures: {
+          include: { feature: true },
+          orderBy: [{ feature: { name: 'asc' } }, { createdAt: 'asc' }],
+        },
+      },
+    });
+
+    return {
+      items: plans.map((plan) => ({
+        id: plan.id,
+        key: plan.key,
+        name: plan.name,
+        description: plan.description,
+        status: plan.status,
+        billingInterval: plan.billingInterval,
+        basePrice: plan.basePrice,
+        currency: plan.currency,
+        trialDays: plan.trialDays,
+        features: plan.planFeatures
+          .filter((planFeature) => planFeature.feature.isActive)
+          .map((planFeature) => ({
+            key: planFeature.feature.key,
+            name: planFeature.feature.name,
+            valueType: planFeature.feature.valueType,
+            value: planFeature.value,
+            enabled: planFeature.enabled,
+          })),
+      })),
+      total: plans.length,
+      page: 1,
+      limit: plans.length,
+      totalPages: 1,
+    };
+  }
+
   async findOne(id: string) {
     const plan = await this.prisma.plan.findUnique({
       where: { id },

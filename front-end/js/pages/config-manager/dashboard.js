@@ -64,6 +64,7 @@ function renderSidebar() {
       </a>
       <div class="sidebar-submenu" id="settings-submenu">
         <a href="organization-settings.html" class="sidebar-submenu-item">Organization</a>
+        <a href="subscription.html" class="sidebar-submenu-item">Subscription</a>
         <a href="profile-settings.html" class="sidebar-submenu-item">Profile</a>
         <a href="preferences.html" class="sidebar-submenu-item">Preferences</a>
       </div>

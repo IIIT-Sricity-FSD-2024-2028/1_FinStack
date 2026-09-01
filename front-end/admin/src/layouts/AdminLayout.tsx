@@ -91,6 +91,54 @@ export function AdminLayout() {
               Features
             </NavLink>
           </PermissionGate>
+          <PermissionGate permission="subscription.subscription.view">
+            <NavLink
+              to="/subscriptions"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Subscriptions
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="billing.billing.view">
+            <NavLink
+              to="/billing"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Billing
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="billing.invoice.view">
+            <NavLink
+              to="/billing/invoices"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Invoices
+            </NavLink>
+          </PermissionGate>
+          <PermissionGate permission="billing.payment.view">
+            <NavLink
+              to="/billing/payments"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Payments
+            </NavLink>
+            <NavLink
+              to="/billing/failed-payments"
+              className={({ isActive }) =>
+                isActive ? 'nav-item nav-item-active' : 'nav-item'
+              }
+            >
+              Failed Payments
+            </NavLink>
+          </PermissionGate>
         </nav>
         <p className="foundation-label">Admin V1 foundation</p>
       </aside>
