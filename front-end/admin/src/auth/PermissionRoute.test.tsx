@@ -8,7 +8,11 @@ afterEach(() => {
   cleanup();
 });
 
-function renderRoute(permissions: string[]) {
+function renderRoute(
+  path: string,
+  requiredPermission: string,
+  permissions: string[],
+) {
   render(
     <AuthContext.Provider
       value={{
@@ -30,17 +34,12 @@ function renderRoute(permissions: string[]) {
         hasPermission: (permission) => permissions.includes(permission),
       }}
     >
-      <MemoryRouter initialEntries={['/organizations/new']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route
-            element={
-              <PermissionRoute permission="platform.organization.create" />
-            }
+            element={<PermissionRoute permission={requiredPermission} />}
           >
-            <Route
-              path="/organizations/new"
-              element={<span>Create organization page</span>}
-            />
+            <Route path={path} element={<span>Protected page</span>} />
           </Route>
           <Route path="/unauthorized" element={<span>Permission required</span>} />
         </Routes>
@@ -51,19 +50,39 @@ function renderRoute(permissions: string[]) {
 
 describe('PermissionRoute', () => {
   it('renders the protected route when the permission is granted', () => {
-    renderRoute(['platform.organization.create']);
+    renderRoute(
+      '/organizations/new',
+      'platform.organization.create',
+      ['platform.organization.create'],
+    );
 
-    expect(screen.getByText('Create organization page')).toBeVisible();
+    expect(screen.getByText('Protected page')).toBeVisible();
   });
 
   it('redirects to unauthorized when the permission is missing', async () => {
-    renderRoute(['platform.organization.view']);
+    renderRoute(
+      '/organizations/new',
+      'platform.organization.create',
+      ['platform.organization.view'],
+    );
 
     expect(await screen.findByText('Permission required')).toBeVisible();
     await waitFor(() =>
       expect(
-        screen.queryByText('Create organization page'),
+        screen.queryByText('Protected page'),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it.each([
+    ['/staff', 'platform.staff.view'],
+    ['/staff/new', 'platform.staff.create'],
+    ['/staff/staff-id', 'platform.staff.view'],
+    ['/roles', 'platform.role.view'],
+    ['/roles/new', 'platform.role.manage'],
+    ['/roles/role-id', 'platform.role.view'],
+  ])('protects %s with %s', (path, permission) => {
+    renderRoute(path, permission, [permission]);
+    expect(screen.getByText('Protected page')).toBeVisible();
   });
 });

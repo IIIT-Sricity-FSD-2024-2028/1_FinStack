@@ -70,12 +70,16 @@ model PlatformStaff {
 model PlatformAuditLog {
   id            String         @id @default(uuid()) @db.Uuid
   actorStaffId  String?        @db.Uuid
-  eventCode     String         @db.VarChar(120)
-  category      String         @db.VarChar(80)
+  eventCode     String?        @db.VarChar(120)
+  action        String?        @db.VarChar(150)
+  category      String?        @db.VarChar(80)
   resourceType  String         @db.VarChar(120)
   resourceId    String?        @db.VarChar(120)
-  summary       String         @db.Text
+  summary       String?        @db.Text
+  oldValue      Json?
+  newValue      Json?
   metadata      Json?
+  ipAddress     String?        @db.VarChar(45)
   requestId     String?        @db.VarChar(120)
   correlationId String?        @db.VarChar(120)
   createdAt     DateTime       @default(now())
@@ -84,7 +88,10 @@ model PlatformAuditLog {
   @@index([actorStaffId, createdAt])
   @@index([category, createdAt])
   @@index([resourceType, resourceId])
+  @@index([action])
+  @@index([createdAt])
 }
+
 
 model PlatformNotification {
   id               String        @id @default(uuid()) @db.Uuid
@@ -167,3 +174,77 @@ model PlatformAuthSession {
   @@index([staffId, revokedAt])
   @@index([expiresAt])
 }
+
+// ============================================================
+// PRODUCT CATALOG
+// ============================================================
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum FeatureValueType {
+  BOOLEAN
+  INTEGER
+  DECIMAL
+  STRING
+  JSON
+}
+
+model Plan {
+  id              String          @id @default(uuid()) @db.Uuid
+  key             String          @unique @db.VarChar(100)
+  name            String          @unique @db.VarChar(150)
+  description     String?         @db.Text
+  status          PlanStatus      @default(ACTIVE)
+  billingInterval BillingInterval
+  basePrice       Decimal         @db.Decimal(18, 4)
+  currency        String          @default("INR") @db.Char(3)
+  trialDays       Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  planFeatures    PlanFeature[]
+
+  @@index([status])
+  @@index([billingInterval])
+  @@index([createdAt])
+}
+
+model Feature {
+  id           String           @id @default(uuid()) @db.Uuid
+  key          String           @unique @db.VarChar(100)
+  name         String           @unique @db.VarChar(150)
+  description  String?          @db.Text
+  valueType    FeatureValueType
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  planFeatures PlanFeature[]
+
+  @@index([isActive])
+}
+
+model PlanFeature {
+  id        String   @id @default(uuid()) @db.Uuid
+  planId    String   @db.Uuid
+  featureId String   @db.Uuid
+  enabled   Boolean  @default(true)
+  value     Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature   Feature  @relation(fields: [featureId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, featureId])
+  @@index([featureId])
+}
+
+// ============================================================
+// PLATFORM AUDIT LOG
+// ============================================================
