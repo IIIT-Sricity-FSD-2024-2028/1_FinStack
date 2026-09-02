@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
 
 function createStorage(): Storage {
-    let data = new Map<string, string>();
+    const data = new Map<string, string>();
 
     return {
         get length() {
