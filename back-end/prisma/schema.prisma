@@ -49,20 +49,66 @@ model Organization {
 }
 
 model PlatformStaff {
-  id            String                @id @default(uuid()) @db.Uuid
-  firstName     String                @db.VarChar(100)
-  lastName      String                @db.VarChar(100)
-  email         String                @unique @db.VarChar(320)
-  passwordHash  String                @db.VarChar(255)
-  status        PlatformStaffStatus   @default(ACTIVE)
+  id            String                 @id @default(uuid()) @db.Uuid
+  firstName     String                 @db.VarChar(100)
+  lastName      String                 @db.VarChar(100)
+  email         String                 @unique @db.VarChar(320)
+  passwordHash  String                 @db.VarChar(255)
+  status        PlatformStaffStatus    @default(ACTIVE)
   lastLoginAt   DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  roles         PlatformStaffRole[]   @relation("PlatformStaffRoles")
-  assignedRoles PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  roles         PlatformStaffRole[]    @relation("PlatformStaffRoles")
+  assignedRoles PlatformStaffRole[]    @relation("PlatformStaffRoleAssigner")
   authSessions  PlatformAuthSession[]
+  auditLogs     PlatformAuditLog[]     @relation("PlatformStaffAuditLogs")
+  notifications PlatformNotification[] @relation("PlatformStaffNotifications")
 
   @@index([status, createdAt])
+}
+
+model PlatformAuditLog {
+  id            String         @id @default(uuid()) @db.Uuid
+  actorStaffId  String?        @db.Uuid
+  eventCode     String?        @db.VarChar(120)
+  action        String?        @db.VarChar(150)
+  category      String?        @db.VarChar(80)
+  resourceType  String         @db.VarChar(120)
+  resourceId    String?        @db.VarChar(120)
+  summary       String?        @db.Text
+  oldValue      Json?
+  newValue      Json?
+  metadata      Json?
+  ipAddress     String?        @db.VarChar(45)
+  requestId     String?        @db.VarChar(120)
+  correlationId String?        @db.VarChar(120)
+  createdAt     DateTime       @default(now())
+  actor         PlatformStaff? @relation("PlatformStaffAuditLogs", fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([actorStaffId, createdAt])
+  @@index([category, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+
+model PlatformNotification {
+  id               String        @id @default(uuid()) @db.Uuid
+  recipientStaffId String        @db.Uuid
+  type             String        @db.VarChar(40)
+  title            String        @db.VarChar(180)
+  body             String        @db.Text
+  link             String?       @db.VarChar(255)
+  isRead           Boolean       @default(false)
+  readAt           DateTime?
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  recipient        PlatformStaff @relation("PlatformStaffNotifications", fields: [recipientStaffId], references: [id], onDelete: Cascade)
+
+  @@index([recipientStaffId, isRead, createdAt])
+  @@index([recipientStaffId, createdAt])
 }
 
 model PlatformRole {
@@ -202,22 +248,3 @@ model PlanFeature {
 // ============================================================
 // PLATFORM AUDIT LOG
 // ============================================================
-
-model PlatformAuditLog {
-  id           String   @id @default(uuid()) @db.Uuid
-  actorStaffId String?  @db.Uuid
-  action       String   @db.VarChar(150)
-  resourceType String   @db.VarChar(100)
-  resourceId   String?  @db.Uuid
-  oldValue     Json?
-  newValue     Json?
-  metadata     Json?
-  ipAddress    String?  @db.VarChar(45)
-  requestId    String?  @db.VarChar(100)
-  createdAt    DateTime @default(now())
-
-  @@index([actorStaffId])
-  @@index([resourceType, resourceId])
-  @@index([action])
-  @@index([createdAt])
-}

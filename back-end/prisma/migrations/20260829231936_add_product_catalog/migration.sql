@@ -51,22 +51,15 @@ CREATE TABLE "PlanFeature" (
     CONSTRAINT "PlanFeature_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "PlatformAuditLog" (
-    "id" UUID NOT NULL,
-    "actorStaffId" UUID,
-    "action" VARCHAR(150) NOT NULL,
-    "resourceType" VARCHAR(100) NOT NULL,
-    "resourceId" UUID,
-    "oldValue" JSONB,
-    "newValue" JSONB,
-    "metadata" JSONB,
-    "ipAddress" VARCHAR(45),
-    "requestId" VARCHAR(100),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PlatformAuditLog_pkey" PRIMARY KEY ("id")
-);
+-- Extend the existing audit-log table for product catalog events
+ALTER TABLE "PlatformAuditLog"
+    ADD COLUMN "action" VARCHAR(150),
+    ADD COLUMN "oldValue" JSONB,
+    ADD COLUMN "newValue" JSONB,
+    ADD COLUMN "ipAddress" VARCHAR(45),
+    ALTER COLUMN "eventCode" DROP NOT NULL,
+    ALTER COLUMN "category" DROP NOT NULL,
+    ALTER COLUMN "summary" DROP NOT NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Plan_key_key" ON "Plan"("key");
@@ -97,12 +90,6 @@ CREATE INDEX "PlanFeature_featureId_idx" ON "PlanFeature"("featureId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PlanFeature_planId_featureId_key" ON "PlanFeature"("planId", "featureId");
-
--- CreateIndex
-CREATE INDEX "PlatformAuditLog_actorStaffId_idx" ON "PlatformAuditLog"("actorStaffId");
-
--- CreateIndex
-CREATE INDEX "PlatformAuditLog_resourceType_resourceId_idx" ON "PlatformAuditLog"("resourceType", "resourceId");
 
 -- CreateIndex
 CREATE INDEX "PlatformAuditLog_action_idx" ON "PlatformAuditLog"("action");

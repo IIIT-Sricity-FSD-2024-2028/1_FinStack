@@ -3,8 +3,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from '../database/database.module';
 import { PlatformAuthModule } from './auth/platform-auth.module';
 import { PlatformAuthenticationGuard } from './auth/guards/platform-authentication.guard';
+import { PlatformAuditModule } from './audit/platform-audit.module';
 import { PlatformCatalogModule } from './catalog/platform-catalog.module';
 import { PlatformHealthModule } from './health/platform-health.module';
+import { PlatformNotificationsModule } from './notifications/platform-notifications.module';
 import { PlatformOrganizationsModule } from './organizations/platform-organizations.module';
 import { PlatformPermissionsModule } from './permissions/platform-permissions.module';
 import { PlatformPermissionGuard } from './rbac/guards/platform-permission.guard';
@@ -19,6 +21,8 @@ import { PlatformStaffModule } from './staff/platform-staff.module';
     PlatformAuthModule,
     PlatformHealthModule,
     PlatformOrganizationsModule,
+    PlatformAuditModule,
+    PlatformNotificationsModule,
     PlatformStaffModule,
     PlatformRolesModule,
     PlatformPermissionsModule,
