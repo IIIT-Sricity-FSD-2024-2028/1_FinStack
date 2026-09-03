@@ -15,6 +15,7 @@ import type {
 import { OrganizationForm } from './OrganizationForm';
 import { formatDate, statusLabel, statusTone } from './organization-ui';
 import { useOrganization } from './useOrganization';
+import { OrganizationCommercialSummary } from './OrganizationCommercialSummary';
 
 export function OrganizationDetailPage() {
   const { id } = useParams();
@@ -202,6 +203,8 @@ export function OrganizationDetailPage() {
               <strong>{actionError}</strong>
             </div>
           )}
+
+          <OrganizationCommercialSummary organizationId={data.id} />
 
           <div className="status-card form-panel">
             <h2>Metadata</h2>

@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+} from 'class-validator';
 
 export class AssignPlanFeatureDto {
   @IsUUID()
@@ -7,6 +13,15 @@ export class AssignPlanFeatureDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  isAddOn?: boolean = false;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  addOnPrice?: string;
 
   /**
    * Optional value — validated against Feature.valueType in the service.

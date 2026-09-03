@@ -1,13 +1,13 @@
 
       const state = {
         settings: {
-          officerName: 'Rajesh Kumar',
-          officerEmail: 'rajesh.kumar@finstack.io',
-          department: 'Finance Operations',
-          employeeId: 'FIN-2001',
-          phone: '+91 90000 33333',
-          location: 'Chennai, India',
-          organizationId: 'finstack-tech-01',
+          officerName: 'Finance Officer',
+          officerEmail: '',
+          department: '',
+          employeeId: '',
+          phone: '',
+          location: '',
+          organizationId: '',
           managerEmployeeId: '',
           timezone: 'Asia/Kolkata',
           currency: 'INR',
@@ -79,27 +79,18 @@
 {"tone":"red","title":"Travel variance alert","text":"EXP-1010 is above corridor average and is under additional review.","time":"2 hours ago"}
 ],
         audit: [
-{"time":"08:42 AM","user":"System","action":"Bank Sync Completed","entity":"TXN-7783 to TXN-7792 imported"},
+{"time":"08:42 AM","user":"System","action":"Bank Sync Pending","entity":"Awaiting backend transaction data"},
 {"time":"09:02 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1001"},
 {"time":"09:08 AM","user":"Finance Officer","action":"Released Payment","entity":"PB-228"},
 {"time":"09:18 AM","user":"Risk Engine","action":"Duplicate Match Found","entity":"EXP-1008"},
 {"time":"09:31 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1003"},
 {"time":"09:44 AM","user":"Finance Officer","action":"Scheduled Payment","entity":"PB-229"},
-{"time":"10:05 AM","user":"Finance Officer","action":"Reconciliation Run","entity":"EXP-1001 ↔ TXN-7783"},
+{"time":"10:05 AM","user":"Finance Officer","action":"Reconciliation Run","entity":"Backend transaction review"},
 {"time":"10:18 AM","user":"Finance Officer","action":"Queued Payment Batch","entity":"PB-230"},
 {"time":"10:27 AM","user":"Analytics","action":"Generated Report","entity":"RPT-13"},
 {"time":"10:58 AM","user":"Finance Officer","action":"Approved Expense","entity":"EXP-1009"}
 ],
-        reconciliation: [
-{"id":"REC-201","expense":"EXP-1001","bankRef":"TXN-7783","variance":0,"status":"matched"},
-{"id":"REC-202","expense":"EXP-1002","bankRef":"TXN-7784","variance":0,"status":"matched"},
-{"id":"REC-203","expense":"EXP-1003","bankRef":"TXN-7785","variance":0,"status":"matched"},
-{"id":"REC-204","expense":"EXP-1004","bankRef":"TXN-7786","variance":0,"status":"matched"},
-{"id":"REC-205","expense":"EXP-1006","bankRef":"TXN-7788","variance":0,"status":"ready"},
-{"id":"REC-206","expense":"EXP-1007","bankRef":"TXN-7789","variance":0,"status":"ready"},
-{"id":"REC-207","expense":"EXP-1008","bankRef":"TXN-7790","variance":0,"status":"mismatch"},
-{"id":"REC-208","expense":"EXP-1010","bankRef":"TXN-7792","variance":0,"status":"ready"}
-],
+        reconciliation: [],
         autoMatch: false,
         lastReconciliationRun: 'Not executed today'
 
@@ -279,7 +270,7 @@
             unread: true
           });
         }
-        const releasable = payments.filter(batch => batch.status !== 'paid');
+        const releasable = payments.filter(batch => batch.status === 'pending');
         if (releasable.length) {
           alerts.push({
             tone: 'cyan',
@@ -292,29 +283,45 @@
         return alerts;
       }
 
-      function buildTransactionId(expense) {
-        const numeric = String(expense.id || '').replace(/\D/g, '').slice(-4);
-        return `TXN-${(numeric || '0').padStart(4, '0')}`;
+      function buildSharedTransactions(transactions, expenses) {
+        const expenseById = new Map((expenses || []).map(expense => [expense.id, expense]));
+        return (transactions || [])
+          .filter(transaction => expenseById.has(transaction.expenseId))
+          .map(transaction => {
+            const expense = expenseById.get(transaction.expenseId) || {};
+            return {
+              id: transaction.id,
+              expenseId: transaction.expenseId,
+              employeeId: transaction.employeeId,
+              employee: expense.employee || transaction.employeeId || '-',
+              category: expense.category || transaction.categoryId || '-',
+              bank: 'Bank Sandbox',
+              amount: Number(transaction.amount || 0),
+              date: (transaction.processedAt || transaction.transactionDate || transaction.createdAt || '').slice(0, 10),
+              status: transaction.status || 'pending',
+              processedAt: transaction.processedAt || '',
+              transactionDate: transaction.transactionDate || '',
+              merchant: transaction.merchant || expense.merchant || '',
+              paymentMethod: transaction.paymentMethod || expense.paymentMethod || '',
+              workflowStatus: expense.workflowStatus || ''
+            };
+          });
       }
 
-      function getTransactionBank(expense) {
-        const banks = ['HDFC', 'ICICI', 'Axis', 'SBI', 'Kotak'];
-        const seed = String(expense.id || expense.employeeId || expense.employee || '')
-          .split('')
-          .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        return expense.bank || banks[seed % banks.length];
-      }
-
-      function buildSharedTransactions(expenses) {
-        return (expenses || [])
-          .filter(expense => expense.workflowStatus === 'paid')
-          .map(expense => ({
-            id: buildTransactionId(expense),
-            expenseId: expense.id,
-            bank: getTransactionBank(expense),
-            amount: Number(expense.amount || 0),
-            date: (expense.paidAt || expense.updatedAt || expense.date || expense.created || '').slice(0, 10),
-            status: 'matched'
+      function buildSharedReconciliation(transactions, expenses) {
+        const expenseById = new Map((expenses || []).map(expense => [expense.id, expense]));
+        return (transactions || [])
+          .filter(transaction => transaction.status === 'processed' || transaction.status === 'reconciled')
+          .filter(transaction => expenseById.has(transaction.expenseId))
+          .map(transaction => ({
+            id: transaction.id,
+            transactionId: transaction.id,
+            expense: transaction.expenseId,
+            bankRef: transaction.id,
+            amount: Number(transaction.amount || 0),
+            variance: 0,
+            status: transaction.status === 'reconciled' ? 'matched' : 'ready',
+            transactionStatus: transaction.status
           }));
       }
 
@@ -328,13 +335,11 @@
           .map(user => user.employeeId));
         const allExpenses = uniqueById(window.FinStackStore.getExpenses())
           .filter(expense => recordBelongsToOrganization(expense, organizationId, organizationEmployeeIds));
-        console.log("Current User:", financeUser);
-        console.log("Expenses:", allExpenses);
         const financeReviewExpenses = allExpenses.filter(e =>
           e.workflowStatus === "finance_review" &&
           e.assignedFinanceOfficerId === financeUser.id
         );
-        const expenseIds = new Set(financeReviewExpenses.map(expense => expense.id));
+        const expenseIds = new Set(allExpenses.map(expense => expense.id));
         const reviewQueue = window.FinStackStore.getFinanceReviewQueue()
           .filter(expense =>
             expenseIds.has(expense.id) &&
@@ -358,7 +363,7 @@
           .filter(isConfigurationManagerPolicy)
           .length;
 
-        state.expenses = financeReviewExpenses.map(expense => ({
+        state.expenses = allExpenses.map(expense => ({
           id: expense.id,
           employeeId: expense.employeeId,
           organizationId: expense.organizationId || organizationId,
@@ -413,17 +418,9 @@
             scheduled: batch.scheduled
           }));
 
-        state.transactions = buildSharedTransactions(allExpenses);
-
-        state.reconciliation = state.expenses
-          .filter(expense => ['approved', 'paid', 'flagged', 'pending'].includes(expense.status) && expense.workflowStatus !== 'manager_review' && expense.workflowStatus !== 'returned')
-          .map((expense, index) => ({
-            id: `REC-${201 + index}`,
-            expense: expense.id,
-            bankRef: `TXN-${7783 + index}`,
-            variance: 0,
-            status: expense.status === 'flagged' ? 'mismatch' : expense.status === 'paid' ? 'matched' : 'ready'
-          }));
+        const backendTransactions = typeof window.FinStackStore.getTransactions === 'function' ? window.FinStackStore.getTransactions() : [];
+        state.transactions = buildSharedTransactions(backendTransactions, allExpenses);
+        state.reconciliation = buildSharedReconciliation(backendTransactions, allExpenses);
 
         state.activities = buildFinanceActivities(auditLogs);
 
@@ -826,6 +823,70 @@
         if (dropdownRole) dropdownRole.textContent = roleText;
       }
 
+      function renderFinanceWorkspace() {
+        renderActivities();
+        renderAlerts();
+        renderExpenses();
+        renderReviews();
+        renderReconciliation();
+        renderTransactions();
+        renderFlagged();
+        renderPayments();
+        renderAudit();
+        updateMetrics();
+      }
+
+      function clearFinanceWorkspace(error) {
+        state.expenses = [];
+        state.reviews = [];
+        state.transactions = [];
+        state.flagged = [];
+        state.payments = [];
+        state.reconciliation = [];
+        state.activities = [];
+        state.audit = [];
+        state.policyCount = 0;
+        state.lastReconciliationRun = 'Workspace unavailable';
+        state.alerts = [{
+          tone: 'red',
+          title: 'Unable to load finance workspace',
+          text: error && error.message ? error.message : 'Canonical finance data could not be loaded.',
+          time: 'Now',
+          unread: true
+        }];
+      }
+
+      function loadFinanceWorkspace() {
+        if (!window.FinStackStore || typeof window.FinStackStore.reloadCanonical !== 'function') {
+          const error = new Error('Canonical finance workspace loader is unavailable.');
+          clearFinanceWorkspace(error);
+          renderFinanceWorkspace();
+          return Promise.reject(error);
+        }
+
+        return window.FinStackStore.reloadCanonical()
+          .then(() => {
+            syncSharedFinanceState();
+            renderFinanceWorkspace();
+            return state;
+          })
+          .catch(error => {
+            clearFinanceWorkspace(error);
+            renderFinanceWorkspace();
+            showToast(error && error.message ? error.message : 'Unable to refresh the finance workspace.');
+            throw error;
+          });
+      }
+
+      function refreshFinanceAfterMutation(message, activityAction, entity, activityUser) {
+        return loadFinanceWorkspace()
+          .then(() => {
+            if (activityAction) logActivity(activityUser || 'Finance Officer', activityAction, entity);
+            showToast(message);
+          })
+          .catch(() => {});
+      }
+
       function renderActivities() {
         const body = document.getElementById('activityTableBody');
         body.innerHTML = state.activities.map((item, index) => `
@@ -957,10 +1018,11 @@
             <div>
               <div style="font-weight:800; color:white; margin-bottom:6px;">${escapeHtml(item.id)}</div>
               <div class="muted">${escapeHtml(item.expense)} ↔ ${escapeHtml(item.bankRef)}</div>
+              <div class="muted">${item.status === 'matched' ? 'Matched / Reconciled' : 'Ready to Reconcile'}</div>
               <div class="muted">Variance: ${formatINR(item.variance)}</div>
             </div>
             <div class="inline-actions">
-              <button class="table-btn view" onclick="matchReconciliation('${item.id}')">${item.status === 'matched' ? 'Matched' : 'Match'}</button>
+              ${item.status === 'ready' ? `<button class="table-btn review" onclick="matchReconciliation('${item.id}')">Reconcile</button>` : `<button class="table-btn view" disabled>Reconciled</button>`}
               <button class="table-btn review" onclick="investigateMismatch('${item.id}')">Investigate</button>
             </div>
           </div>
@@ -976,9 +1038,23 @@
             <td>${formatINR(txn.amount)}</td>
             <td>${escapeHtml(txn.date)}</td>
             <td><span class="status ${txn.status}">${capitalize(txn.status)}</span></td>
-            <td><div class="inline-actions"><button class="table-btn view" onclick="viewTransaction('${txn.id}')">Open</button><button class="table-btn review" onclick="reconcileTransaction('${txn.id}')">Reconcile</button></div></td>
+            <td><div class="inline-actions">${transactionActions(txn)}</div></td>
           </tr>
         `).join('') || `<tr><td colspan="6" class="empty-row">No transactions available.</td></tr>`;
+      }
+
+      function transactionActions(txn) {
+        const open = `<button class="table-btn view" onclick="viewTransaction('${txn.id}')">Open</button>`;
+        if (txn.status === 'pending') {
+          return `${open}<button class="table-btn approve" onclick="simulateBankSuccess('${txn.id}')">Test: Simulate Success</button><button class="table-btn reject" onclick="simulateBankFailure('${txn.id}')">Test: Simulate Failure</button>`;
+        }
+        if (txn.status === 'processed') {
+          return `${open}<button class="table-btn review" onclick="reconcileTransaction('${txn.id}')">Reconcile</button>`;
+        }
+        if (txn.status === 'reconciled') {
+          return `${open}<button class="table-btn view" disabled>Completed</button>`;
+        }
+        return open;
       }
 
       function renderFlagged() {
@@ -1000,8 +1076,8 @@
             <td>${escapeHtml(item.id)}</td>
             <td>${item.count}</td>
             <td>${formatINR(item.total)}</td>
-            <td><span class="status ${item.status === 'approved' ? 'approved' : item.status === 'paid' ? 'paid' : 'pending'}">${capitalize(item.status)}</span></td>
-            <td><div class="inline-actions"><button class="table-btn approve" onclick="releasePayment('${item.id}')">Release</button><button class="table-btn view" onclick="viewPayment('${item.id}')">View</button></div></td>
+            <td><span class="status ${item.status === 'processing' ? 'processed' : item.status === 'paid' ? 'paid' : 'pending'}">${item.status === 'processing' ? 'Processing / Sent to Bank' : capitalize(item.status)}</span></td>
+            <td><div class="inline-actions">${item.status === 'pending' ? `<button class="table-btn approve" onclick="releasePayment('${item.id}')">Release Payment</button>` : `<button class="table-btn view" disabled>Sent to Bank</button>`}<button class="table-btn view" onclick="viewPayment('${item.id}')">View</button></div></td>
           </tr>
         `).join('') || `<tr><td colspan="5" class="empty-row">No payment batches.</td></tr>`;
       }
@@ -1365,26 +1441,26 @@
         showToast(`${id} moved to finance review.`);
       }
 
+      function runFinanceMutation(action) {
+        try {
+          return action();
+        } catch (error) {
+          showToast(error && error.message ? error.message : 'The finance action could not be saved.');
+          return null;
+        }
+      }
+
       function approveReview(id) {
-        window.FinStackStore.financeApprove(id, 'Approved by finance officer.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderPayments(); renderReconciliation(); renderFlagged(); updateMetrics();
-        logActivity('Finance Officer', 'Approved Expense', id);
-        showToast(`${id} approved.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeApprove(id, 'Approved by finance officer.'))) return;
+        refreshFinanceAfterMutation(`${id} approved.`, 'Approved Expense', id);
       }
       function rejectReview(id) {
-        window.FinStackStore.financeReject(id, 'Rejected during finance review.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderFlagged(); renderPayments(); updateMetrics();
-        logActivity('Finance Officer', 'Rejected Expense', id);
-        showToast(`${id} rejected.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeReject(id, 'Rejected during finance review.'))) return;
+        refreshFinanceAfterMutation(`${id} rejected.`, 'Rejected Expense', id);
       }
       function flagReview(id) {
-        window.FinStackStore.financeFlag(id, 'Flagged for compliance review by finance.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderFlagged(); updateMetrics();
-        logActivity('Finance Officer', 'Flagged Expense', id);
-        showToast(`${id} sent to compliance review.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeFlag(id, 'Flagged for compliance review by finance.'))) return;
+        refreshFinanceAfterMutation(`${id} sent to compliance review.`, 'Flagged Expense', id);
       }
       function requestInfo(id) {
         const expense = getExpenseById(id) || { id, employee: 'Employee', category: 'General', amount: 0, submitted: new Date().toISOString().slice(0,10), method: 'Reimbursement', status: 'pending', notes: 'Additional clarification required for review.' };
@@ -1493,12 +1569,9 @@
             { label: 'Cancel', variant: 'btn-outline', onClick: closeModal },
             { label: 'Send Request', variant: 'btn-primary', onClick: () => {
                 const message = document.getElementById('infoMessage').value.trim() || 'Additional information requested';
-                window.FinStackStore.financeRequestInfo(id, message);
-                syncSharedFinanceState();
-                renderReviews(); renderExpenses(); updateMetrics();
-                logActivity('Finance Officer', 'Requested More Info', `${id}: ${message.slice(0, 34)}...`);
+                if (!runFinanceMutation(() => window.FinStackStore.financeRequestInfo(id, message))) return;
                 closeModal();
-                showToast(`Info request sent for ${id}.`);
+                refreshFinanceAfterMutation(`Info request sent for ${id}.`, 'Requested More Info', `${id}: ${message.slice(0, 34)}...`);
               }
             }
           ]
@@ -1507,11 +1580,7 @@
 
       function matchReconciliation(id) {
         const item = state.reconciliation.find(r => r.id === id); if (!item) return;
-        item.status = 'matched'; item.variance = 0;
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderReconciliation(); updateMetrics();
-        logActivity('Finance Officer', 'Matched Reconciliation', id);
-        showToast(`${id} matched.`);
+        reconcileTransaction(item.transactionId || item.id);
       }
       function investigateMismatch(id) {
         const item = state.reconciliation.find(r => r.id === id); if (!item) return;
@@ -1523,6 +1592,15 @@
 
       function viewTransaction(id) {
         const txn = state.transactions.find(t => t.id === id); if (!txn) return;
+        const actions = [{ label: 'Close', variant: 'btn-outline', onClick: closeModal }];
+        if (txn.status === 'pending') {
+          actions.push(
+            { label: 'Test: Simulate Success', variant: 'btn-primary', onClick: () => { simulateBankSuccess(id); closeModal(); } },
+            { label: 'Test: Simulate Failure', variant: 'btn-outline', onClick: () => { simulateBankFailure(id); closeModal(); } }
+          );
+        } else if (txn.status === 'processed') {
+          actions.push({ label: 'Reconcile', variant: 'btn-primary', onClick: () => { reconcileTransaction(id); closeModal(); } });
+        }
         openModal({
           title: 'Transaction Details',
           subtitle: id,
@@ -1535,23 +1613,32 @@
                   <div><div class="expense-label">Bank</div><div class="expense-value">${escapeHtml(txn.bank)}</div></div>
                   <div><div class="expense-label">Amount</div><div class="expense-value big">${formatINR(txn.amount)}</div></div>
                   <div><div class="expense-label">Date</div><div class="expense-value">${escapeHtml(txn.date)}</div></div>
+                  <div><div class="expense-label">Expense</div><div class="expense-value">${escapeHtml(txn.expenseId || '-')}</div></div>
                   <div class="full"><div class="expense-label">Status</div><div class="expense-value">${escapeHtml(capitalize(txn.status))}</div></div>
                 </div>
               </div>
             </div>`,
-          actions: [
-            { label: 'Close', variant: 'btn-outline', onClick: closeModal },
-            { label: 'Reconcile', variant: 'btn-primary', onClick: () => { reconcileTransaction(id); closeModal(); } }
-          ]
+          actions: actions
         });
+      }
+      function simulateBankSuccess(id) {
+        if (!window.FinStackStore || typeof window.FinStackStore.simulateBankSuccess !== 'function') return showToast('Bank Sandbox is unavailable.');
+        const result = runFinanceMutation(() => window.FinStackStore.simulateBankSuccess(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} marked processed by Bank Sandbox.`, 'Simulated Success', id, 'Bank Sandbox');
+      }
+      function simulateBankFailure(id) {
+        if (!window.FinStackStore || typeof window.FinStackStore.simulateBankFailure !== 'function') return showToast('Bank Sandbox is unavailable.');
+        const result = runFinanceMutation(() => window.FinStackStore.simulateBankFailure(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} marked failed by Bank Sandbox.`, 'Simulated Failure', id, 'Bank Sandbox');
       }
       function reconcileTransaction(id) {
         const txn = state.transactions.find(t => t.id === id); if (!txn) return;
-        txn.status = 'approved';
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderTransactions(); updateMetrics();
-        logActivity('Finance Officer', 'Reconciled Transaction', id);
-        showToast(`${id} reconciled.`);
+        if (!window.FinStackStore || typeof window.FinStackStore.reconcileTransaction !== 'function') return showToast('Reconciliation service is unavailable.');
+        const result = runFinanceMutation(() => window.FinStackStore.reconcileTransaction(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} reconciled.`, 'Reconciled Transaction', id);
       }
 
       function viewFlagged(id) {
@@ -1705,11 +1792,9 @@
 
       function releasePayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
-        window.FinStackStore.releasePaymentBatch(id);
-        syncSharedFinanceState();
-        renderPayments(); renderExpenses(); renderReconciliation(); updateMetrics();
-        logActivity('Finance Officer', 'Released Payment Batch', id);
-        showToast(`${id} payment batch released.`);
+        if (item.status !== 'pending') return showToast(`${id} is already sent to Bank Sandbox.`);
+        if (!runFinanceMutation(() => window.FinStackStore.releasePaymentBatch(id))) return;
+        refreshFinanceAfterMutation(`${id} sent to Bank Sandbox.`, 'Released Payment Batch', id);
       }
       function viewPayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
@@ -1913,7 +1998,7 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
       // inline handlers exposure
       Object.assign(window, {
         openActivity, resolveAlert, dismissAlert, viewExpense, reviewExpense, approveReview, rejectReview, flagReview, requestInfo,
-        matchReconciliation, investigateMismatch, viewTransaction, reconcileTransaction, viewFlagged, escalateFlagged,
+        matchReconciliation, investigateMismatch, viewTransaction, simulateBankSuccess, simulateBankFailure, reconcileTransaction, viewFlagged, escalateFlagged,
         releasePayment, viewPayment, openReport, viewReportSummary, previewReport, toggleReportPin, scheduleReport, cloneReport,
         compareReports, generateExecutivePack, openReportRun, openAudit, markFinanceNotificationRead, deleteFinanceNotification
       });
@@ -2002,7 +2087,8 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
               if (action === 'profile-settings' || action === 'preferences') {
                 setPage('settings-page');
               } else if (action === 'logout') {
-                sessionStorage.removeItem('finstackUserSession');
+                if (window.FinStackGuard) window.FinStackGuard.clearSession();
+                else sessionStorage.removeItem('finstackUserSession');
                 window.location.href = '../../login.html';
               }
             });
@@ -2040,7 +2126,8 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         logActivity('Finance Officer', 'Logged Out', 'FinStack Workspace');
         showToast('Signing you out...');
         window.setTimeout(() => {
-          sessionStorage.removeItem('finstackUserSession');
+          if (window.FinStackGuard) window.FinStackGuard.clearSession();
+          else sessionStorage.removeItem('finstackUserSession');
           window.location.href = '../../login.html?role=finance_officer';
         }, 300);
       });
@@ -2067,36 +2154,36 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         openModal({ title: `Next Review • ${item.id}`, body: detailMarkup({ SubmittedBy: item.by, Amount: formatINR(item.amount), ManagerStatus: item.manager }), actions: [{ label: 'Approve', variant: 'btn-primary', onClick: () => { approveReview(item.id); closeModal(); } }, { label: 'Reject', variant: 'btn-outline', onClick: () => { rejectReview(item.id); closeModal(); } }] });
       });
       document.getElementById('reviewRefreshBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderReviews(); updateMetrics(); logActivity('System', 'Refreshed Review Queue', 'Finance Review'); showToast('Finance review queue refreshed.');
+        loadFinanceWorkspace()
+          .then(() => { logActivity('System', 'Refreshed Review Queue', 'Finance Review'); showToast('Finance review queue refreshed.'); })
+          .catch(() => {});
       });
 
       // reconciliation
       document.getElementById('runReconciliationBtn').addEventListener('click', () => {
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderReconciliation(); updateMetrics(); logActivity('Finance Officer', 'Reconciliation Run', 'Manual reconciliation'); showToast('Reconciliation executed.');
+        loadFinanceWorkspace()
+          .then(() => { logActivity('Finance Officer', 'Reconciliation Run', 'Manual reconciliation'); showToast('Reconciliation refreshed.'); })
+          .catch(() => {});
       });
       document.getElementById('autoMatchBtn').addEventListener('click', () => {
         state.autoMatch = !state.autoMatch;
-        if (state.autoMatch) state.reconciliation.forEach(item => { if (item.variance === 0) item.status = 'matched'; });
+        syncSharedFinanceState();
         renderReconciliation(); updateMetrics(); logActivity('Finance Officer', state.autoMatch ? 'Enabled Auto Match' : 'Disabled Auto Match', 'Reconciliation'); showToast(`Auto match ${state.autoMatch ? 'enabled' : 'disabled'}.`);
       });
 
       // transactions
       document.getElementById('syncTransactionsBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderTransactions();
-        updateMetrics();
-        showToast(state.transactions.length ? 'Transactions refreshed.' : 'No payment transactions found.');
+        loadFinanceWorkspace()
+          .then(() => showToast(state.transactions.length ? 'Transactions refreshed.' : 'No payment transactions found.'))
+          .catch(() => {});
       });
       document.getElementById('downloadTxnBtn').addEventListener('click', exportTransactionsCSV);
 
       // flagged
       document.getElementById('scanFraudBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderFlagged();
-        updateMetrics();
-        showToast(state.flagged.length ? 'Fraud scan refreshed flagged expenses.' : 'No finance-flagged expenses found.');
+        loadFinanceWorkspace()
+          .then(() => showToast(state.flagged.length ? 'Flagged expenses refreshed.' : 'No finance-flagged expenses found.'))
+          .catch(() => {});
       });
       document.getElementById('bulkEscalateBtn').addEventListener('click', () => {
         if (!state.flagged.length) return showToast('No flagged expenses to escalate.');
@@ -2222,15 +2309,17 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         showToast('Settings saved successfully.');
       });
       document.getElementById('resetSettingsBtn').addEventListener('click', () => {
+        const previousSettings = state.settings;
+        const financeUser = window.FinStackStore ? window.FinStackStore.getCurrentUser() : null;
         state.settings = {
-          officerName: 'Rajesh Kumar',
-          officerEmail: 'rajesh.kumar@finstack.io',
-          department: 'Finance Operations',
-          employeeId: 'FIN-2001',
-          phone: '+91 90000 33333',
-          location: 'Chennai, India',
-          organizationId: 'finstack-tech-01',
-          managerEmployeeId: '',
+          officerName: (financeUser && financeUser.fullName) || previousSettings.officerName,
+          officerEmail: (financeUser && financeUser.email) || previousSettings.officerEmail,
+          department: (financeUser && financeUser.department) || previousSettings.department,
+          employeeId: (financeUser && financeUser.employeeId) || previousSettings.employeeId,
+          phone: (financeUser && financeUser.phone) || previousSettings.phone,
+          location: (financeUser && financeUser.location) || previousSettings.location,
+          organizationId: (financeUser && financeUser.organizationId) || previousSettings.organizationId,
+          managerEmployeeId: (financeUser && financeUser.managerEmployeeId) || previousSettings.managerEmployeeId,
           timezone: 'Asia/Kolkata',
           currency: 'INR',
           theme: 'Dark',
@@ -2252,17 +2341,6 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
           sidebarDefaultCollapsed: false,
           compactDensity: false
         };
-        const financeUser = window.FinStackStore ? window.FinStackStore.getCurrentUser() : null;
-        if (window.FinStackStore && financeUser) {
-          window.FinStackStore.updateUser(financeUser.employeeId, {
-            fullName: state.settings.officerName,
-            email: state.settings.officerEmail,
-            department: state.settings.department,
-            phone: state.settings.phone,
-            location: state.settings.location,
-            managerEmployeeId: state.settings.managerEmployeeId
-          });
-        }
         applySettingsToForm();
         setSidebarCollapsed(false);
         document.body.classList.remove('compact-density');
@@ -2321,12 +2399,17 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
 
       // initial render
       window.FinStackStore.ready.then(() => {
-        syncSharedFinanceState();
-        renderActivities(); renderAlerts(); renderExpenses(); renderReviews(); renderReconciliation(); renderTransactions(); renderFlagged(); renderPayments(); renderReports(); renderAudit(); updateMetrics();
-        applySettingsToForm();
-        const savedSidebar = localStorage.getItem('finstackSidebarCollapsed');
-        if (savedSidebar === '1' || state.settings.sidebarDefaultCollapsed) setSidebarCollapsed(true);
-        syncFinanceShellIcons();
-        setPage(document.body?.dataset?.page || 'dashboard-page');
+        return loadFinanceWorkspace();
+      }).then(() => {
+          renderReports();
+          applySettingsToForm();
+          const savedSidebar = localStorage.getItem('finstackSidebarCollapsed');
+          if (savedSidebar === '1' || state.settings.sidebarDefaultCollapsed) setSidebarCollapsed(true);
+          syncFinanceShellIcons();
+          setPage(document.body?.dataset?.page || 'dashboard-page');
+      }).catch(() => {
+          renderReports();
+          syncFinanceShellIcons();
+          setPage(document.body?.dataset?.page || 'dashboard-page');
       });
     

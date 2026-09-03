@@ -96,6 +96,8 @@ export class PlatformPlansService {
             basePrice: dto.basePrice,
             currency: dto.currency,
             trialDays: dto.trialDays,
+            includedEmployeeCount: dto.includedEmployeeCount ?? 1,
+            additionalEmployeePrice: dto.additionalEmployeePrice ?? '0',
           },
         });
 
@@ -134,7 +136,9 @@ export class PlatformPlansService {
       const plan = await this.prisma.$transaction(async (tx) => {
         const updated = await tx.plan.update({
           where: { id },
-          data: dto,
+          data: {
+            ...dto,
+          },
         });
 
         await auditPlan(tx, actorStaffId, 'plan.updated', updated.id);

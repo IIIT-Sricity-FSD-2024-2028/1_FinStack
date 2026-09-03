@@ -9,14 +9,35 @@ document.addEventListener('DOMContentLoaded', function () {
     var fileError = document.getElementById('fileError');
     var categorySelect = document.getElementById('category');
     var currentFile = null;
+    var isSubmitting = false;
+    var submitButton = document.querySelector('#expenseForm button[type="submit"]');
 
-    var categories = window.FinStackStore.getCategories().filter(function (category) {
-        return category.status === 'Active';
-    });
-    categorySelect.innerHTML = '<option value="none">Select category</option>' +
-        categories.map(function (category) {
-            return '<option value="' + category.id + '">' + category.name + '</option>';
-        }).join('');
+    function renderCategories(categories) {
+        categorySelect.innerHTML = '<option value="none">Select category</option>' +
+            categories.map(function (category) {
+                return '<option value="' + category.id + '">' + category.name + '</option>';
+            }).join('');
+        categorySelect.disabled = categories.length === 0;
+    }
+
+    function loadCategories() {
+        if (!window.FinStackTenantSession) return;
+        categorySelect.disabled = true;
+        window.FinStackTenantSession.request('/api/v1/tenant/expenses/categories')
+            .then(function (categories) {
+                renderCategories(Array.isArray(categories) ? categories : []);
+                if (!categories || categories.length === 0) {
+                    showToast('No active expense categories are available. Contact your Configuration Manager.', 'error');
+                }
+            })
+            .catch(function (error) {
+                categorySelect.innerHTML = '<option value="none">Unable to load categories</option>';
+                categorySelect.disabled = true;
+                showToast(error.message || 'Unable to load expense categories.', 'error');
+            });
+    }
+
+    loadCategories();
 
     dropzone.addEventListener('click', function () { fileInput.click(); });
     document.getElementById('selectFileBtn').addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
@@ -56,6 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('expenseForm').addEventListener('submit', function (e) {
         e.preventDefault();
+        if (isSubmitting) return;
         var errors = {};
         var amountVal = document.getElementById('amount').value;
         var merchantVal = document.getElementById('merchant').value;
@@ -85,25 +107,36 @@ document.addEventListener('DOMContentLoaded', function () {
         var flag = FinStack.randomFlag();
         var risk = FinStack.calculateRisk(flag, confidence);
 
-        var categoryLabel = cat.options[cat.selectedIndex] ? cat.options[cat.selectedIndex].text : cat.value;
-
-        var expense = window.FinStackStore.submitExpense({
+        isSubmitting = true;
+        if (submitButton) submitButton.disabled = true;
+        window.FinStackTenantSession.request('/api/v1/tenant/expenses', {
+            method: 'POST',
+            body: {
             amount: Number(amountVal),
-            category: categoryLabel,
             categoryId: cat.value,
             merchant: merchantVal.trim(),
             date: dateVal,
             notes: notesVal.trim(),
             paymentMethod: paymentMethod,
             receiptFileName: currentFile ? currentFile.name : '',
-            extraction_confidence: confidence,
+            extractionConfidence: confidence,
             flag: flag,
-            risk_score: risk
+            riskScore: risk
+            }
+        }).then(function (expense) {
+            return FinStack.reloadCanonical().then(function () { return expense; });
+        }).then(function (expense) {
+            showToast('Expense ' + expense.id + ' submitted successfully! Risk: ' + FinStack.getRiskLabel(risk), 'success');
+            resetExpenseForm();
+        }).catch(function (error) {
+            showToast(error.message || 'Unable to submit the expense.', 'error');
+        }).finally(function () {
+            isSubmitting = false;
+            if (submitButton) submitButton.disabled = false;
         });
+    });
 
-        showToast('Expense ' + expense.id + ' submitted successfully! Risk: ' + FinStack.getRiskLabel(risk), 'success');
-
-        // Reset form
+    function resetExpenseForm() {
         document.getElementById('expenseForm').reset();
         currentFile = null;
         fileInput.value = '';
@@ -115,19 +148,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var el = document.getElementById(id);
             if (el) el.style.borderColor = '';
         });
-    });
+    }
 
     document.getElementById('resetBtn').addEventListener('click', function () {
-        currentFile = null;
-        fileInput.value = '';
-        emptyState.style.display = '';
-        previewState.style.display = 'none';
-        dropzone.classList.remove('error');
-        fileError.style.display = 'none';
-        ['amount', 'merchant', 'category', 'date'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.style.borderColor = '';
-        });
+        resetExpenseForm();
     });
     });
 });

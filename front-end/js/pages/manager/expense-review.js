@@ -9,10 +9,13 @@
   var riskFilter = 'All';
   var searchQuery = '';
   var _container = null;
+  var managerQueue = [];
+  var financeOfficers = [];
+  var loadError = '';
+  var isLoading = false;
 
   function getQueue() {
-    var user = window.FinStackStore.getCurrentUser();
-    return window.FinStackStore.getManagerQueue(user ? user.employeeId : null);
+    return managerQueue.slice();
   }
 
   function getRiskLabel(score) {
@@ -26,27 +29,15 @@
   }
 
   function getEmployeeDisplay(expense) {
-    var users = window.FinStackStore && window.FinStackStore.getUsers ? window.FinStackStore.getUsers() : [];
-    var userMap = {};
-    users.forEach(function(user) {
-      userMap[user.employeeId] = user.fullName;
-    });
-    return userMap[expense.employeeId] || expense.employeeId || expense.employee || '-';
+    return expense.employee && expense.employee.fullName || expense.employeeId || '-';
   }
 
-  function getFinanceOfficers(expense) {
-    var users = window.FinStackStore && window.FinStackStore.getUsers ? window.FinStackStore.getUsers() : [];
-    return users.filter(function(user) {
-      return user &&
-        user.organizationId === expense.organizationId &&
-        user.status !== 'Inactive' &&
-        Array.isArray(user.roles) &&
-        user.roles.indexOf('finance_officer') !== -1;
-    });
+  function getFinanceOfficers() {
+    return financeOfficers.slice();
   }
 
-  function buildFinanceOfficerSelect(expense) {
-    var options = getFinanceOfficers(expense).map(function(user) {
+  function buildFinanceOfficerSelect() {
+    var options = getFinanceOfficers().map(function(user) {
       return '<option value="' + esc(user.id) + '">' + esc(user.fullName || user.employeeId) + ' (' + esc(user.employeeId) + ')</option>';
     }).join('');
 
@@ -64,11 +55,11 @@
 
   function getFilteredQueue() {
     return getQueue().filter(function(expense) {
-      var risk = getRiskLabel(expense.risk_score);
+      var risk = getRiskLabel(expense.riskScore);
       var query = searchQuery.toLowerCase();
       var matchesRisk = riskFilter === 'All' || risk === riskFilter;
       var matchesSearch = !query ||
-        String(expense.employee || '').toLowerCase().indexOf(query) !== -1 ||
+        String(getEmployeeDisplay(expense)).toLowerCase().indexOf(query) !== -1 ||
         String(expense.id || '').toLowerCase().indexOf(query) !== -1 ||
         String(expense.merchant || '').toLowerCase().indexOf(query) !== -1 ||
         String(expense.category || '').toLowerCase().indexOf(query) !== -1;
@@ -102,6 +93,22 @@
     var queue = getQueue();
     var filtered = getFilteredQueue();
 
+    if (loadError) {
+      return '' +
+        '<div class="page-padding">' +
+          '<div class="page-header"><div><h1>Expense Review</h1><p>Review and take action on pending expense requests</p></div></div>' +
+          '<div class="card"><div class="empty-state"><h3>Unable to load your review queue</h3><p>' + esc(loadError) + '</p><button class="btn" id="er-retry" type="button">Try again</button></div></div>' +
+        '</div>';
+    }
+
+    if (isLoading) {
+      return '' +
+        '<div class="page-padding">' +
+          '<div class="page-header"><div><h1>Expense Review</h1><p>Review and take action on pending expense requests</p></div></div>' +
+          '<div class="card"><div class="empty-state"><h3>Loading review queue</h3><p>Retrieving expenses assigned to you.</p></div></div>' +
+        '</div>';
+    }
+
     if (!queue.length) {
       return '' +
         '<div class="page-padding">' +
@@ -128,7 +135,7 @@
     }
 
     var rows = items.map(function(expense) {
-      var risk = getRiskLabel(expense.risk_score);
+      var risk = getRiskLabel(expense.riskScore);
       var riskClass = risk === 'High' ? 'badge-high' : risk === 'Medium' ? 'badge-medium' : 'badge-low';
       return '' +
         '<tr class="clickable" data-eid="' + expense.id + '">' +
@@ -158,7 +165,7 @@
   }
 
   function openDetailModal(expenseId) {
-    var expense = window.FinStackStore.getExpenseById(expenseId);
+    var expense = managerQueue.find(function(item) { return item.id === expenseId; });
     var root = document.getElementById('modal-root');
     if (!expense || !root) return;
 
@@ -185,16 +192,16 @@
             '</div>' +
             '<div class="detail-stack">' +
               buildDetailCard('Risk Assessment', icons.shield(20), [
-                detailRow('Risk Score', String(expense.risk_score || 0) + '/100'),
+                detailRow('Risk Score', String(expense.riskScore || 0) + '/100'),
                 detailRow('Flag', expense.flag || 'none'),
-                detailRow('OCR Confidence', String(expense.extraction_confidence || 0) + '%'),
+                detailRow('OCR Confidence', String(expense.extractionConfidence || 0) + '%'),
                 detailRow('Workflow', expense.workflowStatus || 'manager_review')
               ]) +
               '<div class="card">' +
                 '<h3 class="card-section-title mb-4" style="display:flex; align-items:center; gap:var(--sp-2);"><span style="color:var(--primary);">' + icons.messageSquare(20) + '</span> Manager Note</h3>' +
                 '<textarea class="form-textarea" id="manager-action-note" rows="4" placeholder="Add approval, return, or rejection context...">' + esc(expense.managerDecisionNote || '') + '</textarea>' +
               '</div>' +
-              buildFinanceOfficerSelect(expense) +
+              buildFinanceOfficerSelect() +
               '<div class="flex items-center justify-end gap-3" style="padding-top:var(--sp-2);">' +
                 '<button class="btn btn-secondary" id="modal-return" type="button">' + icons.arrowLeft(18) + ' Return</button>' +
                 '<button class="btn btn-danger-outline" id="modal-reject" type="button">' + icons.xCircle(18) + ' Reject</button>' +
@@ -234,37 +241,52 @@
 
     root.querySelector('#detail-backdrop').addEventListener('click', closeModal);
     root.querySelector('#detail-close').addEventListener('click', closeModal);
+    function performAction(path, body) {
+      var actionButtons = root.querySelectorAll('.modal-body button');
+      actionButtons.forEach(function(button) { button.disabled = true; });
+      window.FinStackTenantSession.request(path, { method: 'POST', body: body })
+        .then(function() {
+          return loadManagerData();
+        })
+        .then(closeModal)
+        .catch(function(error) {
+          actionButtons.forEach(function(button) { button.disabled = false; });
+          var actionError = document.getElementById('manager-action-error');
+          if (!actionError) {
+            actionError = document.createElement('p');
+            actionError.id = 'manager-action-error';
+            actionError.style.cssText = 'color:var(--danger);font-size:0.8125rem;margin:8px 0 0;';
+            root.querySelector('.modal-body').appendChild(actionError);
+          }
+          actionError.textContent = error.message || 'Unable to update the expense.';
+        });
+    }
+
     root.querySelector('#modal-approve').addEventListener('click', function() {
       var financeOfficerId = selectedFinanceOfficerId();
       if (!financeOfficerId) {
         showFinanceOfficerError();
         return;
       }
-      var result = window.FinStackStore.managerApprove(expense.id, noteValue(), financeOfficerId);
-      if (result && result.success === false) {
-        showFinanceOfficerError();
-        return;
-      }
-      if (window.FinStackStore && typeof window.FinStackStore.refresh === 'function') {
-        window.FinStackStore.refresh();
-      }
-      closeModal();
-      reRender();
+      performAction('/api/v1/tenant/expenses/' + encodeURIComponent(expense.id) + '/manager/approve', {
+        financeOfficerId: financeOfficerId,
+        note: noteValue()
+      });
     });
     root.querySelector('#modal-escalate').addEventListener('click', function() {
-      window.FinStackStore.managerEscalate(expense.id, noteValue() || 'Escalated to compliance officer for review.');
-      closeModal();
-      reRender();
+      performAction('/api/v1/tenant/expenses/' + encodeURIComponent(expense.id) + '/manager/escalate', {
+        note: noteValue() || 'Escalated to compliance officer for review.'
+      });
     });
     root.querySelector('#modal-return').addEventListener('click', function() {
-      window.FinStackStore.managerReturn(expense.id, noteValue() || 'Please clarify and resubmit this expense.');
-      closeModal();
-      reRender();
+      performAction('/api/v1/tenant/expenses/' + encodeURIComponent(expense.id) + '/manager/return', {
+        note: noteValue() || 'Please clarify and resubmit this expense.'
+      });
     });
     root.querySelector('#modal-reject').addEventListener('click', function() {
-      window.FinStackStore.managerReject(expense.id, noteValue() || 'Rejected during manager review.');
-      closeModal();
-      reRender();
+      performAction('/api/v1/tenant/expenses/' + encodeURIComponent(expense.id) + '/manager/reject', {
+        note: noteValue() || 'Rejected during manager review.'
+      });
     });
   }
 
@@ -277,6 +299,8 @@
   }
 
   function bindPageEvents(container) {
+    var retryButton = container.querySelector('#er-retry');
+    if (retryButton) retryButton.addEventListener('click', loadManagerData);
     var riskBtn = container.querySelector('#er-risk-btn');
     var riskMenu = container.querySelector('#er-risk-menu');
     if (riskBtn && riskMenu) {
@@ -326,6 +350,30 @@
     bindPageEvents(_container);
   }
 
+  function loadManagerData() {
+    loadError = '';
+    isLoading = true;
+    reRender();
+    var reload = window.FinStackStore && typeof window.FinStackStore.reloadCanonical === 'function'
+      ? window.FinStackStore.reloadCanonical()
+      : Promise.reject(new Error('Canonical manager workspace loader is unavailable.'));
+    return reload.then(function() {
+      managerQueue = window.FinStackStore.getManagerQueue();
+      financeOfficers = window.FinStackStore.getUsers().filter(function(user) {
+        return user.role === 'finance_officer' || (Array.isArray(user.roles) && user.roles.indexOf('finance_officer') !== -1);
+      });
+      isLoading = false;
+      reRender();
+    }).catch(function(error) {
+      managerQueue = [];
+      financeOfficers = [];
+      isLoading = false;
+      loadError = error.message || 'Request failed.';
+      reRender();
+      throw error;
+    });
+  }
+
   function esc(value) {
     return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   }
@@ -334,15 +382,14 @@
     autoOpenId: null,
     render: function(container) {
       _container = container;
-      window.FinStackStore.ready.then(function() {
-        riskFilter = 'All';
-        searchQuery = '';
-        reRender();
+      riskFilter = 'All';
+      searchQuery = '';
+      loadManagerData().then(function() {
         if (FinStack.reviewExpenses.autoOpenId) {
           openDetailModal(FinStack.reviewExpenses.autoOpenId);
           FinStack.reviewExpenses.autoOpenId = null;
         }
-      });
+      }).catch(function() {});
     }
   };
 })();

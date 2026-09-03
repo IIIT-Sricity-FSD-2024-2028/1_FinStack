@@ -49,4 +49,15 @@ export class CreatePlanDto {
   @Min(0)
   @Max(365)
   trialDays?: number;
+
+  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  includedEmployeeCount?: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  additionalEmployeePrice?: string;
 }

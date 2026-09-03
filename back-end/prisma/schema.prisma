@@ -23,44 +23,124 @@ enum OrganizationStatus {
   ARCHIVED
 }
 
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketCategory {
+  ACCOUNT
+  BILLING
+  SUBSCRIPTION
+  TECHNICAL
+  EXPENSE_MODULE
+  PAYMENT
+  RECONCILIATION
+  COMPLIANCE
+  OTHER
+}
+
+enum TicketMessageAuthorType {
+  TENANT_USER
+  PLATFORM_STAFF
+}
+
 model Organization {
-  id                  String             @id @default(uuid()) @db.Uuid
-  name                String             @db.VarChar(180)
-  slug                String?            @unique @db.VarChar(120)
-  primaryEmail        String             @unique @db.VarChar(320)
-  primaryContactName  String?            @db.VarChar(160)
-  primaryContactEmail String?            @db.VarChar(320)
-  billingEmail        String?            @db.VarChar(320)
-  country             String?            @db.VarChar(100)
-  defaultCurrency     String             @default("INR") @db.Char(3)
-  timezone            String?            @db.VarChar(80)
-  status              OrganizationStatus @default(PROVISIONING)
-  externalCustomerRef String?            @unique @db.VarChar(160)
-  metadata            Json?
-  statusChangedAt     DateTime?
-  suspendedAt         DateTime?
-  cancelledAt         DateTime?
-  archivedAt          DateTime?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  id                   String                     @id @default(uuid()) @db.Uuid
+  name                 String                     @db.VarChar(180)
+  slug                 String?                    @unique @db.VarChar(120)
+  primaryEmail         String                     @unique @db.VarChar(320)
+  primaryContactName   String?                    @db.VarChar(160)
+  primaryContactEmail  String?                    @db.VarChar(320)
+  billingEmail         String?                    @db.VarChar(320)
+  country              String?                    @db.VarChar(100)
+  defaultCurrency      String                     @default("INR") @db.Char(3)
+  timezone             String?                    @db.VarChar(80)
+  status               OrganizationStatus         @default(PROVISIONING)
+  externalCustomerRef  String?                    @unique @db.VarChar(160)
+  metadata             Json?
+  statusChangedAt      DateTime?
+  suspendedAt          DateTime?
+  cancelledAt          DateTime?
+  archivedAt           DateTime?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  subscriptions        OrganizationSubscription[]
+  invoices             Invoice[]
+  subscriptionPayments SubscriptionPayment[]
+  tenantUsers          TenantUser[]
+  supportTickets       SupportTicket[]
 
   @@index([status, createdAt])
   @@index([createdAt])
 }
 
+enum TenantUserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TenantRole {
+  CONFIGURATION_MANAGER
+  EXPENSE_SUBMITTER
+  MANAGER
+  FINANCE_OFFICER
+  COMPLIANCE_OFFICER
+}
+
+model TenantUser {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  employeeId     String           @db.VarChar(80)
+  firstName      String           @db.VarChar(100)
+  lastName       String           @db.VarChar(100)
+  email          String           @db.VarChar(320)
+  passwordHash   String           @db.VarChar(255)
+  role           TenantRole       @default(EXPENSE_SUBMITTER)
+  status         TenantUserStatus @default(ACTIVE)
+  department     String           @default("General") @db.VarChar(120)
+  managerId      String?          @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager        TenantUser?      @relation("TenantUserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports  TenantUser[]     @relation("TenantUserManager")
+
+  @@unique([organizationId, email])
+  @@unique([organizationId, employeeId])
+  @@index([organizationId, status])
+  @@index([organizationId, managerId])
+}
+
 model PlatformStaff {
-  id            String                @id @default(uuid()) @db.Uuid
-  firstName     String                @db.VarChar(100)
-  lastName      String                @db.VarChar(100)
-  email         String                @unique @db.VarChar(320)
-  passwordHash  String                @db.VarChar(255)
-  status        PlatformStaffStatus   @default(ACTIVE)
-  lastLoginAt   DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  roles         PlatformStaffRole[]   @relation("PlatformStaffRoles")
-  assignedRoles PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
-  authSessions  PlatformAuthSession[]
+  id                         String                @id @default(uuid()) @db.Uuid
+  firstName                  String                @db.VarChar(100)
+  lastName                   String                @db.VarChar(100)
+  email                      String                @unique @db.VarChar(320)
+  passwordHash               String                @db.VarChar(255)
+  status                     PlatformStaffStatus   @default(ACTIVE)
+  lastLoginAt                DateTime?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+  roles                      PlatformStaffRole[]   @relation("PlatformStaffRoles")
+  assignedRoles              PlatformStaffRole[]   @relation("PlatformStaffRoleAssigner")
+  authSessions               PlatformAuthSession[]
+  subscriptionHistoryEntries SubscriptionHistory[] @relation("SubscriptionHistoryActor")
+  ticketMessages             TicketMessage[]       @relation("TicketMessageStaffAuthor")
+  ticketNotes                TicketInternalNote[]  @relation("TicketInternalNoteStaff")
+  ticketStatuses             TicketStatusHistory[] @relation("TicketStatusChangedByStaff")
 
   @@index([status, createdAt])
 }
@@ -152,18 +232,22 @@ enum FeatureValueType {
 }
 
 model Plan {
-  id              String          @id @default(uuid()) @db.Uuid
-  key             String          @unique @db.VarChar(100)
-  name            String          @unique @db.VarChar(150)
-  description     String?         @db.Text
-  status          PlanStatus      @default(ACTIVE)
-  billingInterval BillingInterval
-  basePrice       Decimal         @db.Decimal(18, 4)
-  currency        String          @default("INR") @db.Char(3)
-  trialDays       Int?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  planFeatures    PlanFeature[]
+  id                      String                     @id @default(uuid()) @db.Uuid
+  key                     String                     @unique @db.VarChar(100)
+  name                    String                     @unique @db.VarChar(150)
+  description             String?                    @db.Text
+  status                  PlanStatus                 @default(ACTIVE)
+  billingInterval         BillingInterval
+  basePrice               Decimal                    @db.Decimal(18, 4)
+  currency                String                     @default("INR") @db.Char(3)
+  trialDays               Int?
+  includedEmployeeCount   Int                        @default(1)
+  additionalEmployeePrice Decimal                    @default(0) @db.Decimal(18, 4)
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  planFeatures            PlanFeature[]
+  subscriptions           OrganizationSubscription[]
+  invoices                Invoice[]
 
   @@index([status])
   @@index([billingInterval])
@@ -185,18 +269,207 @@ model Feature {
 }
 
 model PlanFeature {
-  id        String   @id @default(uuid()) @db.Uuid
-  planId    String   @db.Uuid
-  featureId String   @db.Uuid
-  enabled   Boolean  @default(true)
-  value     Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  feature   Feature  @relation(fields: [featureId], references: [id], onDelete: Restrict)
+  id         String   @id @default(uuid()) @db.Uuid
+  planId     String   @db.Uuid
+  featureId  String   @db.Uuid
+  enabled    Boolean  @default(true)
+  isAddOn    Boolean  @default(false)
+  addOnPrice Decimal  @default(0) @db.Decimal(18, 4)
+  value      Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Restrict)
 
   @@unique([planId, featureId])
   @@index([featureId])
+}
+
+// ============================================================
+// SUBSCRIPTIONS AND BILLING
+// ============================================================
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  TRIAL
+  ACTIVE
+  EXPIRING
+  GRACE_PERIOD
+  SUSPENDED
+  CANCELLED
+}
+
+enum SubscriptionHistoryAction {
+  ASSIGNED
+  PAYMENT_ACTIVATED
+  PLAN_CHANGE_REQUESTED
+  PLAN_CHANGED
+  RENEWED
+  CANCELLED
+  REACTIVATED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum InvoiceBillingReason {
+  INITIAL
+  PLAN_CHANGE
+  RENEWAL
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProviderEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+model OrganizationSubscription {
+  id                  String                @id @default(uuid()) @db.Uuid
+  organizationId      String                @db.Uuid
+  planId              String                @db.Uuid
+  status              SubscriptionStatus
+  billingInterval     BillingInterval
+  currency            String                @db.Char(3)
+  priceAtSubscription Decimal               @db.Decimal(18, 4)
+  employeeCount       Int                   @default(1)
+  employeeAmount      Decimal               @default(0) @db.Decimal(18, 4)
+  featureAmount       Decimal               @default(0) @db.Decimal(18, 4)
+  selectedAddOns      Json?
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  trialStartAt        DateTime?
+  trialEndAt          DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan                Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  history             SubscriptionHistory[]
+  invoices            Invoice[]
+  payments            SubscriptionPayment[]
+
+  @@index([organizationId, status])
+  @@index([planId])
+  @@index([status, currentPeriodEnd])
+  @@index([createdAt])
+}
+
+model SubscriptionHistory {
+  id             String                    @id @default(uuid()) @db.Uuid
+  subscriptionId String                    @db.Uuid
+  action         SubscriptionHistoryAction
+  previousStatus SubscriptionStatus?
+  newStatus      SubscriptionStatus?
+  previousPlanId String?                   @db.Uuid
+  newPlanId      String?                   @db.Uuid
+  actorStaffId   String?                   @db.Uuid
+  note           String?                   @db.Text
+  metadata       Json?
+  createdAt      DateTime                  @default(now())
+  subscription   OrganizationSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  actorStaff     PlatformStaff?            @relation("SubscriptionHistoryActor", fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([subscriptionId, createdAt])
+  @@index([actorStaffId])
+}
+
+model Invoice {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  invoiceNumber      String                   @unique @db.VarChar(40)
+  idempotencyKey     String                   @unique @db.VarChar(180)
+  organizationId     String                   @db.Uuid
+  subscriptionId     String                   @db.Uuid
+  planId             String                   @db.Uuid
+  billingReason      InvoiceBillingReason
+  status             InvoiceStatus            @default(PENDING)
+  subtotal           Decimal                  @db.Decimal(18, 4)
+  taxAmount          Decimal                  @default(0) @db.Decimal(18, 4)
+  totalAmount        Decimal                  @db.Decimal(18, 4)
+  employeeCount      Int                      @default(1)
+  employeeAmount     Decimal                  @default(0) @db.Decimal(18, 4)
+  featureAmount      Decimal                  @default(0) @db.Decimal(18, 4)
+  selectedAddOns     Json?
+  currency           String                   @db.Char(3)
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+  issueDate          DateTime                 @default(now())
+  dueDate            DateTime
+  paidAt             DateTime?
+  voidedAt           DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription       OrganizationSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  plan               Plan                     @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments           SubscriptionPayment[]
+
+  @@index([organizationId, status])
+  @@index([subscriptionId, createdAt])
+  @@index([planId])
+  @@index([status, dueDate])
+}
+
+model SubscriptionPayment {
+  id                String                    @id @default(uuid()) @db.Uuid
+  organizationId    String                    @db.Uuid
+  invoiceId         String                    @db.Uuid
+  subscriptionId    String                    @db.Uuid
+  amount            Decimal                   @db.Decimal(18, 4)
+  currency          String                    @db.Char(3)
+  status            SubscriptionPaymentStatus @default(PENDING)
+  provider          String                    @db.VarChar(50)
+  providerOrderId   String                    @unique @db.VarChar(160)
+  providerReference String?                   @unique @db.VarChar(160)
+  paymentMethod     String?                   @db.VarChar(80)
+  failureCode       String?                   @db.VarChar(120)
+  failureReason     String?                   @db.VarChar(500)
+  paidAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invoice           Invoice                   @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  subscription      OrganizationSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  providerEvents    PaymentProviderEvent[]
+
+  @@index([organizationId, status])
+  @@index([invoiceId])
+  @@index([subscriptionId, createdAt])
+  @@index([status, paidAt])
+}
+
+model PaymentProviderEvent {
+  id                    String                     @id @default(uuid()) @db.Uuid
+  provider              String                     @db.VarChar(50)
+  eventId               String                     @db.VarChar(180)
+  eventType             String                     @db.VarChar(120)
+  providerOrderId       String?                    @db.VarChar(160)
+  providerReference     String?                    @db.VarChar(160)
+  subscriptionPaymentId String?                    @db.Uuid
+  status                PaymentProviderEventStatus @default(RECEIVED)
+  payload               Json?
+  failureReason         String?                    @db.VarChar(500)
+  receivedAt            DateTime                   @default(now())
+  processedAt           DateTime?
+  subscriptionPayment   SubscriptionPayment?       @relation(fields: [subscriptionPaymentId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, eventId])
+  @@index([providerOrderId])
+  @@index([providerReference])
+  @@index([subscriptionPaymentId])
+  @@index([receivedAt])
 }
 
 // ============================================================
@@ -220,4 +493,80 @@ model PlatformAuditLog {
   @@index([resourceType, resourceId])
   @@index([action])
   @@index([createdAt])
+}
+
+model SupportTicket {
+  id              String                @id @default(uuid()) @db.Uuid
+  ticketNumber    String                @unique @db.VarChar(40)
+  organizationId  String                @db.Uuid
+  requesterUserId String?               @db.Uuid
+  requesterName   String?               @db.VarChar(160)
+  requesterEmail  String?               @db.VarChar(320)
+  category        TicketCategory
+  priority        TicketPriority
+  subject         String                @db.VarChar(200)
+  description     String                @db.Text
+  status          TicketStatus          @default(OPEN)
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  messages        TicketMessage[]
+  internalNotes   TicketInternalNote[]
+  statusHistory   TicketStatusHistory[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id            String                  @id @default(uuid()) @db.Uuid
+  ticketId      String                  @db.Uuid
+  authorType    TicketMessageAuthorType
+  authorUserId  String?                 @db.Uuid
+  authorStaffId String?                 @db.Uuid
+  message       String                  @db.Text
+  createdAt     DateTime                @default(now())
+  ticket        SupportTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorStaff   PlatformStaff?          @relation("TicketMessageStaffAuthor", fields: [authorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([authorStaffId])
+  @@index([authorUserId])
+}
+
+model TicketInternalNote {
+  id        String        @id @default(uuid()) @db.Uuid
+  ticketId  String        @db.Uuid
+  staffId   String        @db.Uuid
+  note      String        @db.Text
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staff     PlatformStaff @relation("TicketInternalNoteStaff", fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@index([staffId])
+}
+
+model TicketStatusHistory {
+  id               String         @id @default(uuid()) @db.Uuid
+  ticketId         String         @db.Uuid
+  previousStatus   TicketStatus?
+  newStatus        TicketStatus
+  changedByStaffId String?        @db.Uuid
+  changedByUserId  String?        @db.Uuid
+  note             String?        @db.Text
+  createdAt        DateTime       @default(now())
+  ticket           SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedByStaff   PlatformStaff? @relation("TicketStatusChangedByStaff", fields: [changedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([newStatus])
+  @@index([changedByStaffId])
+  @@index([changedByUserId])
 }

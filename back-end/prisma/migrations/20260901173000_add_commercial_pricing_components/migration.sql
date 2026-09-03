@@ -1,0 +1,7 @@
+ALTER TABLE "Plan" ADD COLUMN "includedEmployeeCount" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Plan" ADD COLUMN "additionalEmployeePrice" DECIMAL(18,4) NOT NULL DEFAULT 0;
+ALTER TABLE "PlanFeature" ADD COLUMN "isAddOn" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "PlanFeature" ADD COLUMN "addOnPrice" DECIMAL(18,4) NOT NULL DEFAULT 0;
+ALTER TABLE "OrganizationSubscription" ADD COLUMN "employeeCount" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "OrganizationSubscription" ADD COLUMN "employeeAmount" DECIMAL(18,4) NOT NULL DEFAULT 0;
+ALTER TABLE "OrganizationSubscription" ADD COLUMN "featureAmount" DECIMAL(18,4) NOT NULL DEFAULT 0;

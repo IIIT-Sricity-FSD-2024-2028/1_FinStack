@@ -162,7 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function() {
-        sessionStorage.removeItem('finstackUserSession');
+        if (window.FinStackGuard) window.FinStackGuard.clearSession();
+        else sessionStorage.removeItem('finstackUserSession');
         window.location.href = '../../login.html?role=expense_submitter';
       });
     }

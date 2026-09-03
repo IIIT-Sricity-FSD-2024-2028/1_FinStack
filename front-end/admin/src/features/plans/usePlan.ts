@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { platformCatalogApi } from '../../services/api/platform-catalog';
-import { Plan } from '../../types/catalog';
+import { Plan, PlanFeatureMutation } from '../../types/catalog';
 
 interface PlanState {
   data: Plan | null;
@@ -68,7 +68,7 @@ export function usePlan(id: string) {
     }
   };
 
-  const assignFeature = async (data: { featureId: string; enabled?: boolean; value?: unknown }) => {
+  const assignFeature = async (data: { featureId: string } & PlanFeatureMutation) => {
     setIsAssigning(true);
     try {
       await platformCatalogApi.assignFeature(id, data);
@@ -78,7 +78,7 @@ export function usePlan(id: string) {
     }
   };
 
-  const updateFeature = async (data: { featureId: string; payload: { enabled?: boolean; value?: unknown } }) => {
+  const updateFeature = async (data: { featureId: string; payload: PlanFeatureMutation }) => {
     setIsUpdatingFeature(true);
     try {
       await platformCatalogApi.updatePlanFeature(id, data.featureId, data.payload);

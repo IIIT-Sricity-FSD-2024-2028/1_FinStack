@@ -7,6 +7,8 @@ export interface PlanFeature {
   planId: string;
   featureId: string;
   enabled: boolean;
+  isAddOn: boolean;
+  addOnPrice: string;
   value: unknown;
   createdAt: string;
   updatedAt: string;
@@ -24,9 +26,30 @@ export interface Plan {
   basePrice: string;
   currency: string;
   trialDays: number | null;
+  includedEmployeeCount: number;
+  additionalEmployeePrice: string;
   createdAt: string;
   updatedAt: string;
   planFeatures?: PlanFeature[];
+}
+
+export interface PlanMutation {
+  key?: string;
+  name?: string;
+  description?: string | null;
+  billingInterval?: BillingInterval;
+  basePrice?: string;
+  currency?: string;
+  trialDays?: number | null;
+  includedEmployeeCount?: number;
+  additionalEmployeePrice?: string;
+}
+
+export interface PlanFeatureMutation {
+  enabled?: boolean;
+  isAddOn?: boolean;
+  addOnPrice?: string;
+  value?: unknown;
 }
 
 export interface Feature {

@@ -12,6 +12,10 @@ export class TransactionsRepository {
     return transaction ? clone(transaction) : null;
   }
 
+  findByExpenseId(expenseId: string): TransactionRecord[] {
+    return clone(store.transactions.filter((item) => item.expenseId === expenseId));
+  }
+
   create(data: Omit<TransactionRecord, 'id' | 'createdAt' | 'updatedAt'>): TransactionRecord {
     const timestamp = nowIso();
     const transaction: TransactionRecord = { id: createId(), ...data, createdAt: timestamp, updatedAt: timestamp };

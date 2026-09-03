@@ -14,6 +14,8 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
 import { PlatformModule } from './platform/platform.module';
 import { platformRoutes } from './platform/platform.routes';
+import { TenantModule } from './tenant/tenant.module';
+import { tenantRoutes } from './tenant/tenant.routes';
 
 @Module({
   imports: [
@@ -31,7 +33,8 @@ import { platformRoutes } from './platform/platform.routes';
     ReportsModule,
     DashboardModule,
     PlatformModule,
-    RouterModule.register(platformRoutes),
+    TenantModule,
+    RouterModule.register([...platformRoutes, ...tenantRoutes]),
   ],
   providers: [
     {

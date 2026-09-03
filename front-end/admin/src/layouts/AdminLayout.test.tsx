@@ -35,4 +35,23 @@ describe('AdminLayout access navigation', () => {
     expect(screen.getByRole('link', { name: 'Roles' })).toBeVisible();
   });
 
+  it('shows commercial navigation only with its view permissions', () => {
+    renderLayout(['subscription.subscription.view']);
+    expect(screen.getByRole('link', { name: 'Subscriptions' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Billing & revenue' })).not.toBeInTheDocument();
+    cleanup();
+    renderLayout(['billing.revenue.view']);
+    expect(screen.queryByRole('link', { name: 'Subscriptions' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Billing & revenue' })).toBeVisible();
+  });
+
+  it('renders only populated navigation groups for a limited actor', () => {
+    renderLayout(['platform.organization.view']);
+    expect(screen.getByText('Overview')).toBeVisible();
+    expect(screen.getByText('Organizations', { selector: '.nav-group-label' })).toBeVisible();
+    expect(screen.queryByText('People & access')).not.toBeInTheDocument();
+    expect(screen.queryByText('Product & pricing')).not.toBeInTheDocument();
+    expect(screen.queryByText('Commercial')).not.toBeInTheDocument();
+  });
+
 });

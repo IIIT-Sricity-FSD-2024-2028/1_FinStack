@@ -35,6 +35,10 @@ function renderSidebar() {
         <i data-lucide="shield" style="width:20px;height:20px;"></i>
         <span class="sidebar-item-text">Roles & Access</span>
       </a>
+      <a href="subscription.html" class="sidebar-item">
+        <i data-lucide="credit-card" style="width:20px;height:20px;"></i>
+        <span class="sidebar-item-text">Subscription</span>
+      </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-title">Expense Config</div>
@@ -83,10 +87,6 @@ function renderTopnav(breadcrumb) {
     <div class="topnav-brand" style="font-size:1rem;font-weight:600;color:var(--text-primary);white-space:nowrap;">FinStack Workspace</div>
   </div>
   <div class="topnav-right">
-    <div class="topnav-search">
-      <i data-lucide="search" class="search-icon" style="width:16px;height:16px;"></i>
-      <input type="text" placeholder="Search...">
-    </div>
     <div class="dropdown">
       <button class="topnav-icon-btn" id="notif-btn" aria-label="Notifications">
         <i data-lucide="bell" style="width:20px;height:20px;"></i>
@@ -143,7 +143,7 @@ function initLayout(breadcrumb) {
   /* Intercept logout links to clear session */
   function handleLogout(e) {
     e.preventDefault();
-    sessionStorage.removeItem('finstackUserSession');
+    if (window.FinStackGuard) window.FinStackGuard.clearSession();
     window.location.href = '../../login.html';
   }
 
@@ -540,19 +540,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (link.style.color === 'var(--red)' || link.textContent.trim().toLowerCase().includes('logout')) {
       link.addEventListener('click', function (e) {
         e.preventDefault();
-        sessionStorage.removeItem('finstackUserSession');
+        if (window.FinStackGuard) window.FinStackGuard.clearSession();
         window.location.href = '../../login.html';
       });
     }
   });
 
-  /* Wait for FinStackStore */
-  if (typeof window.FinStackStore === 'undefined') return;
-  window.FinStackStore.ready.then(function () {
-    renderConfigNotifDropdown();
-    loadPendingRequests();
+  if (window.FinStackTenantSession && window.FinStackTenantSession.isTenantAuthenticated()) {
     loadDashboardMetrics();
-  });
+  }
 });
 
 function loadPendingRequests() {
@@ -618,6 +614,26 @@ function rejectRequest(requestId) {
 }
 
 function loadDashboardMetrics() {
+  if (window.FinStackTenantSession && window.FinStackTenantSession.isTenantAuthenticated()) {
+    window.FinStackTenantSession.request('/api/v1/tenant/subscription')
+      .then(function (payload) {
+        var subscription = payload;
+        if (!subscription || !subscription.plan) return;
+        var labels = document.querySelectorAll('.metric-label');
+        var values = document.querySelectorAll('.metric-value');
+        if (labels[0]) labels[0].textContent = 'Organization';
+        if (values[0]) values[0].textContent = subscription.organization.name;
+        if (labels[1]) labels[1].textContent = 'Current Plan';
+        if (values[1]) values[1].textContent = subscription.plan.name;
+        if (labels[2]) labels[2].textContent = 'Recurring Price';
+        if (values[2]) values[2].textContent = subscription.currency + ' ' + subscription.priceAtSubscription;
+        if (labels[3]) labels[3].textContent = 'Employee Seats';
+        if (values[3]) values[3].textContent = String(subscription.employeeCount);
+      })
+      .catch(function (error) {
+        if (error && error.code === 'TENANT_SESSION_EXPIRED') return;
+      });
+  }
   /* Dynamic metrics from store */
   var state = window.FinStackStore.getState();
   var expenses = state.expenses || [];
@@ -717,4 +733,82 @@ function loadRecentActivity() {
       '<td style="color:var(--text-secondary);font-size:0.8rem;white-space:nowrap;">' + timeAgo + '</td>' +
     '</tr>';
   }).join('');
+}
+
+// The configuration dashboard reports only canonical tenant configuration data.
+loadDashboardMetrics = function () {
+  document.querySelectorAll('.metric-change').forEach(function (node) { node.style.display = 'none'; });
+  document.querySelectorAll('.metric-value').forEach(function (node) { node.textContent = '—'; });
+  document.querySelectorAll('h2').forEach(function (heading) {
+    if (heading.textContent === 'Recent Activity' || heading.textContent === 'Active Alerts') {
+      var card = heading.closest('.card');
+      if (card) card.style.display = 'none';
+    }
+  });
+  window.FinStackTenantSession.request('/api/v1/tenant/subscription')
+    .then(function (subscription) {
+      if (!subscription || !subscription.plan || !subscription.organization) return;
+      var values = document.querySelectorAll('.metric-value');
+      var purchasedSeats = Number(subscription.employeeCount);
+      var includedSeats = Number(subscription.plan.includedEmployeeCount);
+      var seatsAvailable = Number.isFinite(purchasedSeats) && Number.isFinite(includedSeats);
+      var periodText = subscription.status === 'TRIAL'
+        ? (subscription.trialEndAt ? 'Trial ends ' + formatDashboardDate(subscription.trialEndAt) : 'Trial end not available')
+        : (subscription.currentPeriodEnd ? 'Current period ends ' + formatDashboardDate(subscription.currentPeriodEnd) : 'Billing period end not available');
+
+      if (values[0]) values[0].textContent = subscription.organization.name;
+      if (values[1]) values[1].textContent = subscription.status;
+      if (values[2]) values[2].textContent = formatDashboardMoney(subscription.priceAtSubscription, subscription.currency) + ' / ' + formatBillingInterval(subscription.billingInterval);
+      if (values[3]) values[3].textContent = seatsAvailable ? purchasedSeats + ' purchased' : 'Not available';
+
+      setDashboardDetail('organization', subscription.plan.name + ' plan');
+      setDashboardDetail('subscription', periodText);
+      setDashboardDetail('price', subscription.plan.name + ' recurring total');
+      setDashboardDetail(
+        'seats',
+        seatsAvailable
+          ? includedSeats + ' included \u00b7 ' + Math.max(0, purchasedSeats - includedSeats) + ' additional'
+          : 'Seat allowance not available',
+      );
+      ['pending-requests-section', 'recent-activity-section', 'budget-alerts-section'].forEach(function (id) {
+        var section = document.getElementById(id);
+        if (section) section.style.display = 'none';
+      });
+    })
+    .catch(function () {});
+};
+
+function setDashboardDetail(name, value) {
+  var node = document.querySelector('[data-dashboard-detail="' + name + '"]');
+  if (node) node.textContent = value;
+}
+
+function formatDashboardMoney(amount, currency) {
+  var numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return 'Not available';
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+      maximumFractionDigits: 2,
+    }).format(numeric);
+  } catch (error) {
+    return String(currency || '') + ' ' + String(amount);
+  }
+}
+
+function formatDashboardDate(value) {
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatBillingInterval(interval) {
+  if (interval === 'MONTHLY') return 'month';
+  if (interval === 'YEARLY' || interval === 'ANNUAL') return 'year';
+  return String(interval || 'recurring').toLowerCase();
 }
