@@ -36,9 +36,9 @@ const FALLBACK_VIOLATIONS = [
     detectedTime: '10:15 AM',
     status: 'Open',
     description: 'Travel claim exceeded the approved trip cap and the attached itinerary does not justify the excess amount.',
-    expenseId: 'EXP-DEMO-1',
-    employee: 'Demo User',
-    merchant: 'Demo Merchant',
+    expenseId: '',
+    employee: '',
+    merchant: '',
     riskScore: 82,
   }
 ];
@@ -70,7 +70,7 @@ function writeSharedState(state) {
 
 function getComplianceUser(state) {
   return (state?.users || []).find(user => (user.roles || []).includes('compliance_officer')) || {
-    employeeId: 'CMP-2001',
+    employeeId: '',
     fullName: 'Compliance Officer',
     roles: ['compliance_officer']
   };
@@ -135,7 +135,7 @@ function addNotification(state, payload) {
 
 function deriveViolationsFromState(state) {
   if (!state || !Array.isArray(state.expenses)) {
-    return FALLBACK_VIOLATIONS.slice();
+    return [];
   }
 
   const policies = Array.isArray(state.policies) ? state.policies : [];
@@ -307,6 +307,20 @@ function updateExpenseInSharedState(expenseId, updater) {
 window.handleViolationAction = function(type) {
   if (!selectedViolation) return;
   const expenseId = selectedViolation.expenseId;
+  try {
+    const result = type === 'approve'
+      ? window.FinStackStore.complianceApprove(expenseId, 'Approved by compliance officer. Forwarded to finance.')
+      : window.FinStackStore.complianceReject(expenseId, 'Rejected by compliance officer after review.');
+    if (!result) throw new Error('Unable to update this compliance case.');
+    syncViolations();
+    renderViolationsTable();
+    selectedViolation = null;
+    closePanel('violation-panel');
+    Toast.success(type === 'approve' ? 'Exception approved' : 'Expense rejected');
+  } catch (error) {
+    Toast.error(error && error.message ? error.message : 'Unable to update this compliance case.');
+  }
+  return;
   const success = updateExpenseInSharedState(expenseId, (state, expense) => {
     const complianceUser = getComplianceUser(state);
     if (type === 'approve') {
@@ -318,7 +332,7 @@ window.handleViolationAction = function(type) {
       expense.history = Array.isArray(expense.history) ? expense.history : [];
       expense.history.push(createHistoryEntry('compliance_approved', 'Compliance Approved — Sent to Finance', expense.complianceDecisionNote));
       addNotification(state, {
-        recipientEmployeeId: 'FIN-2001',
+        recipientEmployeeId: expense.assignedFinanceOfficerId || '',
         recipientRole: 'finance_officer',
         title: 'Compliance-Reviewed Expense Ready',
         message: `${expense.id} from ${expense.employee} has been approved by compliance and is now in your finance review queue.`,
@@ -369,6 +383,19 @@ window.handleViolationAction = function(type) {
 window.handleCorrectiveAction = function(action) {
   if (!selectedViolation) return;
   const expenseId = selectedViolation.expenseId;
+  try {
+    const result = window.FinStackStore.complianceCorrectiveAction(expenseId, action);
+    if (!result) throw new Error('Unable to start corrective action for this case.');
+    syncViolations();
+    selectedViolation = violations.find(v => v.expenseId === expenseId) || null;
+    showCorrectiveOptions = false;
+    renderViolationsTable();
+    if (selectedViolation) renderViolationPanel();
+    Toast.success(`Action initiated: ${action}`);
+  } catch (error) {
+    Toast.error(error && error.message ? error.message : 'Unable to start corrective action for this case.');
+  }
+  return;
   const success = updateExpenseInSharedState(expenseId, (state, expense) => {
     const complianceUser = getComplianceUser(state);
     expense.complianceDecision = 'Corrective Action';
@@ -393,18 +420,25 @@ window.handleCorrectiveAction = function(action) {
 };
 
 function syncViolations() {
-  violations = deriveViolationsFromState(readSharedState());
+  const state = window.FinStackStore ? window.FinStackStore.getState() : null;
+  violations = deriveViolationsFromState(state);
 }
 
 function initCompliance() {
-  try {
+  if (!window.FinStackStore || !window.FinStackStore.ready) {
+    violations = [];
+    renderViolationsTable();
+    Toast.error('Unable to load compliance cases.');
+    return;
+  }
+  window.FinStackStore.ready.then(function() {
     syncViolations();
     renderViolationsTable();
-  } catch (error) {
-    violations = FALLBACK_VIOLATIONS.slice();
+  }).catch(function() {
+    violations = [];
     renderViolationsTable();
-    Toast.warning('Loaded fallback compliance data.');
-  }
+    Toast.error('Unable to load compliance cases.');
+  });
 }
 
 window.initCompliance = initCompliance;

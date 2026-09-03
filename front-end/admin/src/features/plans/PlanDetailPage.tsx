@@ -33,6 +33,8 @@ export const PlanDetailPage: React.FC = () => {
   const [selectedFeatureId, setSelectedFeatureId] = useState('');
   const [assignValue, setAssignValue] = useState('');
   const [assignEnabled, setAssignEnabled] = useState(true);
+  const [assignIsAddOn, setAssignIsAddOn] = useState(false);
+  const [assignAddOnPrice, setAssignAddOnPrice] = useState('0');
   const [assignError, setAssignError] = useState<string | null>(null);
 
   if (isLoading) {
@@ -77,10 +79,22 @@ export const PlanDetailPage: React.FC = () => {
     }
 
     try {
-      await assignFeature({ featureId: selectedFeatureId, enabled: assignEnabled, value: parsedValue });
+      if (assignIsAddOn && (!Number.isFinite(Number(assignAddOnPrice)) || Number(assignAddOnPrice) < 0)) {
+        setAssignError('Add-on price must be zero or greater.');
+        return;
+      }
+      await assignFeature({
+        featureId: selectedFeatureId,
+        enabled: assignEnabled,
+        isAddOn: assignIsAddOn,
+        addOnPrice: assignIsAddOn ? assignAddOnPrice : '0',
+        value: parsedValue,
+      });
       setSelectedFeatureId('');
       setAssignValue('');
       setAssignEnabled(true);
+      setAssignIsAddOn(false);
+      setAssignAddOnPrice('0');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: { message?: string } } } };
       setAssignError(e.response?.data?.error?.message || 'Failed to assign feature');
@@ -178,7 +192,7 @@ export const PlanDetailPage: React.FC = () => {
         </div>
       ) : (
         <div className="status-card" style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '24px' }}>
             <div>
               <p className="eyebrow">Billing Interval</p>
               <p>{formatBillingInterval(plan.billingInterval)}</p>
@@ -190,6 +204,14 @@ export const PlanDetailPage: React.FC = () => {
             <div>
               <p className="eyebrow">Trial Days</p>
               <p>{plan.trialDays ? `${plan.trialDays} days` : 'None'}</p>
+            </div>
+            <div>
+              <p className="eyebrow">Included Employee Seats</p>
+              <p>{plan.includedEmployeeCount}</p>
+            </div>
+            <div>
+              <p className="eyebrow">Additional Employee Price</p>
+              <p>{formatPrice(plan.additionalEmployeePrice, plan.currency)} / employee / {plan.billingInterval === 'YEARLY' ? 'year' : 'month'}</p>
             </div>
             <div>
               <p className="eyebrow">Description</p>
@@ -265,15 +287,30 @@ export const PlanDetailPage: React.FC = () => {
             </div>
 
             {selectedFeatureId && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'row', marginTop: '12px' }}>
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto', minHeight: 'auto' }}
-                  checked={assignEnabled}
-                  onChange={(e) => setAssignEnabled(e.target.checked)}
-                />
-                <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--color-text)' }}>Enabled</span>
-              </label>
+              <div className="form-grid" style={{ marginTop: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'row' }}>
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto', minHeight: 'auto' }}
+                    checked={assignEnabled}
+                    onChange={(e) => setAssignEnabled(e.target.checked)}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--color-text)' }}>Enabled</span>
+                </label>
+                <label>
+                  Access Type
+                  <select value={assignIsAddOn ? 'ADD_ON' : 'INCLUDED'} onChange={(e) => setAssignIsAddOn(e.target.value === 'ADD_ON')}>
+                    <option value="INCLUDED">Included</option>
+                    <option value="ADD_ON">Paid Add-on</option>
+                  </select>
+                </label>
+                {assignIsAddOn && (
+                  <label>
+                    Add-on Price ({plan.currency})
+                    <input type="number" min="0" step="0.01" value={assignAddOnPrice} onChange={(e) => setAssignAddOnPrice(e.target.value)} required />
+                  </label>
+                )}
+              </div>
             )}
 
             {assignError && (
@@ -304,6 +341,8 @@ export const PlanDetailPage: React.FC = () => {
                 <th>Name</th>
                 <th>Enabled</th>
                 <th>Value</th>
+                <th>Access Type</th>
+                <th>Add-on Price</th>
                 <th>Assigned Date</th>
                 <PermissionGate permission="subscription.plan.manage">
                   <th style={{ textAlign: 'right' }}>Actions</th>
@@ -319,6 +358,8 @@ export const PlanDetailPage: React.FC = () => {
                   isUpdatingFeature={isUpdatingFeature}
                   removeFeature={removeFeature}
                   isRemovingFeature={isRemovingFeature}
+                  currency={plan.currency}
+                  billingInterval={plan.billingInterval}
                 />
               ))}
             </tbody>

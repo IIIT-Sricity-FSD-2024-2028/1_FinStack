@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var pricePreview = document.getElementById("reg-price-preview");
   var addOnOptions = document.getElementById("reg-addon-options");
   var plans = [];
+  var quoteTimer = null;
 
   var base =
     window.FinStackApi && window.FinStackApi.baseUrl
@@ -88,37 +89,22 @@ document.addEventListener("DOMContentLoaded", function () {
         pricePreview.style.display = "block";
 
         pricePreview.innerHTML =
-          "<strong>Estimated recurring price</strong>" +
-          "<div style='margin-top:8px'>" +
-          "Base " +
-          quote.currency +
-          " " +
-          quote.baseAmount +
-          " + employees " +
-          quote.currency +
-          " " +
-          quote.employeeAmount +
-          " + add-ons " +
-          quote.currency +
-          " " +
-          quote.featureAmount +
-          " = <strong>" +
-          quote.currency +
-          " " +
-          quote.totalAmount +
-          "</strong> / " +
-          quote.billingInterval.toLowerCase() +
-          "</div>" +
-          "<div style='font-size:.75rem;margin-top:6px;color:var(--text-secondary)'>" +
-          "Included employees: " +
-          quote.includedEmployees +
-          "; additional employees: " +
-          quote.additionalEmployees +
-          "</div>";
+          "<strong>Server-calculated recurring quote</strong>" +
+          "<div style='margin-top:8px;display:grid;gap:4px'>" +
+          "<div>Base plan <span style='float:right'>" + quote.currency + " " + quote.baseAmount + "</span></div>" +
+          "<div>Additional employees <span style='float:right'>" + quote.currency + " " + quote.employeeAmount + "</span></div>" +
+          "<div>Paid add-ons <span style='float:right'>" + quote.currency + " " + quote.featureAmount + "</span></div>" +
+          "<div style='margin-top:5px;padding-top:5px;border-top:1px solid var(--border-default)'><strong>Total <span style='float:right'>" + quote.currency + " " + quote.totalAmount + " / " + quote.billingInterval.toLowerCase() + "</span></strong></div></div>" +
+          "<div style='font-size:.75rem;margin-top:8px;color:var(--text-secondary)'>Included seats: " + quote.includedEmployees + "; requested: " + quote.employeeCount + "; additional billable: " + quote.additionalEmployees + "</div>";
       })
       .catch(function () {
         pricePreview.style.display = "none";
       });
+  }
+
+  function scheduleQuote() {
+    window.clearTimeout(quoteTimer);
+    quoteTimer = window.setTimeout(refreshQuote, 250);
   }
 
   window.toggleRegPw = function (id) {
@@ -174,14 +160,19 @@ document.addEventListener("DOMContentLoaded", function () {
               return feature.isAddOn;
             })
           : [];
+        var included = plan
+          ? plan.features.filter(function (feature) { return !feature.isAddOn; })
+          : [];
 
         if (addOnOptions) {
-          addOnOptions.style.display = addOns.length
+          addOnOptions.style.display = (addOns.length || included.length)
             ? "block"
             : "none";
 
-          addOnOptions.innerHTML = addOns.length
-            ? "<label class='form-label'>Optional add-ons</label>" +
+          addOnOptions.innerHTML =
+            (included.length ? "<label class='form-label'>Included features</label><div style='font-size:.75rem;color:var(--text-secondary);margin:6px 0 12px'>" + included.map(function (feature) { return feature.name; }).join(" · ") + "</div>" : "") +
+            (addOns.length
+            ? "<label class='form-label'>Optional paid add-ons</label>" +
               addOns
                 .map(function (feature) {
                   return (
@@ -195,18 +186,18 @@ document.addEventListener("DOMContentLoaded", function () {
                     " " +
                     feature.addOnPrice +
                     ")" +
-                    "</label>"
+                "</label>"
                   );
                 })
                 .join("")
-            : "";
+            : "");
 
           Array.prototype.forEach.call(
             document.querySelectorAll(".reg-addon"),
             function (input) {
               input.addEventListener(
                 "change",
-                refreshQuote,
+                scheduleQuote,
               );
             },
           );
@@ -218,7 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (employeeCountInput) {
         employeeCountInput.addEventListener(
           "input",
-          refreshQuote,
+          scheduleQuote,
         );
       }
     })

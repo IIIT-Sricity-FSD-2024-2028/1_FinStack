@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { PermissionGate } from '../../auth/PermissionGate';
-import { PlanFeature } from '../../types/catalog';
+import { PlanFeature, PlanFeatureMutation } from '../../types/catalog';
+import { formatPrice } from './plan-ui';
 
 interface PlanFeatureRowProps {
   pf: PlanFeature;
-  updateFeature: (data: { featureId: string; payload: { enabled?: boolean; value?: unknown } }) => Promise<void>;
+  updateFeature: (data: { featureId: string; payload: PlanFeatureMutation }) => Promise<void>;
   isUpdatingFeature: boolean;
   removeFeature: (featureId: string) => Promise<void>;
   isRemovingFeature: boolean;
+  currency: string;
+  billingInterval: 'MONTHLY' | 'YEARLY';
 }
 
 export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
@@ -16,10 +19,14 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
   isUpdatingFeature,
   removeFeature,
   isRemovingFeature,
+  currency,
+  billingInterval,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [enabled, setEnabled] = useState(pf.enabled);
+  const [isAddOn, setIsAddOn] = useState(pf.isAddOn);
+  const [addOnPrice, setAddOnPrice] = useState(pf.addOnPrice);
   const [value, setValue] = useState<string>(
     pf.value !== null ? (typeof pf.value === 'object' ? JSON.stringify(pf.value) : String(pf.value)) : ''
   );
@@ -27,6 +34,10 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
 
   const handleSave = async () => {
     setUpdateError(null);
+    if (isAddOn && (!Number.isFinite(Number(addOnPrice)) || Number(addOnPrice) < 0)) {
+      setUpdateError('Add-on price must be zero or greater.');
+      return;
+    }
     let parsedValue: unknown = null;
     if (value !== '') {
       if (pf.feature!.valueType === 'INTEGER') parsedValue = parseInt(value, 10);
@@ -45,7 +56,10 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
     }
 
     try {
-      await updateFeature({ featureId: pf.featureId, payload: { enabled, value: parsedValue } });
+      await updateFeature({
+        featureId: pf.featureId,
+        payload: { enabled, value: parsedValue, isAddOn, addOnPrice: isAddOn ? addOnPrice : '0' },
+      });
       setIsEditing(false);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: { message?: string } } } };
@@ -55,6 +69,8 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
 
   const handleCancel = () => {
     setEnabled(pf.enabled);
+    setIsAddOn(pf.isAddOn);
+    setAddOnPrice(pf.addOnPrice);
     setValue(pf.value !== null ? (typeof pf.value === 'object' ? JSON.stringify(pf.value) : String(pf.value)) : '');
     setUpdateError(null);
     setIsEditing(false);
@@ -112,6 +128,15 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
             </div>
           )}
         </td>
+        <td>
+          <select value={isAddOn ? 'ADD_ON' : 'INCLUDED'} onChange={(e) => setIsAddOn(e.target.value === 'ADD_ON')} style={{ padding: '4px' }}>
+            <option value="INCLUDED">Included</option>
+            <option value="ADD_ON">Paid Add-on</option>
+          </select>
+        </td>
+        <td>
+          {isAddOn ? <input type="number" min="0" step="0.01" value={addOnPrice} onChange={(e) => setAddOnPrice(e.target.value)} style={{ padding: '4px', width: '100px' }} /> : 'Included'}
+        </td>
         <td>{new Date(pf.createdAt).toLocaleDateString()}</td>
         <td style={{ textAlign: 'right' }}>
           <button
@@ -149,8 +174,14 @@ export const PlanFeatureRow: React.FC<PlanFeatureRowProps> = ({
         </span>
       </td>
       <td>
-        {pf.value !== null ? JSON.stringify(pf.value) : <span style={{ color: '#6b7280' }}>-</span>}
+        {pf.feature?.key === 'MAX_USERS' ? <span style={{ color: '#6b7280' }}>Included Seat Reference</span> : pf.value !== null ? JSON.stringify(pf.value) : <span style={{ color: '#6b7280' }}>-</span>}
       </td>
+      <td>
+        <span className={pf.isAddOn ? 'status-pill status-pill-pending' : 'status-pill status-pill-available'}>
+          {pf.isAddOn ? 'Paid Add-on' : 'Included'}
+        </span>
+      </td>
+      <td>{pf.isAddOn ? `${formatPrice(pf.addOnPrice, currency)} / ${billingInterval === 'YEARLY' ? 'year' : 'month'}` : <span style={{ color: '#6b7280' }}>—</span>}</td>
       <td>{new Date(pf.createdAt).toLocaleDateString()}</td>
       <PermissionGate permission="subscription.plan.manage">
         <td style={{ textAlign: 'right' }}>

@@ -206,9 +206,7 @@
     var included = (plan.features || []).filter(function (feature) {
       return !feature.isAddOn;
     });
-    var addOns = (plan.features || []).filter(function (feature) {
-      return feature.isAddOn;
-    });
+    var selected = subscription.selectedAddOns || [];
     var node = document.getElementById("feature-summary");
     node.innerHTML =
       '<div class="feature-card-heading"><div class="subscription-label">Plan capabilities</div><h2>Features</h2></div><div class="subscription-feature-lists"><div class="feature-list"><div class="feature-list-title">Included Features</div>' +
@@ -219,14 +217,14 @@
             })
             .join("")
         : '<p class="text-muted">No included features listed.</p>') +
-      '</div><div class="feature-list"><div class="feature-list-title">Optional / Paid Add-ons</div>' +
-      (addOns.length
-        ? addOns
+      '</div><div class="feature-list"><div class="feature-list-title">Selected Paid Add-ons</div>' +
+      (selected.length
+        ? selected
             .map(function (feature) {
-              return featureRow(feature, true, subscription.currency);
+              return featureRow({ name: feature.name, description: feature.description || feature.key, addOnPrice: feature.amount }, true, subscription.currency);
             })
             .join("")
-        : '<p class="text-muted">No paid add-ons are available for this plan.</p>') +
+        : '<p class="text-muted">No paid add-ons are selected for this subscription.</p>') +
       "</div></div>";
   }
 

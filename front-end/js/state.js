@@ -10,11 +10,6 @@
         compliance_officer: 'CMP-2001',
         configuration_manager: 'CFG-1001'
     };
-    var currentScript = document.currentScript;
-    var rootPath = currentScript && currentScript.src
-        ? currentScript.src.replace(/js\/state\.js(?:\?.*)?$/, '')
-        : '/';
-    var seedUrl = rootPath + 'data/mock-data.json';
     var state = null;
 
     function deepClone(value) {
@@ -92,6 +87,44 @@
         }
     }
 
+    function getCanonicalTenantSessionUser() {
+        var token = sessionStorage.getItem('finstackTenantAccessToken');
+        var session = getSession();
+        var tenantUser;
+        try {
+            tenantUser = JSON.parse(sessionStorage.getItem('finstackTenantUser') || 'null');
+        } catch (error) {
+            return null;
+        }
+        if (
+            !token ||
+            !tenantUser ||
+            !tenantUser.id ||
+            !tenantUser.employeeId ||
+            !tenantUser.organizationId ||
+            tenantUser.status !== 'ACTIVE'
+        ) {
+            return null;
+        }
+
+        var workspaceRole = String(tenantUser.role || '').toLowerCase();
+        if (!workspaceRole) {
+            return null;
+        }
+
+        return {
+            id: tenantUser.id,
+            employeeId: tenantUser.employeeId,
+            fullName: [tenantUser.firstName, tenantUser.lastName].filter(Boolean).join(' '),
+            email: tenantUser.email,
+            role: workspaceRole,
+            roles: [workspaceRole],
+            organizationId: tenantUser.organizationId,
+            status: tenantUser.status,
+            loginAt: (session && session.loginAt) || nowIso()
+        };
+    }
+
     function syncCurrentUserSession(user) {
         if (!user) return;
         var session = getSession();
@@ -139,6 +172,10 @@
     function ensureSessionUser() {
         var session = getSession();
         var workspaceRole = getWorkspaceRoleFromPath();
+        var canonicalTenantUser = getCanonicalTenantSessionUser();
+        if (canonicalTenantUser) {
+            return canonicalTenantUser;
+        }
         if (workspaceRole) {
             if (session && session.role === workspaceRole) {
                 rememberRoleUser(workspaceRole, session.employeeId, session.organizationId);
@@ -216,7 +253,167 @@
         return normalizeState(nextState);
     }
 
+    function emptyStateForTenant(user) {
+        var organizationId = user ? user.organizationId : '';
+        return normalizeState({
+            version: 1,
+            organization: organizationId ? { organizationId: organizationId, name: '' } : null,
+            organizations: organizationId ? [{ organizationId: organizationId, name: '' }] : [],
+            accountRequests: [],
+            users: user ? [user] : [],
+            roles: [
+                { id: 'expense_submitter', name: 'Expense Submitter' },
+                { id: 'manager', name: 'Manager' },
+                { id: 'finance_officer', name: 'Finance Officer' },
+                { id: 'compliance_officer', name: 'Compliance Officer' },
+                { id: 'configuration_manager', name: 'Configuration Manager' }
+            ],
+            categories: [],
+            policies: [],
+            expenses: [],
+            notifications: [],
+            auditLogs: [],
+            transactions: []
+        });
+    }
+
+    function compatibilityUser(user) {
+        if (!user) return null;
+        var role = String(user.role || '').toLowerCase();
+        return {
+            id: user.id,
+            employeeId: user.employeeId,
+            fullName: user.fullName || [user.firstName, user.lastName].filter(Boolean).join(' '),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            department: user.department || '',
+            roles: role ? [role] : (user.roles || []),
+            managerEmployeeId: user.manager && user.manager.employeeId ? user.manager.employeeId : '',
+            managerId: user.managerId || null,
+            status: user.status === 'ACTIVE' ? 'Active' : 'Inactive',
+            accountStatus: 'approved',
+            organizationId: user.organizationId,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        };
+    }
+
+    function compatibilityExpense(expense) {
+        var employee = expense.employee;
+        return Object.assign({}, expense, {
+            employee: employee && typeof employee === 'object' ? employee.fullName : (employee || expense.employeeId),
+            extraction_confidence: expense.extractionConfidence,
+            risk_score: expense.riskScore,
+            created: expense.createdAt
+        });
+    }
+
+    function waitForDocumentReady() {
+        if (document.readyState !== 'loading') return Promise.resolve();
+        return new Promise(function (resolve) {
+            document.addEventListener('DOMContentLoaded', resolve, { once: true });
+        });
+    }
+
+    function loadCanonicalTenantState() {
+        var currentUser = getCanonicalTenantSessionUser();
+        if (!currentUser) return Promise.resolve(null);
+        var tenantSession = window.FinStackTenantSession;
+        if (!tenantSession || typeof tenantSession.request !== 'function') {
+            return Promise.reject(new Error('Tenant session request helper is unavailable.'));
+        }
+        var role = currentUser.role;
+        var requests = {
+            categories: tenantSession.request(role === 'configuration_manager'
+                ? '/api/v1/tenant/expenses/configuration/categories'
+                : '/api/v1/tenant/expenses/categories'),
+            policies: tenantSession.request(role === 'configuration_manager'
+                ? '/api/v1/tenant/expenses/configuration/policies'
+                : '/api/v1/tenant/expenses/policies'),
+            notifications: tenantSession.request('/api/v1/tenant/expenses/notifications')
+        };
+        if (role === 'configuration_manager') {
+            requests.users = tenantSession.request('/api/v1/tenant/configuration/users');
+        } else if (role === 'expense_submitter') {
+            requests.expenses = tenantSession.request('/api/v1/tenant/expenses/mine');
+        } else if (role === 'manager') {
+            requests.queue = tenantSession.request('/api/v1/tenant/expenses/manager/queue');
+            requests.history = tenantSession.request('/api/v1/tenant/expenses/manager/history');
+            requests.financeOfficers = tenantSession.request('/api/v1/tenant/expenses/manager/finance-officers');
+        } else if (role === 'finance_officer') {
+            requests.workspace = tenantSession.request('/api/v1/tenant/expenses/finance/workspace');
+        } else if (role === 'compliance_officer') {
+            requests.expenses = tenantSession.request('/api/v1/tenant/expenses/compliance/queue');
+        }
+        var keys = Object.keys(requests);
+        return Promise.all(keys.map(function (key) { return requests[key]; })).then(function (values) {
+            var data = {};
+            keys.forEach(function (key, index) { data[key] = values[index]; });
+            var next = emptyStateForTenant(currentUser);
+            next.categories = Array.isArray(data.categories) ? data.categories : [];
+            next.policies = Array.isArray(data.policies) ? data.policies : [];
+            next.notifications = Array.isArray(data.notifications) ? data.notifications : [];
+            var expenses = [];
+            var users = [currentUser];
+            if (data.users && Array.isArray(data.users.items)) {
+                users = data.users.items.map(compatibilityUser);
+            }
+            if (Array.isArray(data.expenses)) expenses = data.expenses;
+            if (Array.isArray(data.queue)) expenses = expenses.concat(data.queue);
+            if (Array.isArray(data.history)) expenses = expenses.concat(data.history);
+            if (data.workspace) {
+                expenses = Array.isArray(data.workspace.expenses) ? data.workspace.expenses : [];
+                next.transactions = Array.isArray(data.workspace.transactions) ? data.workspace.transactions : [];
+            }
+            if (Array.isArray(data.financeOfficers)) {
+                users = users.concat(data.financeOfficers.map(function (officer) {
+                    return compatibilityUser(Object.assign({}, officer, {
+                        role: 'finance_officer',
+                        status: 'ACTIVE',
+                        organizationId: currentUser.organizationId
+                    }));
+                }));
+            }
+            expenses.forEach(function (expense) {
+                if (!expense.employee || typeof expense.employee !== 'object') return;
+                if (users.some(function (user) { return user.employeeId === expense.employee.employeeId; })) return;
+                users.push(compatibilityUser({
+                    id: expense.employee.employeeId,
+                    employeeId: expense.employee.employeeId,
+                    fullName: expense.employee.fullName,
+                    organizationId: currentUser.organizationId,
+                    role: 'expense_submitter',
+                    status: 'ACTIVE'
+                }));
+            });
+            next.users = users.filter(Boolean);
+            next.expenses = expenses.map(compatibilityExpense).filter(function (expense, index, all) {
+                return all.findIndex(function (item) { return item.id === expense.id; }) === index;
+            });
+            writeStoredState(normalizeState(next));
+            return state;
+        });
+    }
+
+    var canonicalReloadPromise = null;
+
+    function reloadCanonicalTenantState() {
+        if (!getCanonicalTenantSessionUser()) return Promise.resolve(deepClone(state));
+        if (canonicalReloadPromise) return canonicalReloadPromise;
+
+        canonicalReloadPromise = loadCanonicalTenantState()
+            .then(function () {
+                return deepClone(state);
+            })
+            .finally(function () {
+                canonicalReloadPromise = null;
+            });
+        return canonicalReloadPromise;
+    }
+
     function refreshFromBackendSync() {
+        if (getCanonicalTenantSessionUser()) return state;
         if (!window.FinStackApi || !window.FinStackApi.syncGetAll) return state;
         writeStoredState(mergeBackendState(state, window.FinStackApi.syncGetAll()));
         return state;
@@ -454,9 +651,7 @@
     function getFinanceReviewQueue() {
         var user = getCurrentUser();
         var expenses = state.expenses || [];
-        console.log("Current User:", user);
-        console.log("Expenses:", expenses);
-        return state.expenses.filter(function (expense) {
+        return expenses.filter(function (expense) {
             return user &&
                 expense.workflowStatus === 'finance_review' &&
                 expense.assignedFinanceOfficerId === user.id;
@@ -527,51 +722,20 @@
         writeStoredState(normalizeState(storedState));
     }
 
-    var ready = fetch(seedUrl)
-        .then(function (response) {
-            if (!response.ok) throw new Error('Unable to load shared mock data. Status: ' + response.status);
-            return response.json();
-        })
-        .then(function (seedState) {
-            writeStoredState(normalizeState(deepClone(seedState)));
-            if (window.FinStackApi && window.FinStackApi.getAll) {
-                return window.FinStackApi.getAll().then(function (backendState) {
-                    writeStoredState(mergeBackendState(state, backendState));
-                    return state;
-                });
-            }
+    var ready = waitForDocumentReady()
+        .then(loadCanonicalTenantState)
+        .then(function (canonicalState) {
+            if (canonicalState) return canonicalState;
+            var stored = readStoredState();
+            state = stored
+                ? normalizeState(stored)
+                : emptyStateForTenant(null);
             return state;
         })
-        .catch(function (err) {
-            console.error('[FinStackStore] Failed to load backend state:', err.message);
-            if (window.FinStackApi && window.FinStackApi.getAll) {
-                var baseState = {
-                    version: 0,
-                    organization: { organizationId: 'finstack-tech-01', name: 'FinStack Technologies' },
-                    organizations: [{ organizationId: 'finstack-tech-01', name: 'FinStack Technologies', enabledRoles: ['expense_submitter', 'manager', 'finance_officer', 'compliance_officer', 'configuration_manager'] }],
-                    accountRequests: [],
-                    roles: [
-                        { id: 'expense_submitter', name: 'Expense Submitter' },
-                        { id: 'manager', name: 'Manager' },
-                        { id: 'finance_officer', name: 'Finance Officer' },
-                        { id: 'compliance_officer', name: 'Compliance Officer' },
-                        { id: 'configuration_manager', name: 'Configuration Manager' }
-                    ]
-                };
-                return window.FinStackApi.getAll().then(function (backendState) {
-                    writeStoredState(mergeBackendState(baseState, backendState));
-                    return state;
-                });
-            }
-            var stored = readStoredState();
-            if (stored) {
-                console.warn('[FinStackStore] Using cached localStorage state as fallback.');
-                state = normalizeState(stored);
-                return state;
-            }
-            /* No stored state either — initialize empty */
-            console.warn('[FinStackStore] No stored state found. Initializing empty state.');
-            state = normalizeState({ version: 0, organizations: [], accountRequests: [], users: [], roles: [], categories: [], policies: [], expenses: [], notifications: [], auditLogs: [] });
+        .catch(function (error) {
+            var currentUser = getCanonicalTenantSessionUser();
+            console.error('[FinStackStore] Failed to load tenant state:', error.message);
+            state = emptyStateForTenant(currentUser);
             return state;
         });
 
@@ -626,13 +790,14 @@
         },
         reset: function () {
             return ready.then(function () {
-                return fetch(seedUrl)
-                    .then(function (response) { return response.json(); })
-                    .then(function (seedState) {
-                        writeStoredState(normalizeState(seedState));
-                        return deepClone(state);
-                    });
+                return loadCanonicalTenantState().then(function (nextState) {
+                    writeStoredState(nextState || emptyStateForTenant(null));
+                    return deepClone(state);
+                });
             });
+        },
+        reloadCanonical: function () {
+            return ready.then(reloadCanonicalTenantState);
         },
         getSession: getSession,
         rememberRoleUser: rememberRoleUser,
@@ -1427,7 +1592,50 @@
     (function installBackendStoreBridge(storeApi) {
         if (!window.FinStackApi || !storeApi) return;
 
+        function isCanonicalTenantSession() {
+            return !!getCanonicalTenantSessionUser();
+        }
+
+        function tenantSyncRequest(path, method, body) {
+            var token = sessionStorage.getItem('finstackTenantAccessToken');
+            if (!token) throw new Error('Your tenant session has expired.');
+            var request = new XMLHttpRequest();
+            request.open(method || 'GET', window.FinStackApi.baseUrl + path, false);
+            request.setRequestHeader('Authorization', 'Bearer ' + token);
+            request.setRequestHeader('Content-Type', 'application/json');
+            request.send(body === undefined ? null : JSON.stringify(body));
+            var payload = null;
+            try { payload = request.responseText ? JSON.parse(request.responseText) : null; } catch (error) {}
+            if (request.status === 401 && window.FinStackTenantSession) {
+                window.FinStackTenantSession.handleUnauthorized();
+            }
+            if (request.status < 200 || request.status >= 300) {
+                var apiError = payload && payload.error;
+                var message = (apiError && (apiError.message || apiError.code)) || (payload && payload.message) || ('Request failed with status ' + request.status + '.');
+                throw new Error(Array.isArray(message) ? message.join(', ') : message);
+            }
+            return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+        }
+
+        function upsert(list, item) {
+            if (!item) return null;
+            var index = list.findIndex(function (existing) { return String(existing.id) === String(item.id); });
+            if (index === -1) list.unshift(item);
+            else list[index] = item;
+            return item;
+        }
+
+        function upsertExpense(item) {
+            if (!item) return null;
+            var next = compatibilityExpense(item);
+            upsert(state.expenses, next);
+            return deepClone(next);
+        }
+
         function api(path, method, body) {
+            if (isCanonicalTenantSession()) {
+                return tenantSyncRequest(path, method, body);
+            }
             var result = window.FinStackApi.syncRequest(path, { method: method, body: body });
             refreshFromBackendSync();
             return result;
@@ -1438,6 +1646,7 @@
                 return api(path, method, body);
             } catch (error) {
                 console.error('[FinStackStore] API error:', error.message);
+                if (isCanonicalTenantSession()) throw error;
                 if (typeof fallback === 'function') return fallback(error);
                 return fallback;
             }
@@ -1489,6 +1698,12 @@
             };
         }
 
+        function tenantCategoryDto(payload, existing) {
+            var dto = categoryDto(payload, existing);
+            delete dto.organizationId;
+            return dto;
+        }
+
         function policyDto(payload, existing) {
             return {
                 name: payload.name,
@@ -1502,6 +1717,12 @@
                 receiptRequired: payload.receiptRequired !== undefined ? !!payload.receiptRequired : (existing ? !!existing.receiptRequired : true),
                 organizationId: currentOrgId(payload)
             };
+        }
+
+        function tenantPolicyDto(payload, existing) {
+            var dto = policyDto(payload, existing);
+            delete dto.organizationId;
+            return dto;
         }
 
         function expenseDto(payload, existing) {
@@ -1540,6 +1761,22 @@
             return tryApi('/expenses/' + encodeURIComponent(id), 'PATCH', body, null);
         }
 
+        function tenantExpenseDto(payload) {
+            return {
+                amount: payload.amount,
+                currency: payload.currency,
+                categoryId: payload.categoryId,
+                merchant: payload.merchant,
+                date: payload.date,
+                notes: payload.notes,
+                paymentMethod: payload.paymentMethod,
+                receiptFileName: payload.receiptFileName,
+                extractionConfidence: payload.extractionConfidence !== undefined ? payload.extractionConfidence : payload.extraction_confidence,
+                flag: payload.flag,
+                riskScore: payload.riskScore !== undefined ? payload.riskScore : payload.risk_score
+            };
+        }
+
         storeApi.refresh = function () {
             return deepClone(refreshFromBackendSync());
         };
@@ -1562,13 +1799,28 @@
         };
 
         storeApi.addCategory = function (payload) {
+            if (isCanonicalTenantSession()) {
+                var category = tryApi('/api/v1/tenant/expenses/configuration/categories', 'POST', tenantCategoryDto(payload), null);
+                upsert(state.categories, category);
+                return deepClone(category);
+            }
             return tryApi('/categories', 'POST', categoryDto(payload), null);
         };
         storeApi.updateCategory = function (id, updates) {
             var existing = state.categories.find(function (item) { return item.id === id; });
+            if (isCanonicalTenantSession()) {
+                var category = tryApi('/api/v1/tenant/expenses/configuration/categories/' + encodeURIComponent(id), 'PATCH', tenantCategoryDto(Object.assign({}, existing || {}, updates), existing), null);
+                upsert(state.categories, category);
+                return deepClone(category);
+            }
             return tryApi('/categories/' + encodeURIComponent(id), 'PATCH', categoryDto(Object.assign({}, existing || {}, updates), existing), null);
         };
         storeApi.deleteCategory = function (id) {
+            if (isCanonicalTenantSession()) {
+                var removed = tryApi('/api/v1/tenant/expenses/configuration/categories/' + encodeURIComponent(id), 'DELETE', undefined, null);
+                if (removed && removed.deleted) state.categories = state.categories.filter(function (item) { return item.id !== id; });
+                return !!(removed && removed.deleted);
+            }
             return !!tryApi('/categories/' + encodeURIComponent(id), 'DELETE', undefined, false);
         };
 
@@ -1579,21 +1831,40 @@
             });
         };
         storeApi.addPolicy = function (payload) {
+            if (isCanonicalTenantSession()) {
+                var policy = tryApi('/api/v1/tenant/expenses/configuration/policies', 'POST', tenantPolicyDto(payload), null);
+                upsert(state.policies, policy);
+                return deepClone(policy);
+            }
             return tryApi('/policies', 'POST', policyDto(payload), null);
         };
         storeApi.updatePolicy = function (id, updates) {
             var existing = state.policies.find(function (item) { return String(item.id) === String(id); });
+            if (isCanonicalTenantSession()) {
+                var policy = tryApi('/api/v1/tenant/expenses/configuration/policies/' + encodeURIComponent(id), 'PATCH', tenantPolicyDto(Object.assign({}, existing || {}, updates), existing), null);
+                upsert(state.policies, policy);
+                return deepClone(policy);
+            }
             return tryApi('/policies/' + encodeURIComponent(id), 'PATCH', policyDto(Object.assign({}, existing || {}, updates), existing), null);
         };
         storeApi.deletePolicy = function (id) {
+            if (isCanonicalTenantSession()) {
+                var removed = tryApi('/api/v1/tenant/expenses/configuration/policies/' + encodeURIComponent(id), 'DELETE', undefined, null);
+                if (removed && removed.deleted) state.policies = state.policies.filter(function (item) { return String(item.id) !== String(id); });
+                return !!(removed && removed.deleted);
+            }
             return !!tryApi('/policies/' + encodeURIComponent(id), 'DELETE', undefined, false);
         };
 
         storeApi.submitExpense = function (payload) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses', 'POST', tenantExpenseDto(payload), null));
             var expense = tryApi('/expenses', 'POST', expenseDto(payload), null);
             return expense ? Object.assign({}, expense, { category: categoryName(expense.categoryId), employee: userName(expense.employeeId) }) : null;
         };
         storeApi.updateExpenseAsSubmitter = function (id, updates, resubmit) {
+            if (isCanonicalTenantSession()) {
+                return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id), 'PATCH', tenantExpenseDto(updates || {}), null));
+            }
             var existing = storeApi.getExpenseById(id);
             var body = Object.assign({}, updates || {});
             if (resubmit) {
@@ -1604,62 +1875,99 @@
             return tryApi('/expenses/' + encodeURIComponent(id), 'PATCH', body, null);
         };
         storeApi.deleteExpense = function (id) {
+            if (isCanonicalTenantSession()) {
+                var removed = tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id), 'DELETE', undefined, null);
+                if (removed && removed.deleted) state.expenses = state.expenses.filter(function (item) { return item.id !== id; });
+                return !!(removed && removed.deleted);
+            }
             return !!tryApi('/expenses/' + encodeURIComponent(id), 'DELETE', undefined, false);
         };
         storeApi.managerApprove = function (id, note, assignedFinanceOfficerId) {
             if (!assignedFinanceOfficerId) return { success: false, error: 'Please select a finance officer before approving.' };
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/manager/approve', 'POST', { note: note, financeOfficerId: assignedFinanceOfficerId }, null));
             return transitionExpense(id, { managerDecision: 'Approved', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Approved by manager.', assignedFinanceOfficerId: assignedFinanceOfficerId, workflowStatus: 'finance_review', status: 'pending' }, 'manager_approved', 'Manager Approved', note || 'Approved by manager.');
         };
         storeApi.managerEscalate = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/manager/escalate', 'POST', { note: note }, null));
             return transitionExpense(id, { managerDecision: 'Escalated', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Escalated to compliance officer for review.', assignedFinanceOfficerId: null, workflowStatus: 'compliance_review', status: 'pending', escalatedByManager: true }, 'manager_escalated', 'Escalated to Compliance', note || 'Escalated to compliance officer for review.');
         };
         storeApi.managerReturn = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/manager/return', 'POST', { note: note }, null));
             return transitionExpense(id, { managerDecision: 'Returned', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Returned for clarification.', workflowStatus: 'returned', status: 'pending' }, 'manager_returned', 'Returned by Manager', note || 'Returned for clarification.');
         };
         storeApi.managerReject = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/manager/reject', 'POST', { note: note }, null));
             return transitionExpense(id, { managerDecision: 'Rejected', managerDecisionAt: nowIso(), managerDecisionNote: note || 'Rejected by manager.', workflowStatus: 'rejected', status: 'rejected' }, 'manager_rejected', 'Rejected by Manager', note || 'Rejected by manager.');
         };
         storeApi.financeApprove = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/finance/approve', 'POST', { note: note }, null));
             return transitionExpense(id, { financeDecision: 'Approved', financeDecisionAt: nowIso(), financeDecisionNote: note || 'Approved for payment.', workflowStatus: 'approved_for_payment', status: 'approved' }, 'finance_approved', 'Finance Approved', note || 'Approved for payment.');
         };
         storeApi.financeReject = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/finance/reject', 'POST', { note: note }, null));
             return transitionExpense(id, { financeDecision: 'Rejected', financeDecisionAt: nowIso(), financeDecisionNote: note || 'Rejected during finance review.', workflowStatus: 'rejected', status: 'rejected' }, 'finance_rejected', 'Rejected by Finance', note || 'Rejected during finance review.');
         };
         storeApi.financeRequestInfo = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/finance/request-info', 'POST', { note: note }, null));
             return transitionExpense(id, { financeDecision: 'Requested Info', financeDecisionAt: nowIso(), financeDecisionNote: note || 'Additional information requested by finance.', workflowStatus: 'returned', status: 'pending' }, 'finance_requested_info', 'Finance Requested Information', note || 'Additional information requested by finance.');
         };
         storeApi.financeFlag = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/finance/flag', 'POST', { note: note }, null));
             return transitionExpense(id, { financeDecision: 'Flagged', financeDecisionAt: nowIso(), financeDecisionNote: note || 'Flagged for compliance review.', workflowStatus: 'compliance_review', status: 'pending' }, 'finance_flagged', 'Flagged by Finance', note || 'Flagged for compliance review.');
         };
         storeApi.complianceApprove = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/compliance/approve', 'POST', { note: note }, null));
             var expense = storeApi.getExpenseById(id);
             var financeOfficer = expense ? (getFinanceOfficerById(expense.assignedFinanceOfficerId, expense.organizationId) || getDefaultFinanceOfficer(expense.organizationId)) : null;
             return transitionExpense(id, { complianceDecision: 'Approved', complianceDecisionAt: nowIso(), complianceDecisionNote: note || 'Approved by compliance officer. Forwarded to finance for payment.', assignedFinanceOfficerId: financeOfficer ? financeOfficer.id : (expense ? expense.assignedFinanceOfficerId : null), workflowStatus: 'finance_review', status: 'pending' }, 'compliance_approved', 'Compliance Approved - Sent to Finance', note || 'Approved by compliance officer.');
         };
         storeApi.complianceReject = function (id, note) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/compliance/reject', 'POST', { note: note }, null));
             return transitionExpense(id, { complianceDecision: 'Rejected', complianceDecisionAt: nowIso(), complianceDecisionNote: note || 'Rejected during compliance review.', workflowStatus: 'rejected', status: 'rejected' }, 'compliance_rejected', 'Rejected by Compliance', note || 'Rejected during compliance review.');
         };
         storeApi.complianceCorrectiveAction = function (id, actionLabel) {
+            if (isCanonicalTenantSession()) return upsertExpense(tryApi('/api/v1/tenant/expenses/' + encodeURIComponent(id) + '/compliance/corrective-action', 'POST', { note: actionLabel }, null));
             return transitionExpense(id, { complianceDecision: 'Corrective Action', complianceDecisionAt: nowIso(), complianceDecisionNote: actionLabel || 'Corrective action initiated.' }, 'compliance_corrective_action', 'Corrective Action Initiated', actionLabel || 'Corrective action initiated.');
         };
         storeApi.releasePaymentBatch = function (batchId) {
             var batch = buildPaymentBatches().find(function (item) { return item.id === batchId; });
             if (!batch) return null;
+            if (isCanonicalTenantSession()) {
+                var released = tryApi('/api/v1/tenant/expenses/finance/payment-releases', 'POST', { expenseIds: batch.expenseIds }, null);
+                (released.expenses || []).forEach(upsertExpense);
+                (released.transactions || []).forEach(function (transaction) { upsert(state.transactions, transaction); });
+                return released;
+            }
             var result = tryApi('/transactions/payment-batches/' + encodeURIComponent(batchId) + '/release', 'POST', { expenseIds: batch.expenseIds }, null);
             refreshFromBackendSync();
             return result || deepClone(batch);
         };
 
         storeApi.markNotificationRead = function (id) {
+            if (isCanonicalTenantSession()) {
+                var notification = tryApi('/api/v1/tenant/expenses/notifications/' + encodeURIComponent(id) + '/read', 'PATCH', {}, null);
+                upsert(state.notifications, notification);
+                return notification;
+            }
             return tryApi('/notifications/' + encodeURIComponent(id), 'PATCH', { unread: false }, null);
         };
         storeApi.markAllNotificationsRead = function () {
+            if (isCanonicalTenantSession()) {
+                var result = tryApi('/api/v1/tenant/expenses/notifications/read-all', 'POST', {}, null);
+                state.notifications.forEach(function (notification) { notification.unread = false; });
+                return result;
+            }
             getNotificationsForUser().forEach(function (notification) {
                 tryApi('/notifications/' + encodeURIComponent(notification.id), 'PATCH', { unread: false }, null);
             });
             refreshFromBackendSync();
         };
         storeApi.deleteNotification = function (id) {
+            if (isCanonicalTenantSession()) {
+                var removed = tryApi('/api/v1/tenant/expenses/notifications/' + encodeURIComponent(id), 'DELETE', undefined, null);
+                if (removed && removed.deleted) state.notifications = state.notifications.filter(function (item) { return item.id !== id; });
+                return !!(removed && removed.deleted);
+            }
             return !!tryApi('/notifications/' + encodeURIComponent(id), 'DELETE', undefined, false);
         };
         storeApi.getTransactions = function () {
@@ -1672,12 +1980,34 @@
             return tryApi('/transactions/' + encodeURIComponent(id), 'PATCH', updates, null);
         };
         storeApi.simulateBankSuccess = function (id) {
+            if (isCanonicalTenantSession()) {
+                var transaction = tryApi('/api/v1/tenant/expenses/finance/transactions/' + encodeURIComponent(id) + '/process', 'POST', {}, null);
+                upsert(state.transactions, transaction);
+                return deepClone(transaction);
+            }
             return tryApi('/transactions/' + encodeURIComponent(id) + '/bank-sandbox/success', 'POST', {}, null);
         };
         storeApi.simulateBankFailure = function (id) {
+            if (isCanonicalTenantSession()) {
+                var transaction = tryApi('/api/v1/tenant/expenses/finance/transactions/' + encodeURIComponent(id) + '/fail', 'POST', {}, null);
+                upsert(state.transactions, transaction);
+                return deepClone(transaction);
+            }
             return tryApi('/transactions/' + encodeURIComponent(id) + '/bank-sandbox/failure', 'POST', {}, null);
         };
         storeApi.reconcileTransaction = function (id) {
+            if (isCanonicalTenantSession()) {
+                var transaction = tryApi('/api/v1/tenant/expenses/finance/transactions/' + encodeURIComponent(id) + '/reconcile', 'POST', {}, null);
+                upsert(state.transactions, transaction);
+                var expense = state.expenses.find(function (item) { return item.id === transaction.expenseId; });
+                if (expense) {
+                    expense.workflowStatus = 'paid';
+                    expense.status = 'approved';
+                    expense.paidAt = nowIso();
+                    pushHistoryEntryOnce(expense, 'paid', 'Paid', 'Bank transaction reconciled and expense marked paid.');
+                }
+                return deepClone(transaction);
+            }
             return tryApi('/transactions/' + encodeURIComponent(id) + '/reconcile', 'POST', {}, null);
         };
         storeApi.deleteTransaction = function (id) {

@@ -2,6 +2,8 @@ import {
   Feature,
   PaginatedResult,
   Plan,
+  PlanFeatureMutation,
+  PlanMutation,
   PlanFeature,
   PlanStatus,
 } from '../../types/catalog';
@@ -36,14 +38,14 @@ export const platformCatalogApi = {
     return apiRequest<Plan>(`/plans/${id}`);
   },
 
-  createPlan: async (data: Partial<Plan>): Promise<Plan> => {
+  createPlan: async (data: PlanMutation): Promise<Plan> => {
     return apiRequest<Plan>('/plans', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  updatePlan: async (id: string, data: Partial<Plan>): Promise<Plan> => {
+  updatePlan: async (id: string, data: PlanMutation): Promise<Plan> => {
     return apiRequest<Plan>(`/plans/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -99,7 +101,7 @@ export const platformCatalogApi = {
   // --- Plan Features ---
   assignFeature: async (
     planId: string,
-    data: { featureId: string; enabled?: boolean; value?: unknown },
+    data: { featureId: string } & PlanFeatureMutation,
   ): Promise<PlanFeature> => {
     return apiRequest<PlanFeature>(`/plans/${planId}/features`, {
       method: 'POST',
@@ -110,7 +112,7 @@ export const platformCatalogApi = {
   updatePlanFeature: async (
     planId: string,
     featureId: string,
-    data: { enabled?: boolean; value?: unknown },
+    data: PlanFeatureMutation,
   ): Promise<PlanFeature> => {
     return apiRequest<PlanFeature>(`/plans/${planId}/features/${featureId}`, {
       method: 'PATCH',

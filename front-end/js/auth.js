@@ -1,5 +1,5 @@
 /* ===== FINSTACK AUTH GUARD ===== */
-/* Shared Client session handling for legacy workspaces and tenant Config Manager. */
+/* Shared Client session handling for tenant workspaces. */
 (function () {
   'use strict';
 
@@ -7,6 +7,13 @@
   var TENANT_TOKEN_KEY = 'finstackTenantAccessToken';
   var TENANT_USER_KEY = 'finstackTenantUser';
   var redirectingForTenantSession = false;
+  var TENANT_ROLE_TO_WORKSPACE_ROLE = {
+    CONFIGURATION_MANAGER: 'configuration_manager',
+    EXPENSE_SUBMITTER: 'expense_submitter',
+    MANAGER: 'manager',
+    FINANCE_OFFICER: 'finance_officer',
+    COMPLIANCE_OFFICER: 'compliance_officer',
+  };
 
   function getWorkspaceRole() {
     var path = window.location.pathname.toLowerCase();
@@ -59,29 +66,42 @@
     }
   }
 
-  function compatibilitySession(user, organizationId) {
+  function workspaceRoleForTenantRole(tenantRole) {
+    return TENANT_ROLE_TO_WORKSPACE_ROLE[tenantRole] || null;
+  }
+
+  function isActiveTenantUser(user) {
+    return Boolean(
+      user &&
+      user.id &&
+      user.organizationId &&
+      user.status === 'ACTIVE' &&
+      workspaceRoleForTenantRole(user.role),
+    );
+  }
+
+  function compatibilitySession(user, organizationId, loginAt) {
+    var workspaceRole = workspaceRoleForTenantRole(user.role);
     return {
       id: user.id,
       employeeId: user.employeeId,
       fullName: [user.firstName, user.lastName].filter(Boolean).join(' '),
       email: user.email,
-      role: 'configuration_manager',
-      roles: ['configuration_manager'],
+      role: workspaceRole,
+      roles: [workspaceRole],
       organizationId: organizationId,
-      loginAt: new Date().toISOString(),
+      loginAt: loginAt || new Date().toISOString(),
     };
   }
 
   function getTenantSession() {
     var token = sessionStorage.getItem(TENANT_TOKEN_KEY);
     var user = parseJson(sessionStorage.getItem(TENANT_USER_KEY));
+    var savedSession = parseJson(sessionStorage.getItem(SESSION_KEY));
     if (
       !token ||
       !user ||
-      !user.id ||
-      !user.organizationId ||
-      user.role !== 'CONFIGURATION_MANAGER' ||
-      user.status !== 'ACTIVE'
+      !isActiveTenantUser(user)
     ) {
       return null;
     }
@@ -89,7 +109,13 @@
       accessToken: token,
       user: user,
       organizationId: user.organizationId,
-      compatibility: compatibilitySession(user, user.organizationId),
+      compatibility: compatibilitySession(
+        user,
+        user.organizationId,
+        savedSession && savedSession.id === user.id && savedSession.role === workspaceRoleForTenantRole(user.role)
+          ? savedSession.loginAt
+          : null,
+      ),
     };
   }
 
@@ -102,10 +128,9 @@
       !user ||
       !organizationId ||
       user.organizationId !== organizationId ||
-      user.role !== 'CONFIGURATION_MANAGER' ||
-      user.status !== 'ACTIVE'
+      !isActiveTenantUser(user)
     ) {
-      throw new Error('The tenant login response did not contain a valid Configuration Manager session.');
+      throw new Error('The tenant login response did not contain a valid active tenant session.');
     }
     var safeUser = {
       id: user.id,
@@ -158,7 +183,7 @@
     if (redirectingForTenantSession) return;
     redirectingForTenantSession = true;
     clearTenantSession();
-    redirect('Your session expired. Please sign in again.');
+    redirect('Your session has expired. Please sign in again.');
   }
 
   function tenantRequest(path, options) {
@@ -187,6 +212,18 @@
           expired.code = 'TENANT_SESSION_EXPIRED';
           throw expired;
         }
+        if (response.status === 403) {
+          var forbiddenMessage = payload && (payload.message || payload.error)
+            ? payload.message || payload.error
+            : 'You do not have permission to perform this action.';
+          var forbidden = new Error(
+            Array.isArray(forbiddenMessage)
+              ? forbiddenMessage.join(', ')
+              : forbiddenMessage,
+          );
+          forbidden.code = 'TENANT_ACCESS_FORBIDDEN';
+          throw forbidden;
+        }
         if (!response.ok) {
           var message = payload && (payload.message || payload.error)
             ? payload.message || payload.error
@@ -201,7 +238,9 @@
   }
 
   function validateTenantSession() {
-    if (getWorkspaceRole() !== 'configuration_manager' || !isTenantAuthenticated()) {
+    var workspaceRole = getWorkspaceRole();
+    var tenantSession = getTenantSession();
+    if (!workspaceRole || !tenantSession) {
       return Promise.resolve(null);
     }
     return tenantRequest('/api/v1/tenant/auth/me').then(function (context) {
@@ -209,21 +248,30 @@
         !context ||
         !context.user ||
         context.organizationId !== context.user.organizationId ||
-        context.user.role !== 'CONFIGURATION_MANAGER' ||
-        context.user.status !== 'ACTIVE'
+        context.user.id !== tenantSession.user.id ||
+        !isActiveTenantUser(context.user)
       ) {
         handleTenantUnauthorized();
+        return null;
+      }
+      if (workspaceRoleForTenantRole(context.user.role) !== workspaceRole) {
+        redirect('Access denied. You do not have permission to access this workspace.');
         return null;
       }
       return context;
     }).catch(function (error) {
       if (error && error.code === 'TENANT_SESSION_EXPIRED') return null;
+      if (error && error.code === 'TENANT_ACCESS_FORBIDDEN') {
+        redirect('Access denied. You do not have permission to access this workspace.');
+        return null;
+      }
+      console.warn('[FinStack] Tenant session validation could not be completed. The session was preserved.', error);
       return null;
     });
   }
 
   function getCurrentSession() {
-    if (getWorkspaceRole() === 'configuration_manager') {
+    if (getWorkspaceRole()) {
       var tenantSession = getTenantSession();
       return tenantSession ? tenantSession.compatibility : null;
     }
@@ -245,16 +293,16 @@
     var workspaceRole = getWorkspaceRole();
     if (!workspaceRole) return;
 
-    var session = getCurrentSession();
-    if (!session) {
+    var tenantSession = getTenantSession();
+    if (!tenantSession) {
       redirect('Please login to continue.');
       return;
     }
-    if (session.role !== workspaceRole) {
+    if (tenantSession.compatibility.role !== workspaceRole) {
       redirect('Access denied. You do not have permission to access this workspace.');
       return;
     }
-    if (workspaceRole === 'configuration_manager') validateTenantSession();
+    validateTenantSession();
   }
 
   window.FinStackTenantSession = {
@@ -265,6 +313,7 @@
     request: tenantRequest,
     validate: validateTenantSession,
     handleUnauthorized: handleTenantUnauthorized,
+    workspaceRoleForTenantRole: workspaceRoleForTenantRole,
     isRedirecting: function () { return redirectingForTenantSession; },
   };
 

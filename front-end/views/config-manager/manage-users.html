@@ -30,16 +30,16 @@
         </div>
         <select class="form-input" style="width:auto;" id="role-filter">
           <option value="all">All Roles</option>
-          <option value="Expense Submitter">Expense Submitter</option>
-          <option value="Manager">Manager</option>
-          <option value="Finance Officer">Finance Officer</option>
-          <option value="Compliance Officer">Compliance Officer</option>
-          <option value="Configuration Manager">Configuration Manager</option>
+          <option value="EXPENSE_SUBMITTER">Expense Submitter</option>
+          <option value="MANAGER">Manager</option>
+          <option value="FINANCE_OFFICER">Finance Officer</option>
+          <option value="COMPLIANCE_OFFICER">Compliance Officer</option>
+          <option value="CONFIGURATION_MANAGER">Configuration Manager</option>
         </select>
         <select class="form-input" style="width:auto;" id="status-filter">
           <option value="all">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
         </select>
       </div>
 
@@ -93,16 +93,7 @@
           <div><label class="form-label">Email Address</label><input type="email" class="form-input" id="add-user-email" placeholder="user@company.com" required></div>
           <div><label class="form-label">Employee ID</label><input type="text" class="form-input" id="add-user-employee-id" placeholder="Enter employee ID" required></div>
           <div><label class="form-label">Department</label><input type="text" class="form-input" id="add-user-department" placeholder="Enter department"></div>
-          <div>
-            <label class="form-label">Assign Roles</label>
-            <div class="space-y-3">
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" data-role="expense_submitter" checked style="accent-color:var(--purple);width:16px;height:16px;"><span style="font-size:0.875rem;color:var(--text-primary);">Expense Submitter</span></label>
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" data-role="manager" style="accent-color:var(--purple);width:16px;height:16px;"><span style="font-size:0.875rem;color:var(--text-primary);">Manager</span></label>
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" data-role="finance_officer" style="accent-color:var(--purple);width:16px;height:16px;"><span style="font-size:0.875rem;color:var(--text-primary);">Finance Officer</span></label>
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" data-role="compliance_officer" style="accent-color:var(--purple);width:16px;height:16px;"><span style="font-size:0.875rem;color:var(--text-primary);">Compliance Officer</span></label>
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" data-role="configuration_manager" style="accent-color:var(--purple);width:16px;height:16px;"><span style="font-size:0.875rem;color:var(--text-primary);">Configuration Manager</span></label>
-            </div>
-          </div>
+          <div><label class="form-label" for="add-user-role">Role</label><select class="form-input" id="add-user-role" required></select></div>
           <div>
             <label class="form-label">Assign Manager</label>
             <select class="form-input" id="add-user-manager">

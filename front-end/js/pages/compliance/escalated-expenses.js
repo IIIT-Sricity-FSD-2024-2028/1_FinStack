@@ -135,6 +135,7 @@ function runComplianceDecision(type, expenseId, note) {
       ? window.FinStackStore.complianceApprove(expenseId, note)
       : window.FinStackStore.complianceReject(expenseId, note);
   } catch (error) {
+    Toast.error(error && error.message ? error.message : 'The compliance decision could not be saved.');
     result = null;
   }
   decisionInFlight = false;

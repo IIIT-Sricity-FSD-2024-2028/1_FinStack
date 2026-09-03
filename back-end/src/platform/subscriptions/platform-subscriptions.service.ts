@@ -214,6 +214,7 @@ export class PlatformSubscriptionsService {
         employeeCount: quote.employeeCount,
         employeeAmount: quote.employeeAmount,
         featureAmount: quote.featureAmount,
+        selectedAddOns: quote.selectedAddOns,
         currentPeriodStart: hasTrial ? now : null,
         currentPeriodEnd: trialEnd,
         trialStartAt: hasTrial ? now : null,
@@ -592,6 +593,13 @@ export class PlatformSubscriptionsService {
         employeeAmount: Prisma.Decimal;
         featureAmount: Prisma.Decimal;
         employeeCount: number;
+        selectedAddOns: Array<{
+          featureId: string;
+          key: string;
+          name: string;
+          description: string | null;
+          amount: string;
+        }>;
       };
     },
   ) {
@@ -608,6 +616,7 @@ export class PlatformSubscriptionsService {
         employeeCount: input.quote?.employeeCount ?? 1,
         employeeAmount: input.quote?.employeeAmount ?? new Prisma.Decimal(0),
         featureAmount: input.quote?.featureAmount ?? new Prisma.Decimal(0),
+        selectedAddOns: input.quote?.selectedAddOns,
         currency: input.plan.currency,
         billingPeriodStart: input.billingPeriodStart,
         billingPeriodEnd: input.billingPeriodEnd,
@@ -672,10 +681,12 @@ export class PlatformSubscriptionsService {
       additionalEmployees,
       employeeAmount,
       featureAmount,
-      featureAddons: addOns.map((item) => ({
+      selectedAddOns: addOns.map((item) => ({
         featureId: item.featureId,
+        key: item.feature.key,
         name: item.feature.name,
-        amount: item.addOnPrice ?? new Prisma.Decimal(0),
+        description: item.feature.description,
+        amount: (item.addOnPrice ?? new Prisma.Decimal(0)).toString(),
       })),
       totalAmount,
       currency: plan.currency,

@@ -1,13 +1,13 @@
 
       const state = {
         settings: {
-          officerName: 'Rajesh Kumar',
-          officerEmail: 'rajesh.kumar@finstack.io',
-          department: 'Finance Operations',
-          employeeId: 'FIN-2001',
-          phone: '+91 90000 33333',
-          location: 'Chennai, India',
-          organizationId: 'finstack-tech-01',
+          officerName: 'Finance Officer',
+          officerEmail: '',
+          department: '',
+          employeeId: '',
+          phone: '',
+          location: '',
+          organizationId: '',
           managerEmployeeId: '',
           timezone: 'Asia/Kolkata',
           currency: 'INR',
@@ -335,13 +335,11 @@
           .map(user => user.employeeId));
         const allExpenses = uniqueById(window.FinStackStore.getExpenses())
           .filter(expense => recordBelongsToOrganization(expense, organizationId, organizationEmployeeIds));
-        console.log("Current User:", financeUser);
-        console.log("Expenses:", allExpenses);
         const financeReviewExpenses = allExpenses.filter(e =>
           e.workflowStatus === "finance_review" &&
           e.assignedFinanceOfficerId === financeUser.id
         );
-        const expenseIds = new Set(financeReviewExpenses.map(expense => expense.id));
+        const expenseIds = new Set(allExpenses.map(expense => expense.id));
         const reviewQueue = window.FinStackStore.getFinanceReviewQueue()
           .filter(expense =>
             expenseIds.has(expense.id) &&
@@ -365,7 +363,7 @@
           .filter(isConfigurationManagerPolicy)
           .length;
 
-        state.expenses = financeReviewExpenses.map(expense => ({
+        state.expenses = allExpenses.map(expense => ({
           id: expense.id,
           employeeId: expense.employeeId,
           organizationId: expense.organizationId || organizationId,
@@ -823,6 +821,70 @@
         document.getElementById('userAvatar').textContent = initials(state.settings.officerName);
         if (dropdownName) dropdownName.textContent = state.settings.officerName;
         if (dropdownRole) dropdownRole.textContent = roleText;
+      }
+
+      function renderFinanceWorkspace() {
+        renderActivities();
+        renderAlerts();
+        renderExpenses();
+        renderReviews();
+        renderReconciliation();
+        renderTransactions();
+        renderFlagged();
+        renderPayments();
+        renderAudit();
+        updateMetrics();
+      }
+
+      function clearFinanceWorkspace(error) {
+        state.expenses = [];
+        state.reviews = [];
+        state.transactions = [];
+        state.flagged = [];
+        state.payments = [];
+        state.reconciliation = [];
+        state.activities = [];
+        state.audit = [];
+        state.policyCount = 0;
+        state.lastReconciliationRun = 'Workspace unavailable';
+        state.alerts = [{
+          tone: 'red',
+          title: 'Unable to load finance workspace',
+          text: error && error.message ? error.message : 'Canonical finance data could not be loaded.',
+          time: 'Now',
+          unread: true
+        }];
+      }
+
+      function loadFinanceWorkspace() {
+        if (!window.FinStackStore || typeof window.FinStackStore.reloadCanonical !== 'function') {
+          const error = new Error('Canonical finance workspace loader is unavailable.');
+          clearFinanceWorkspace(error);
+          renderFinanceWorkspace();
+          return Promise.reject(error);
+        }
+
+        return window.FinStackStore.reloadCanonical()
+          .then(() => {
+            syncSharedFinanceState();
+            renderFinanceWorkspace();
+            return state;
+          })
+          .catch(error => {
+            clearFinanceWorkspace(error);
+            renderFinanceWorkspace();
+            showToast(error && error.message ? error.message : 'Unable to refresh the finance workspace.');
+            throw error;
+          });
+      }
+
+      function refreshFinanceAfterMutation(message, activityAction, entity, activityUser) {
+        return loadFinanceWorkspace()
+          .then(() => {
+            if (activityAction) logActivity(activityUser || 'Finance Officer', activityAction, entity);
+            showToast(message);
+          })
+          .catch(() => {});
       }
 
       function renderActivities() {
@@ -1379,26 +1441,26 @@
         showToast(`${id} moved to finance review.`);
       }
 
+      function runFinanceMutation(action) {
+        try {
+          return action();
+        } catch (error) {
+          showToast(error && error.message ? error.message : 'The finance action could not be saved.');
+          return null;
+        }
+      }
+
       function approveReview(id) {
-        window.FinStackStore.financeApprove(id, 'Approved by finance officer.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderPayments(); renderReconciliation(); renderFlagged(); updateMetrics();
-        logActivity('Finance Officer', 'Approved Expense', id);
-        showToast(`${id} approved.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeApprove(id, 'Approved by finance officer.'))) return;
+        refreshFinanceAfterMutation(`${id} approved.`, 'Approved Expense', id);
       }
       function rejectReview(id) {
-        window.FinStackStore.financeReject(id, 'Rejected during finance review.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderFlagged(); renderPayments(); updateMetrics();
-        logActivity('Finance Officer', 'Rejected Expense', id);
-        showToast(`${id} rejected.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeReject(id, 'Rejected during finance review.'))) return;
+        refreshFinanceAfterMutation(`${id} rejected.`, 'Rejected Expense', id);
       }
       function flagReview(id) {
-        window.FinStackStore.financeFlag(id, 'Flagged for compliance review by finance.');
-        syncSharedFinanceState();
-        renderReviews(); renderExpenses(); renderFlagged(); updateMetrics();
-        logActivity('Finance Officer', 'Flagged Expense', id);
-        showToast(`${id} sent to compliance review.`);
+        if (!runFinanceMutation(() => window.FinStackStore.financeFlag(id, 'Flagged for compliance review by finance.'))) return;
+        refreshFinanceAfterMutation(`${id} sent to compliance review.`, 'Flagged Expense', id);
       }
       function requestInfo(id) {
         const expense = getExpenseById(id) || { id, employee: 'Employee', category: 'General', amount: 0, submitted: new Date().toISOString().slice(0,10), method: 'Reimbursement', status: 'pending', notes: 'Additional clarification required for review.' };
@@ -1507,12 +1569,9 @@
             { label: 'Cancel', variant: 'btn-outline', onClick: closeModal },
             { label: 'Send Request', variant: 'btn-primary', onClick: () => {
                 const message = document.getElementById('infoMessage').value.trim() || 'Additional information requested';
-                window.FinStackStore.financeRequestInfo(id, message);
-                syncSharedFinanceState();
-                renderReviews(); renderExpenses(); updateMetrics();
-                logActivity('Finance Officer', 'Requested More Info', `${id}: ${message.slice(0, 34)}...`);
+                if (!runFinanceMutation(() => window.FinStackStore.financeRequestInfo(id, message))) return;
                 closeModal();
-                showToast(`Info request sent for ${id}.`);
+                refreshFinanceAfterMutation(`Info request sent for ${id}.`, 'Requested More Info', `${id}: ${message.slice(0, 34)}...`);
               }
             }
           ]
@@ -1564,32 +1623,22 @@
       }
       function simulateBankSuccess(id) {
         if (!window.FinStackStore || typeof window.FinStackStore.simulateBankSuccess !== 'function') return showToast('Bank Sandbox is unavailable.');
-        const result = window.FinStackStore.simulateBankSuccess(id);
-        syncSharedFinanceState();
-        renderTransactions(); renderReconciliation(); renderPayments(); updateMetrics();
-        if (!result) return showToast('Bank Sandbox success could not be applied.');
-        logActivity('Bank Sandbox', 'Simulated Success', id);
-        showToast(`${id} marked processed by Bank Sandbox.`);
+        const result = runFinanceMutation(() => window.FinStackStore.simulateBankSuccess(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} marked processed by Bank Sandbox.`, 'Simulated Success', id, 'Bank Sandbox');
       }
       function simulateBankFailure(id) {
         if (!window.FinStackStore || typeof window.FinStackStore.simulateBankFailure !== 'function') return showToast('Bank Sandbox is unavailable.');
-        const result = window.FinStackStore.simulateBankFailure(id);
-        syncSharedFinanceState();
-        renderTransactions(); renderReconciliation(); renderPayments(); updateMetrics();
-        if (!result) return showToast('Bank Sandbox failure could not be applied.');
-        logActivity('Bank Sandbox', 'Simulated Failure', id);
-        showToast(`${id} marked failed by Bank Sandbox.`);
+        const result = runFinanceMutation(() => window.FinStackStore.simulateBankFailure(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} marked failed by Bank Sandbox.`, 'Simulated Failure', id, 'Bank Sandbox');
       }
       function reconcileTransaction(id) {
         const txn = state.transactions.find(t => t.id === id); if (!txn) return;
         if (!window.FinStackStore || typeof window.FinStackStore.reconcileTransaction !== 'function') return showToast('Reconciliation service is unavailable.');
-        const result = window.FinStackStore.reconcileTransaction(id);
-        syncSharedFinanceState();
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderTransactions(); renderReconciliation(); renderPayments(); renderExpenses(); updateMetrics();
-        if (!result) return showToast('Transaction could not be reconciled.');
-        logActivity('Finance Officer', 'Reconciled Transaction', id);
-        showToast(`${id} reconciled.`);
+        const result = runFinanceMutation(() => window.FinStackStore.reconcileTransaction(id));
+        if (!result) return;
+        refreshFinanceAfterMutation(`${id} reconciled.`, 'Reconciled Transaction', id);
       }
 
       function viewFlagged(id) {
@@ -1744,11 +1793,8 @@
       function releasePayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
         if (item.status !== 'pending') return showToast(`${id} is already sent to Bank Sandbox.`);
-        window.FinStackStore.releasePaymentBatch(id);
-        syncSharedFinanceState();
-        renderPayments(); renderExpenses(); renderTransactions(); renderReconciliation(); updateMetrics();
-        logActivity('Finance Officer', 'Released Payment Batch', id);
-        showToast(`${id} sent to Bank Sandbox.`);
+        if (!runFinanceMutation(() => window.FinStackStore.releasePaymentBatch(id))) return;
+        refreshFinanceAfterMutation(`${id} sent to Bank Sandbox.`, 'Released Payment Batch', id);
       }
       function viewPayment(id) {
         const item = state.payments.find(p => p.id === id); if (!item) return;
@@ -2041,7 +2087,8 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
               if (action === 'profile-settings' || action === 'preferences') {
                 setPage('settings-page');
               } else if (action === 'logout') {
-                sessionStorage.removeItem('finstackUserSession');
+                if (window.FinStackGuard) window.FinStackGuard.clearSession();
+                else sessionStorage.removeItem('finstackUserSession');
                 window.location.href = '../../login.html';
               }
             });
@@ -2079,7 +2126,8 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         logActivity('Finance Officer', 'Logged Out', 'FinStack Workspace');
         showToast('Signing you out...');
         window.setTimeout(() => {
-          sessionStorage.removeItem('finstackUserSession');
+          if (window.FinStackGuard) window.FinStackGuard.clearSession();
+          else sessionStorage.removeItem('finstackUserSession');
           window.location.href = '../../login.html?role=finance_officer';
         }, 300);
       });
@@ -2106,15 +2154,16 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         openModal({ title: `Next Review • ${item.id}`, body: detailMarkup({ SubmittedBy: item.by, Amount: formatINR(item.amount), ManagerStatus: item.manager }), actions: [{ label: 'Approve', variant: 'btn-primary', onClick: () => { approveReview(item.id); closeModal(); } }, { label: 'Reject', variant: 'btn-outline', onClick: () => { rejectReview(item.id); closeModal(); } }] });
       });
       document.getElementById('reviewRefreshBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderReviews(); updateMetrics(); logActivity('System', 'Refreshed Review Queue', 'Finance Review'); showToast('Finance review queue refreshed.');
+        loadFinanceWorkspace()
+          .then(() => { logActivity('System', 'Refreshed Review Queue', 'Finance Review'); showToast('Finance review queue refreshed.'); })
+          .catch(() => {});
       });
 
       // reconciliation
       document.getElementById('runReconciliationBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        state.lastReconciliationRun = `Last run at ${nowLabel()}`;
-        renderReconciliation(); updateMetrics(); logActivity('Finance Officer', 'Reconciliation Run', 'Manual reconciliation'); showToast('Reconciliation executed.');
+        loadFinanceWorkspace()
+          .then(() => { logActivity('Finance Officer', 'Reconciliation Run', 'Manual reconciliation'); showToast('Reconciliation refreshed.'); })
+          .catch(() => {});
       });
       document.getElementById('autoMatchBtn').addEventListener('click', () => {
         state.autoMatch = !state.autoMatch;
@@ -2124,19 +2173,17 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
 
       // transactions
       document.getElementById('syncTransactionsBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderTransactions();
-        updateMetrics();
-        showToast(state.transactions.length ? 'Transactions refreshed.' : 'No payment transactions found.');
+        loadFinanceWorkspace()
+          .then(() => showToast(state.transactions.length ? 'Transactions refreshed.' : 'No payment transactions found.'))
+          .catch(() => {});
       });
       document.getElementById('downloadTxnBtn').addEventListener('click', exportTransactionsCSV);
 
       // flagged
       document.getElementById('scanFraudBtn').addEventListener('click', () => {
-        syncSharedFinanceState();
-        renderFlagged();
-        updateMetrics();
-        showToast(state.flagged.length ? 'Fraud scan refreshed flagged expenses.' : 'No finance-flagged expenses found.');
+        loadFinanceWorkspace()
+          .then(() => showToast(state.flagged.length ? 'Flagged expenses refreshed.' : 'No finance-flagged expenses found.'))
+          .catch(() => {});
       });
       document.getElementById('bulkEscalateBtn').addEventListener('click', () => {
         if (!state.flagged.length) return showToast('No flagged expenses to escalate.');
@@ -2262,15 +2309,17 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
         showToast('Settings saved successfully.');
       });
       document.getElementById('resetSettingsBtn').addEventListener('click', () => {
+        const previousSettings = state.settings;
+        const financeUser = window.FinStackStore ? window.FinStackStore.getCurrentUser() : null;
         state.settings = {
-          officerName: 'Rajesh Kumar',
-          officerEmail: 'rajesh.kumar@finstack.io',
-          department: 'Finance Operations',
-          employeeId: 'FIN-2001',
-          phone: '+91 90000 33333',
-          location: 'Chennai, India',
-          organizationId: 'finstack-tech-01',
-          managerEmployeeId: '',
+          officerName: (financeUser && financeUser.fullName) || previousSettings.officerName,
+          officerEmail: (financeUser && financeUser.email) || previousSettings.officerEmail,
+          department: (financeUser && financeUser.department) || previousSettings.department,
+          employeeId: (financeUser && financeUser.employeeId) || previousSettings.employeeId,
+          phone: (financeUser && financeUser.phone) || previousSettings.phone,
+          location: (financeUser && financeUser.location) || previousSettings.location,
+          organizationId: (financeUser && financeUser.organizationId) || previousSettings.organizationId,
+          managerEmployeeId: (financeUser && financeUser.managerEmployeeId) || previousSettings.managerEmployeeId,
           timezone: 'Asia/Kolkata',
           currency: 'INR',
           theme: 'Dark',
@@ -2292,17 +2341,6 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
           sidebarDefaultCollapsed: false,
           compactDensity: false
         };
-        const financeUser = window.FinStackStore ? window.FinStackStore.getCurrentUser() : null;
-        if (window.FinStackStore && financeUser) {
-          window.FinStackStore.updateUser(financeUser.employeeId, {
-            fullName: state.settings.officerName,
-            email: state.settings.officerEmail,
-            department: state.settings.department,
-            phone: state.settings.phone,
-            location: state.settings.location,
-            managerEmployeeId: state.settings.managerEmployeeId
-          });
-        }
         applySettingsToForm();
         setSidebarCollapsed(false);
         document.body.classList.remove('compact-density');
@@ -2361,12 +2399,17 @@ Top signal: ${report.type.toUpperCase()} workflows are showing elevated activity
 
       // initial render
       window.FinStackStore.ready.then(() => {
-        syncSharedFinanceState();
-        renderActivities(); renderAlerts(); renderExpenses(); renderReviews(); renderReconciliation(); renderTransactions(); renderFlagged(); renderPayments(); renderReports(); renderAudit(); updateMetrics();
-        applySettingsToForm();
-        const savedSidebar = localStorage.getItem('finstackSidebarCollapsed');
-        if (savedSidebar === '1' || state.settings.sidebarDefaultCollapsed) setSidebarCollapsed(true);
-        syncFinanceShellIcons();
-        setPage(document.body?.dataset?.page || 'dashboard-page');
+        return loadFinanceWorkspace();
+      }).then(() => {
+          renderReports();
+          applySettingsToForm();
+          const savedSidebar = localStorage.getItem('finstackSidebarCollapsed');
+          if (savedSidebar === '1' || state.settings.sidebarDefaultCollapsed) setSidebarCollapsed(true);
+          syncFinanceShellIcons();
+          setPage(document.body?.dataset?.page || 'dashboard-page');
+      }).catch(() => {
+          renderReports();
+          syncFinanceShellIcons();
+          setPage(document.body?.dataset?.page || 'dashboard-page');
       });
     

@@ -21,7 +21,7 @@ export class TenantTokenService {
       'finstack-client',
     );
     this.accessTokenTtlSeconds = Number(
-      config.get<string>('TENANT_JWT_ACCESS_TTL_SECONDS', '900'),
+      config.get<string>('TENANT_JWT_ACCESS_TTL_SECONDS', '28800'),
     );
     if (this.secret.length < 32)
       throw new Error(

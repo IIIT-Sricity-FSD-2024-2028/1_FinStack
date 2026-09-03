@@ -110,13 +110,18 @@ model TenantUser {
   passwordHash   String           @db.VarChar(255)
   role           TenantRole       @default(EXPENSE_SUBMITTER)
   status         TenantUserStatus @default(ACTIVE)
+  department     String           @default("General") @db.VarChar(120)
+  managerId      String?          @db.Uuid
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager        TenantUser?      @relation("TenantUserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports  TenantUser[]     @relation("TenantUserManager")
 
   @@unique([organizationId, email])
   @@unique([organizationId, employeeId])
   @@index([organizationId, status])
+  @@index([organizationId, managerId])
 }
 
 model PlatformStaff {
@@ -341,6 +346,7 @@ model OrganizationSubscription {
   employeeCount       Int                   @default(1)
   employeeAmount      Decimal               @default(0) @db.Decimal(18, 4)
   featureAmount       Decimal               @default(0) @db.Decimal(18, 4)
+  selectedAddOns      Json?
   currentPeriodStart  DateTime?
   currentPeriodEnd    DateTime?
   trialStartAt        DateTime?
@@ -394,6 +400,7 @@ model Invoice {
   employeeCount      Int                      @default(1)
   employeeAmount     Decimal                  @default(0) @db.Decimal(18, 4)
   featureAmount      Decimal                  @default(0) @db.Decimal(18, 4)
+  selectedAddOns     Json?
   currency           String                   @db.Char(3)
   billingPeriodStart DateTime?
   billingPeriodEnd   DateTime?

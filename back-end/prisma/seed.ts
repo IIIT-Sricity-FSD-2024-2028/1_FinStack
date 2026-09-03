@@ -207,11 +207,13 @@ export async function seedProductCatalog(
     {
       key: 'ADVANCED_ANALYTICS',
       name: 'Advanced Analytics',
+      description: 'Advanced reporting and analytics for finance operations.',
       valueType: 'BOOLEAN' as const,
     },
     {
       key: 'PRIORITY_SUPPORT',
       name: 'Priority Support',
+      description: 'Priority access to FinStack support.',
       valueType: 'BOOLEAN' as const,
     },
     {
@@ -241,11 +243,13 @@ export async function seedProductCatalog(
       where: { key: feature.key },
       update: {
         name: feature.name,
+        description: feature.description,
         valueType: feature.valueType,
       },
       create: {
         key: feature.key,
         name: feature.name,
+        description: feature.description,
         valueType: feature.valueType,
       },
     });
@@ -258,6 +262,8 @@ export async function seedProductCatalog(
       billingInterval: 'MONTHLY' as const,
       basePrice: 2999,
       trialDays: 14,
+      includedEmployeeCount: 25,
+      additionalEmployeePrice: 99,
     },
     {
       key: 'PROFESSIONAL',
@@ -265,6 +271,8 @@ export async function seedProductCatalog(
       billingInterval: 'MONTHLY' as const,
       basePrice: 7999,
       trialDays: 14,
+      includedEmployeeCount: 100,
+      additionalEmployeePrice: 79,
     },
     {
       key: 'ENTERPRISE',
@@ -272,6 +280,8 @@ export async function seedProductCatalog(
       billingInterval: 'YEARLY' as const,
       basePrice: 79999,
       trialDays: 30,
+      includedEmployeeCount: 1000,
+      additionalEmployeePrice: 599,
     },
   ];
 
@@ -283,6 +293,8 @@ export async function seedProductCatalog(
         billingInterval: plan.billingInterval,
         basePrice: plan.basePrice,
         trialDays: plan.trialDays,
+        includedEmployeeCount: plan.includedEmployeeCount,
+        additionalEmployeePrice: plan.additionalEmployeePrice,
       },
       create: {
         key: plan.key,
@@ -290,6 +302,8 @@ export async function seedProductCatalog(
         billingInterval: plan.billingInterval,
         basePrice: plan.basePrice,
         trialDays: plan.trialDays,
+        includedEmployeeCount: plan.includedEmployeeCount,
+        additionalEmployeePrice: plan.additionalEmployeePrice,
       },
     });
   }
@@ -309,7 +323,40 @@ export async function seedProductCatalog(
   const getFeature = async (key: string) =>
     (await prisma.feature.findUnique({ where: { key } }))!;
 
+  const setPlanFeature = async (
+    planId: string,
+    key: string,
+    input: { value?: number; isAddOn?: boolean; addOnPrice?: number } = {},
+  ) => {
+    const feature = await getFeature(key);
+    await prisma.planFeature.upsert({
+      where: { planId_featureId: { planId, featureId: feature.id } },
+      update: {
+        ...(input.value === undefined ? {} : { value: input.value }),
+        isAddOn: input.isAddOn ?? false,
+        addOnPrice: input.addOnPrice ?? 0,
+        enabled: true,
+      },
+      create: {
+        planId,
+        featureId: feature.id,
+        enabled: true,
+        ...(input.value === undefined ? {} : { value: input.value }),
+        isAddOn: input.isAddOn ?? false,
+        addOnPrice: input.addOnPrice ?? 0,
+      },
+    });
+  };
+
   if (starter) {
+    await setPlanFeature(starter.id, 'ADVANCED_ANALYTICS', {
+      isAddOn: true,
+      addOnPrice: 799,
+    });
+    await setPlanFeature(starter.id, 'PRIORITY_SUPPORT', {
+      isAddOn: true,
+      addOnPrice: 999,
+    });
     await prisma.planFeature.upsert({
       where: {
         planId_featureId: {
@@ -359,6 +406,14 @@ export async function seedProductCatalog(
   }
 
   if (professional) {
+    await setPlanFeature(professional.id, 'ADVANCED_ANALYTICS', {
+      isAddOn: true,
+      addOnPrice: 499,
+    });
+    await setPlanFeature(professional.id, 'PRIORITY_SUPPORT', {
+      isAddOn: true,
+      addOnPrice: 699,
+    });
     const proFeatures = [
       'OCR_RECEIPT_EXTRACTION',
       'AI_RISK_SCORING',
@@ -450,7 +505,7 @@ export async function seedProductCatalog(
             featureId: (await getFeature(f)).id,
           },
         },
-        update: {},
+        update: { isAddOn: false, addOnPrice: 0, enabled: true },
         create: {
           planId: enterprise.id,
           featureId: (await getFeature(f)).id,

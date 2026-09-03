@@ -620,6 +620,7 @@ export class PlatformBillingService {
         employeeCount: number;
         employeeAmount: Prisma.Decimal;
         featureAmount: Prisma.Decimal;
+        selectedAddOns?: Prisma.JsonValue | null;
       };
       subscription: {
         id: string;
@@ -670,6 +671,7 @@ export class PlatformBillingService {
         employeeCount: payment.invoice.employeeCount ?? 1,
         employeeAmount: payment.invoice.employeeAmount ?? new Prisma.Decimal(0),
         featureAmount: payment.invoice.featureAmount ?? new Prisma.Decimal(0),
+        selectedAddOns: payment.invoice.selectedAddOns ?? undefined,
         currentPeriodStart:
           payment.invoice.billingPeriodStart ?? input.occurredAt,
         currentPeriodEnd: payment.invoice.billingPeriodEnd,

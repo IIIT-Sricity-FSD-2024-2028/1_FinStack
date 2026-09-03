@@ -33,11 +33,20 @@ export interface PlanFeatureDto {
   id: string;
   key: string;
   name: string;
+  description: string | null;
   valueType: FeatureValueType;
   enabled: boolean;
   value: Prisma.JsonValue | null;
   isAddOn: boolean;
   addOnPrice: string;
+}
+
+export interface SelectedAddOnDto {
+  featureId: string;
+  key: string;
+  name: string;
+  description: string | null;
+  amount: string;
 }
 
 export interface CommercialPlanDto {
@@ -61,6 +70,7 @@ export interface SubscriptionDto {
   employeeCount: number;
   employeeAmount: string;
   featureAmount: string;
+  selectedAddOns: SelectedAddOnDto[];
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   trialStartAt: string | null;
@@ -108,6 +118,7 @@ export interface InvoiceDto {
   employeeCount: number;
   employeeAmount: string;
   featureAmount: string;
+  selectedAddOns: SelectedAddOnDto[];
   currency: string;
   billingPeriodStart: string | null;
   billingPeriodEnd: string | null;
@@ -252,6 +263,7 @@ export function toSubscriptionDto(record: SubscriptionRecord): SubscriptionDto {
           id: assignment.feature.id,
           key: assignment.feature.key,
           name: assignment.feature.name,
+          description: assignment.feature.description,
           valueType: assignment.feature.valueType,
           enabled: assignment.enabled,
           value: assignment.value,
@@ -260,6 +272,7 @@ export function toSubscriptionDto(record: SubscriptionRecord): SubscriptionDto {
         }))
         .sort((left, right) => left.key.localeCompare(right.key)),
     },
+    selectedAddOns: selectedAddOns(record.selectedAddOns),
   };
 }
 
@@ -296,6 +309,7 @@ export function toInvoiceDto(record: InvoiceRecord): InvoiceDto {
     employeeCount: record.employeeCount ?? 1,
     employeeAmount: (record.employeeAmount ?? 0).toString(),
     featureAmount: (record.featureAmount ?? 0).toString(),
+    selectedAddOns: selectedAddOns(record.selectedAddOns),
     currency: record.currency,
     billingPeriodStart: date(record.billingPeriodStart),
     billingPeriodEnd: date(record.billingPeriodEnd),
@@ -308,6 +322,32 @@ export function toInvoiceDto(record: InvoiceRecord): InvoiceDto {
     organization: record.organization,
     plan: record.plan,
   };
+}
+
+function selectedAddOns(value: Prisma.JsonValue | null): SelectedAddOnDto[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const snapshot = item as Record<string, unknown>;
+    if (
+      typeof snapshot.featureId !== 'string' ||
+      typeof snapshot.key !== 'string' ||
+      typeof snapshot.name !== 'string' ||
+      typeof snapshot.amount !== 'string'
+    ) return [];
+    return [
+      {
+        featureId: snapshot.featureId,
+        key: snapshot.key,
+        name: snapshot.name,
+        description:
+          typeof snapshot.description === 'string'
+            ? snapshot.description
+            : null,
+        amount: snapshot.amount,
+      },
+    ];
+  });
 }
 
 export function toPaymentDto(record: PaymentRecord): PaymentDto {

@@ -217,8 +217,11 @@ window.FinStack = FinStack;
   }
 
   function performLogout() {
-    sessionStorage.removeItem('finstackUserSession');
-    localStorage.removeItem('finstackUserSession');
+    if (window.FinStackGuard) window.FinStackGuard.clearSession();
+    else {
+      sessionStorage.removeItem('finstackUserSession');
+      localStorage.removeItem('finstackUserSession');
+    }
     window.location.href = '../../login.html?role=manager';
   }
 
@@ -600,7 +603,6 @@ window.FinStack = FinStack;
           if (action === 'profile-settings' || action === 'preferences') {
             onNavigate('profile-settings');
           } else if (action === 'logout') {
-            sessionStorage.removeItem('finstackUserSession');
             if (FinStack.sidebar && FinStack.sidebar.performLogout) {
               FinStack.sidebar.performLogout();
             }
@@ -830,7 +832,23 @@ window.FinStack = FinStack;
       '</div>';
   }
 
-  function renderPage(route, config) {
+  function renderLoadErrorState(container, config) {
+    container.innerHTML =
+      '<div class="page-padding">' +
+        '<div class="page-header"><div><h1>' + config.title + '</h1></div></div>' +
+        '<div class="card"><div class="empty-state">' +
+          '<div class="empty-state-icon" style="color:var(--danger);">' + icons.alertTriangle(48) + '</div>' +
+          '<h3>Unable to load current data</h3>' +
+          '<p>Refresh this view to try the canonical tenant API again.</p>' +
+        '</div></div>' +
+      '</div>';
+  }
+
+  function routeNeedsCanonicalRefresh(route) {
+    return route === 'dashboard' || route === 'approval-history' || route === 'notifications';
+  }
+
+  function renderPage(route, config, canonicalDataLoaded) {
     var container = document.getElementById('page-content');
     if (!container) return;
 
@@ -839,7 +857,19 @@ window.FinStack = FinStack;
       renderLoadingState(container, config);
       storeReady.then(function() {
         if (currentRoute !== route) return;
-        renderPage(route, config);
+        renderPage(route, config, canonicalDataLoaded);
+      });
+      return;
+    }
+
+    if (!canonicalDataLoaded && routeNeedsCanonicalRefresh(route) && window.FinStackStore && typeof window.FinStackStore.reloadCanonical === 'function') {
+      renderLoadingState(container, config);
+      window.FinStackStore.reloadCanonical().then(function() {
+        if (currentRoute !== route) return;
+        renderPage(route, config, true);
+      }).catch(function(error) {
+        console.error('[FinStack Manager] Failed to refresh canonical manager data.', error);
+        if (currentRoute === route) renderLoadErrorState(container, config);
       });
       return;
     }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plan, BillingInterval } from '../../types/catalog';
+import { Plan, BillingInterval, PlanMutation } from '../../types/catalog';
 import { platformCatalogApi } from '../../services/api/platform-catalog';
 
 interface PlanFormProps {
@@ -21,6 +21,8 @@ export const PlanForm: React.FC<PlanFormProps> = ({ initialData, onSuccess, onCa
     basePrice: initialData?.basePrice || '',
     currency: initialData?.currency || 'INR',
     trialDays: initialData?.trialDays?.toString() || '',
+    includedEmployeeCount: initialData?.includedEmployeeCount.toString() || '1',
+    additionalEmployeePrice: initialData?.additionalEmployeePrice || '0',
   });
 
   const [loading, setLoading] = useState(false);
@@ -37,13 +39,25 @@ export const PlanForm: React.FC<PlanFormProps> = ({ initialData, onSuccess, onCa
     setError(null);
 
     try {
-      const payload: Partial<Plan> = {
+      const includedEmployeeCount = Number(formData.includedEmployeeCount);
+      const additionalEmployeePrice = Number(formData.additionalEmployeePrice);
+      if (!Number.isInteger(includedEmployeeCount) || includedEmployeeCount < 1) {
+        setError('Included employee seats must be a whole number of at least 1.');
+        return;
+      }
+      if (!Number.isFinite(additionalEmployeePrice) || additionalEmployeePrice < 0) {
+        setError('Additional employee price must be zero or greater.');
+        return;
+      }
+      const payload: PlanMutation = {
         name: formData.name,
         description: formData.description || null,
         billingInterval: formData.billingInterval as BillingInterval,
         basePrice: formData.basePrice,
         currency: formData.currency,
         trialDays: formData.trialDays ? parseInt(formData.trialDays, 10) : null,
+        includedEmployeeCount,
+        additionalEmployeePrice: formData.additionalEmployeePrice,
       };
 
       if (!isEditing) {
@@ -150,6 +164,32 @@ export const PlanForm: React.FC<PlanFormProps> = ({ initialData, onSuccess, onCa
             onChange={handleChange}
             min="0"
             max="365"
+          />
+        </label>
+
+        <label>
+          Included Employee Seats
+          <input
+            type="number"
+            name="includedEmployeeCount"
+            value={formData.includedEmployeeCount}
+            onChange={handleChange}
+            required
+            min="1"
+            step="1"
+          />
+        </label>
+
+        <label>
+          Additional Employee Price
+          <input
+            type="number"
+            name="additionalEmployeePrice"
+            value={formData.additionalEmployeePrice}
+            onChange={handleChange}
+            required
+            min="0"
+            step="0.01"
           />
         </label>
       </div>
