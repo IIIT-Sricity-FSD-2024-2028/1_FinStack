@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
     editCategory.innerHTML = categories.map(function (category) {
-        return '<option value="' + category.name + '">' + category.name + '</option>';
+        return '<option value="' + category.id + '">' + category.name + '</option>';
     }).join('');
 
     function formatExpenseId(id) {
@@ -72,6 +72,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
     }
 
+    function reloadExpenses(successMessage) {
+        FinStack.reloadCanonical().then(function () {
+            render();
+            showToast(successMessage, 'success');
+        }).catch(function (error) {
+            showToast((error && error.message ? error.message : 'Unable to refresh expenses') + ' The saved change will appear after retry.', 'error');
+        });
+    }
+
     searchInput.addEventListener('input', render);
     statusFilter.addEventListener('change', render);
     categoryFilter.addEventListener('change', render);
@@ -114,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!e) return;
         document.getElementById('editId').value = e.id;
         document.getElementById('editAmount').value = e.amount;
-        document.getElementById('editCategory').value = e.category;
+        document.getElementById('editCategory').value = e.categoryId;
         document.getElementById('editMerchant').value = e.merchant || '';
         document.getElementById('editDate').value = e.date || '';
         document.getElementById('editNotes').value = e.notes || '';
@@ -125,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ev.preventDefault();
         var id = document.getElementById('editId').value;
         var amount = document.getElementById('editAmount').value;
-        var category = document.getElementById('editCategory').value;
+        var categoryId = document.getElementById('editCategory').value;
         var merchant = document.getElementById('editMerchant').value;
         var date = document.getElementById('editDate').value;
         var notes = document.getElementById('editNotes').value;
@@ -136,16 +145,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var expense = FinStack.getExpenseById(id);
         var resubmit = expense && expense.workflowStatus === 'returned';
-        FinStack.updateExpense(id, {
-            amount: Number(amount),
-            category: category,
-            merchant: merchant.trim(),
-            date: date,
-            notes: notes.trim()
-        }, resubmit);
+        try {
+            FinStack.updateExpense(id, {
+                amount: Number(amount),
+                categoryId: categoryId,
+                merchant: merchant.trim(),
+                date: date,
+                notes: notes.trim()
+            }, resubmit);
+        } catch (error) {
+            showToast(error && error.message ? error.message : 'Unable to update this expense', 'error');
+            return;
+        }
         document.getElementById('editModal').classList.remove('active');
-        showToast('Expense ' + id + (resubmit ? ' updated and resubmitted' : ' updated successfully'), 'success');
-        render();
+        reloadExpenses('Expense ' + id + (resubmit ? ' updated and resubmitted' : ' updated successfully'));
     });
 
     // Delete expense
@@ -156,10 +169,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('confirmDelete').addEventListener('click', function () {
         var id = document.getElementById('deleteId').value;
-        FinStack.deleteExpense(id);
+        try {
+            FinStack.deleteExpense(id);
+        } catch (error) {
+            showToast(error && error.message ? error.message : 'Unable to delete this expense', 'error');
+            return;
+        }
         document.getElementById('deleteModal').classList.remove('active');
-        showToast('Expense ' + id + ' deleted', 'success');
-        render();
+        reloadExpenses('Expense ' + id + ' deleted');
     });
 
     render();

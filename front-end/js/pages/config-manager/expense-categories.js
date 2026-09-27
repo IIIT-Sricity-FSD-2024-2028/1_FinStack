@@ -5,6 +5,10 @@ function escCat(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function categoryMutationError(error) {
+  if (typeof Toast !== 'undefined') Toast.error(error && error.message ? error.message : 'Unable to save the category.');
+}
+
 /* ── Render ───────────────────────────────────────── */
 function renderCategories(list) {
   document.getElementById('cat-tbody').innerHTML = list.map(category => {
@@ -55,11 +59,16 @@ function bindCategoryForm() {
     event.preventDefault();
     const name = document.getElementById('category-name').value.trim();
     if (!name) return;
-    window.FinStackStore.addCategory({
-      name,
-      description:     document.getElementById('category-description').value.trim(),
-      requiresReceipt: document.getElementById('category-requires-receipt').classList.contains('active')
-    });
+    try {
+      window.FinStackStore.addCategory({
+        name,
+        description:     document.getElementById('category-description').value.trim(),
+        requiresReceipt: document.getElementById('category-requires-receipt').classList.contains('active')
+      });
+    } catch (error) {
+      categoryMutationError(error);
+      return;
+    }
     document.getElementById('category-form').reset();
     document.getElementById('category-requires-receipt').classList.add('active');
     closeModal('category-modal');
@@ -90,11 +99,16 @@ function bindEditCategoryForm() {
   form.addEventListener('submit', event => {
     event.preventDefault();
     const id = document.getElementById('edit-category-id').value;
-    window.FinStackStore.updateCategory(id, {
-      name:        document.getElementById('edit-cat-name').value.trim(),
-      description: document.getElementById('edit-cat-description').value.trim(),
-      status:      document.getElementById('edit-cat-status').value
-    });
+    try {
+      window.FinStackStore.updateCategory(id, {
+        name:        document.getElementById('edit-cat-name').value.trim(),
+        description: document.getElementById('edit-cat-description').value.trim(),
+        status:      document.getElementById('edit-cat-status').value
+      });
+    } catch (error) {
+      categoryMutationError(error);
+      return;
+    }
     closeModal('edit-category-modal');
     filterCategories();
     if (typeof Toast !== 'undefined') Toast.success('Category updated successfully.');
@@ -112,7 +126,13 @@ window.confirmDeleteCategory = function(id, name) {
   var newBtn = btn.cloneNode(true);
   btn.parentNode.replaceChild(newBtn, btn);
   newBtn.addEventListener('click', function() {
-    var ok = window.FinStackStore.deleteCategory(id);
+    var ok = false;
+    try {
+      ok = window.FinStackStore.deleteCategory(id);
+    } catch (error) {
+      categoryMutationError(error);
+      return;
+    }
     if (ok) {
       filterCategories();
       if (typeof Toast !== 'undefined') Toast.success('Category deleted.');

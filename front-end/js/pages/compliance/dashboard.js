@@ -197,7 +197,8 @@ function initHeaderProfileMenu() {
 window.initHeaderProfileMenu = initHeaderProfileMenu;
 
 function logoutToSharedLogin() {
-  sessionStorage.removeItem('finstackUserSession');
+  if (window.FinStackGuard) window.FinStackGuard.clearSession();
+  else sessionStorage.removeItem('finstackUserSession');
   window.location.href = '../../login.html?role=compliance_officer';
 }
 window.logoutToSharedLogin = logoutToSharedLogin;

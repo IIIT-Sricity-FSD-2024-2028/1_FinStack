@@ -78,6 +78,15 @@
           </svg>
           <span class="sidebar-item-text">Roles & Access</span>
         </a>
+        <a href="subscription.html" class="sidebar-item">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" width="20px" height="20px"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <rect width="20" height="14" x="2" y="5" rx="2" />
+            <line x1="2" x2="22" y1="10" y2="10" />
+          </svg>
+          <span class="sidebar-item-text">Subscription</span>
+        </a>
       </div>
       <!-- Expense Config -->
       <div class="sidebar-section">
@@ -158,15 +167,6 @@
       <div class="topnav-brand" style="font-size:1rem;font-weight:600;color:var(--text-primary);white-space:nowrap;">FinStack Workspace</div>
     </div>
     <div class="topnav-right">
-      <div class="topnav-search">
-        <svg xmlns="http://www.w3.org/2000/svg" class="search-icon" style="width:16px;height:16px;" width="16px"
-          height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input type="text" placeholder="Search...">
-      </div>
       <!-- Notifications -->
       <div class="dropdown">
         <button class="topnav-icon-btn" id="notif-btn" aria-label="Notifications">
@@ -299,22 +299,15 @@
               <svg xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;" width="22px" height="22px"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" aria-hidden="true">
-                <line x1="12" x2="12" y1="2" y2="22" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <rect width="16" height="20" x="4" y="2" rx="2" />
+                <path d="M9 22v-4h6v4" />
+                <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
               </svg>
             </div>
             <div>
-              <div class="metric-label">Total Expenses</div>
-              <div class="metric-value">$124,500</div>
-              <div class="metric-change positive">
-                <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;" width="12px" height="12px"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" aria-hidden="true">
-                  <path d="M22 7 13.5 15.5l-5-5L2 17" />
-                  <path d="M16 7h6v6" />
-                </svg>
-                +12.5% from last month
-              </div>
+              <div class="metric-label">Organization</div>
+              <div class="metric-value">Not available</div>
+              <div data-dashboard-detail="organization" style="font-size:0.75rem;color:var(--text-secondary);margin-top:8px;"></div>
             </div>
           </div>
         </div>
@@ -332,17 +325,9 @@
               </svg>
             </div>
             <div>
-              <div class="metric-label">Pending Approvals</div>
-              <div class="metric-value">23</div>
-              <div class="metric-change negative">
-                <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;" width="12px" height="12px"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" aria-hidden="true">
-                  <path d="m22 17-8.5-8.5-5 5L2 7" />
-                  <path d="M16 17h6v-6" />
-                </svg>
-                -5.2% from last month
-              </div>
+              <div class="metric-label">Subscription status</div>
+              <div class="metric-value">Not available</div>
+              <div data-dashboard-detail="subscription" style="font-size:0.75rem;color:var(--text-secondary);margin-top:8px;"></div>
             </div>
           </div>
         </div>
@@ -357,43 +342,28 @@
               </svg>
             </div>
             <div>
-              <div class="metric-label">Approved This Month</div>
-              <div class="metric-value">156</div>
-              <div class="metric-change positive">
-                <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;" width="12px" height="12px"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" aria-hidden="true">
-                  <path d="M22 7 13.5 15.5l-5-5L2 17" />
-                  <path d="M16 7h6v6" />
-                </svg>
-                +8.1% from last month
-              </div>
+              <div class="metric-label">Recurring price</div>
+              <div class="metric-value">Not available</div>
+              <div data-dashboard-detail="price" style="font-size:0.75rem;color:var(--text-secondary);margin-top:8px;"></div>
             </div>
           </div>
         </div>
         <div class="metric-card">
           <div style="display:flex;align-items:center;gap:12px;">
-            <div class="icon-box icon-box-red" style="width:44px;height:44px;">
+            <div class="icon-box icon-box-cyan" style="width:44px;height:44px;">
               <svg xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;" width="22px" height="22px"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" aria-hidden="true">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-                <path d="M12 9v4" />
-                <path d="M12 17h.01" />
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             </div>
             <div>
-              <div class="metric-label">Policy Violations</div>
-              <div class="metric-value">7</div>
-              <div class="metric-change negative">
-                <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;" width="12px" height="12px"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" aria-hidden="true">
-                  <path d="M22 7 13.5 15.5l-5-5L2 17" />
-                  <path d="M16 7h6v6" />
-                </svg>
-                +2 new this week
-              </div>
+              <div class="metric-label">Purchased seats</div>
+              <div class="metric-value">Not available</div>
+              <div data-dashboard-detail="seats" style="font-size:0.75rem;color:var(--text-secondary);margin-top:8px;"></div>
             </div>
           </div>
         </div>
@@ -558,7 +528,7 @@
                 </svg></div>
               <div>
                 <div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);">Add User</div>
-                <div style="font-size:0.75rem;color:var(--text-secondary);">Invite a new team member</div>
+                <div style="font-size:0.75rem;color:var(--text-secondary);">Create a team member account</div>
               </div>
               <svg xmlns="http://www.w3.org/2000/svg"
                 style="width:16px;height:16px;color:var(--text-muted);margin-left:auto;" width="16px" height="16px"
@@ -622,10 +592,10 @@
     </div>
   </main>
 
-  <script src="../../js/api.js"></script>
-  <script src="../../js/state.js"></script>
-  <script src="../../js/auth.js"></script>
-  <script src="../../js/pages/config-manager/dashboard.js"></script>
+  <script src="../../js/api.js?v=3"></script>
+  <script src="../../js/state.js?v=3"></script>
+  <script src="../../js/auth.js?v=3"></script>
+  <script src="../../js/pages/config-manager/dashboard.js?v=3"></script>
 </body>
 
 </html>

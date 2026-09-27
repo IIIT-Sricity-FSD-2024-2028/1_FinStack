@@ -12,14 +12,35 @@ document.addEventListener('DOMContentLoaded', function () {
     var maxFileSize = 5 * 1024 * 1024;
     var allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
     var allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    var isSubmitting = false;
+    var submitButton = document.querySelector('#expenseForm button[type="submit"]');
 
-    var categories = window.FinStackStore.getCategories().filter(function (category) {
-        return category.status === 'Active';
-    });
-    categorySelect.innerHTML = '<option value="none">Select category</option>' +
-        categories.map(function (category) {
-            return '<option value="' + category.id + '">' + category.name + '</option>';
-        }).join('');
+    function renderCategories(categories) {
+        categorySelect.innerHTML = '<option value="none">Select category</option>' +
+            categories.map(function (category) {
+                return '<option value="' + category.id + '">' + category.name + '</option>';
+            }).join('');
+        categorySelect.disabled = categories.length === 0;
+    }
+
+    function loadCategories() {
+        if (!window.FinStackTenantSession) return;
+        categorySelect.disabled = true;
+        window.FinStackTenantSession.request('/api/v1/tenant/expenses/categories')
+            .then(function (categories) {
+                renderCategories(Array.isArray(categories) ? categories : []);
+                if (!categories || categories.length === 0) {
+                    showToast('No active expense categories are available. Contact your Configuration Manager.', 'error');
+                }
+            })
+            .catch(function (error) {
+                categorySelect.innerHTML = '<option value="none">Unable to load categories</option>';
+                categorySelect.disabled = true;
+                showToast(error.message || 'Unable to load expense categories.', 'error');
+            });
+    }
+
+    loadCategories();
 
     dropzone.addEventListener('click', function () { fileInput.click(); });
     document.getElementById('selectFileBtn').addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
@@ -57,7 +78,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (file.size > maxFileSize) {
             validationMessage = 'Receipt must be 5 MB or smaller.';
         }
-
         if (validationMessage) {
             currentFile = null;
             fileInput.value = '';
@@ -69,7 +89,6 @@ document.addEventListener('DOMContentLoaded', function () {
             showToast(validationMessage, 'error');
             return;
         }
-
         currentFile = file;
         fileNameEl.textContent = file.name;
         fileSizeEl.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
@@ -79,8 +98,9 @@ document.addEventListener('DOMContentLoaded', function () {
         fileError.style.display = 'none';
     }
 
-    document.getElementById('expenseForm').addEventListener('submit', async function (e) {
+    document.getElementById('expenseForm').addEventListener('submit', function (e) {
         e.preventDefault();
+        if (isSubmitting) return;
         var errors = {};
         var amountVal = document.getElementById('amount').value;
         var merchantVal = document.getElementById('merchant').value;
@@ -110,47 +130,34 @@ document.addEventListener('DOMContentLoaded', function () {
         var flag = FinStack.randomFlag();
         var risk = FinStack.calculateRisk(flag, confidence);
 
-        var categoryLabel = cat.options[cat.selectedIndex] ? cat.options[cat.selectedIndex].text : cat.value;
-
-        var submitButton = e.currentTarget.querySelector('button[type="submit"]');
+        isSubmitting = true;
         if (submitButton) submitButton.disabled = true;
-
-        try {
-            var expense = await window.FinStackStore.submitExpenseWithReceipt({
-                amount: Number(amountVal),
-                category: categoryLabel,
-                categoryId: cat.value,
-                merchant: merchantVal.trim(),
-                date: dateVal,
-                notes: notesVal.trim(),
-                paymentMethod: paymentMethod,
-                extraction_confidence: confidence,
-                flag: flag,
-                risk_score: risk
-            }, currentFile);
-
-            if (!expense) throw new Error('Expense submission failed.');
+        window.FinStackApi.createExpense({
+            amount: Number(amountVal),
+            categoryId: cat.value,
+            merchant: merchantVal.trim(),
+            date: dateVal,
+            notes: notesVal.trim(),
+            paymentMethod: paymentMethod,
+            receiptFileName: currentFile ? currentFile.name : '',
+            extractionConfidence: confidence,
+            flag: flag,
+            riskScore: risk
+        }, currentFile).then(function (expense) {
+            return FinStack.reloadCanonical().then(function () { return expense; });
+        }).then(function (expense) {
             showToast('Expense ' + expense.id + ' submitted successfully! Risk: ' + FinStack.getRiskLabel(risk), 'success');
-
-            document.getElementById('expenseForm').reset();
-            currentFile = null;
-            fileInput.value = '';
-            emptyState.style.display = '';
-            previewState.style.display = 'none';
-            dropzone.classList.remove('error');
-            fileError.style.display = 'none';
-            ['amount', 'merchant', 'category', 'date'].forEach(function (id) {
-                var el = document.getElementById(id);
-                if (el) el.style.borderColor = '';
-            });
-        } catch (error) {
-            showToast(error && error.message ? error.message : 'Expense submission failed.', 'error');
-        } finally {
+            resetExpenseForm();
+        }).catch(function (error) {
+            showToast(error.message || 'Unable to submit the expense.', 'error');
+        }).finally(function () {
+            isSubmitting = false;
             if (submitButton) submitButton.disabled = false;
-        }
+        });
     });
 
-    document.getElementById('resetBtn').addEventListener('click', function () {
+    function resetExpenseForm() {
+        document.getElementById('expenseForm').reset();
         currentFile = null;
         fileInput.value = '';
         emptyState.style.display = '';
@@ -161,6 +168,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var el = document.getElementById(id);
             if (el) el.style.borderColor = '';
         });
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', function () {
+        resetExpenseForm();
     });
     });
 });

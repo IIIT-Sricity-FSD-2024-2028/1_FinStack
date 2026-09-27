@@ -24,7 +24,8 @@
       </div>
       <div class="landing-nav-links">
         <a href="#features">Features</a>
-        <a href="#stats">Stats</a>
+        <a href="#workflow">How It Works</a>
+        <a href="#pricing">Pricing</a>
         <a href="#contact">Contact</a>
       </div>
       <div class="landing-nav-actions">
@@ -64,7 +65,7 @@
           </svg>
         </a>
         <a href="login.html" class="landing-hero-btn landing-hero-btn-secondary">
-          View Demo
+          Login
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" width="18px" height="18px"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round" aria-hidden="true">
@@ -74,7 +75,7 @@
       </div>
     </section>
 
-    <section class="landing-features" style="padding-top:0;">
+    <section class="landing-features landing-role-access" id="role-access">
       <div class="landing-features-header">
         <h2>Role-Based Login Access</h2>
         <p>Choose the right FinStack workspace for your responsibilities and sign in from one shared entry point.</p>
@@ -200,8 +201,8 @@
               <path d="m9 12 2 2 4-4" />
             </svg>
           </div>
-          <h3>Automated Compliance</h3>
-          <p>AI-powered validation ensures every expense meets your policy requirements before submission.</p>
+          <h3>Policy &amp; Compliance Checks</h3>
+          <p>Review expenses against configured policies and route exceptions for compliance review.</p>
         </div>
         <div class="feature-card">
           <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
@@ -215,8 +216,8 @@
               <path d="M6 15h6" />
             </svg>
           </div>
-          <h3>Smart Workflows</h3>
-          <p>Configurable multi-level approval chains with automatic routing and escalation.</p>
+          <h3>Approval Workflows</h3>
+          <p>Move expenses through structured manager, compliance, and finance review stages.</p>
         </div>
         <div class="feature-card">
           <div class="icon-box icon-box-pink" style="width:48px;height:48px;">
@@ -229,8 +230,8 @@
               <path d="M8 17v-3" />
             </svg>
           </div>
-          <h3>Real-time Analytics</h3>
-          <p>Interactive dashboards with drill-down capabilities for complete financial visibility.</p>
+          <h3>Expense Visibility</h3>
+          <p>Use dashboard and reporting views to monitor expense activity and financial operations.</p>
         </div>
         <div class="feature-card">
           <div class="icon-box icon-box-green" style="width:48px;height:48px;">
@@ -244,7 +245,7 @@
             </svg>
           </div>
           <h3>Role-Based Access</h3>
-          <p>Granular permissions system with customizable roles for secure data management.</p>
+          <p>Role-specific workspaces keep expense actions aligned with each user's responsibilities.</p>
         </div>
         <div class="feature-card">
           <div class="icon-box icon-box-orange" style="width:48px;height:48px;">
@@ -258,8 +259,8 @@
               <path d="M10 9H8" />
             </svg>
           </div>
-          <h3>Audit Trails</h3>
-          <p>Complete, tamper-proof audit logs for every transaction and system action.</p>
+          <h3>Audit History</h3>
+          <p>Track key expense workflow decisions, reviews, and operational activity.</p>
         </div>
         <div class="feature-card">
           <div class="icon-box icon-box-cyan" style="width:48px;height:48px;">
@@ -270,37 +271,40 @@
               <path d="M2 10h20" />
             </svg>
           </div>
-          <h3>Bank Integration</h3>
-          <p>Seamless integration with major banking platforms for automated reconciliation.</p>
+          <h3>Bank &amp; Reconciliation</h3>
+          <p>Process payment activity through the Bank Sandbox and reconcile related transactions.</p>
         </div>
       </div>
     </section>
 
-    <section class="landing-stats" id="stats">
-      <div class="landing-stats-grid">
-        <div class="landing-stat">
-          <div class="stat-number">99.9%</div>
-          <div class="stat-text">Uptime Guarantee</div>
-        </div>
-        <div class="landing-stat">
-          <div class="stat-number">500+</div>
-          <div class="stat-text">Enterprise Clients</div>
-        </div>
-        <div class="landing-stat">
-          <div class="stat-number">$2.5B</div>
-          <div class="stat-text">Expenses Processed</div>
-        </div>
-        <div class="landing-stat">
-          <div class="stat-number">85%</div>
-          <div class="stat-text">Time Saved</div>
-        </div>
+    <section class="landing-workflow" id="workflow" aria-labelledby="workflow-title">
+      <div class="landing-features-header">
+        <h2 id="workflow-title">How FinStack Works</h2>
+        <p>A clear workflow from expense submission to reconciled payment.</p>
       </div>
+      <ol class="landing-workflow-grid">
+        <li class="landing-workflow-step"><span>1</span><div><h3>Submit Expense</h3><p>Employees submit an expense and attach the supporting receipt.</p></div></li>
+        <li class="landing-workflow-step"><span>2</span><div><h3>Manager Review</h3><p>Managers review the request and approve or reject it in the workflow.</p></div></li>
+        <li class="landing-workflow-step"><span>3</span><div><h3>Compliance Review</h3><p>Policy and compliance checks are completed when the workflow requires them.</p></div></li>
+        <li class="landing-workflow-step"><span>4</span><div><h3>Finance Processing</h3><p>Finance validates approved expenses and prepares the payment step.</p></div></li>
+        <li class="landing-workflow-step"><span>5</span><div><h3>Bank &amp; Reconciliation</h3><p>Payments are processed through the Bank Sandbox and reconciled before the expense is paid.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="landing-pricing" id="pricing" aria-labelledby="pricing-title">
+      <div class="landing-features-header">
+        <h2 id="pricing-title">Pricing Built Around Your Team</h2>
+        <p>Choose an active FinStack plan and see its included seats, features, and optional add-ons.</p>
+      </div>
+      <div id="pricing-status" class="landing-pricing-status" role="status">Loading active plans...</div>
+      <div id="pricing-plan-grid" class="landing-pricing-grid" aria-live="polite"></div>
+      <p class="landing-pricing-note">Your recurring subscription is based on the selected plan, employee count, and optional paid add-ons.</p>
     </section>
 
     <section class="landing-cta" id="contact">
       <div class="landing-cta-card">
-        <h2>Ready to Transform Your Expense Management?</h2>
-        <p>Join hundreds of organizations that trust FinStack for their financial operations.</p>
+        <h2>Need help with onboarding, billing, or using FinStack?</h2>
+        <p>FinStack includes support-ticket management for customer issues and a guided path to start your organization workspace.</p>
         <div style="display: flex; gap: 16px; justify-content: center;">
           <a href="views/shared/register.html" class="landing-hero-btn landing-hero-btn-primary">
             Get Started Now
@@ -311,6 +315,7 @@
               <path d="m12 5 7 7-7 7" />
             </svg>
           </a>
+          <a href="login.html" class="landing-hero-btn landing-hero-btn-secondary">Login</a>
         </div>
       </div>
     </section>
@@ -321,6 +326,7 @@
   </div>
 
   <script src="js/app.js"></script>
+  <script src="js/pages/shared/landing.js"></script>
 </body>
 
 </html>

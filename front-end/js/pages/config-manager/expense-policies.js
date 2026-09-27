@@ -5,6 +5,10 @@ function escPol(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function policyMutationError(error) {
+  if (typeof Toast !== 'undefined') Toast.error(error && error.message ? error.message : 'Unable to save the policy.');
+}
+
 /* ── Render ───────────────────────────────────────── */
 function renderPolicies(list) {
   document.getElementById('policy-tbody').innerHTML = list.map(policy => {
@@ -68,16 +72,21 @@ function bindPolicyForm() {
     const categories = window.FinStackStore.getCategories();
     const categoryId = document.getElementById('policy-category').value;
     const category   = categories.find(item => item.id === categoryId);
-    window.FinStackStore.addPolicy({
-      name:             document.getElementById('policy-name').value.trim(),
-      categoryId:       category ? category.id : 'all_categories',
-      category:         category ? category.name : 'All Categories',
-      maxAmount:        Number(document.getElementById('policy-amount').value || 0),
-      description:      document.getElementById('policy-description').value.trim(),
-      requiresApproval: document.getElementById('policy-requires-approval').classList.contains('active'),
-      receiptRequired:  document.getElementById('policy-receipt-required').classList.contains('active'),
-      approval:         document.getElementById('policy-requires-approval').classList.contains('active') ? 'Manager + Finance' : 'Auto Approved'
-    });
+    try {
+      window.FinStackStore.addPolicy({
+        name:             document.getElementById('policy-name').value.trim(),
+        categoryId:       category ? category.id : 'all_categories',
+        category:         category ? category.name : 'All Categories',
+        maxAmount:        Number(document.getElementById('policy-amount').value || 0),
+        description:      document.getElementById('policy-description').value.trim(),
+        requiresApproval: document.getElementById('policy-requires-approval').classList.contains('active'),
+        receiptRequired:  document.getElementById('policy-receipt-required').classList.contains('active'),
+        approval:         document.getElementById('policy-requires-approval').classList.contains('active') ? 'Manager + Finance' : 'Auto Approved'
+      });
+    } catch (error) {
+      policyMutationError(error);
+      return;
+    }
     document.getElementById('policy-form').reset();
     document.getElementById('policy-requires-approval').classList.add('active');
     document.getElementById('policy-receipt-required').classList.add('active');
@@ -129,14 +138,19 @@ function bindEditPolicyForm() {
     const categories = window.FinStackStore.getCategories();
     const categoryId = document.getElementById('edit-policy-category').value;
     const category   = categories.find(c => c.id === categoryId);
-    window.FinStackStore.updatePolicy(id, {
-      name:        document.getElementById('edit-policy-name').value.trim(),
-      categoryId:  category ? category.id : categoryId,
-      category:    category ? category.name : 'All Categories',
-      maxAmount:   Number(document.getElementById('edit-policy-amount').value || 0),
-      description: document.getElementById('edit-policy-description').value.trim(),
-      status:      document.getElementById('edit-policy-status').value
-    });
+    try {
+      window.FinStackStore.updatePolicy(id, {
+        name:        document.getElementById('edit-policy-name').value.trim(),
+        categoryId:  category ? category.id : categoryId,
+        category:    category ? category.name : 'All Categories',
+        maxAmount:   Number(document.getElementById('edit-policy-amount').value || 0),
+        description: document.getElementById('edit-policy-description').value.trim(),
+        status:      document.getElementById('edit-policy-status').value
+      });
+    } catch (error) {
+      policyMutationError(error);
+      return;
+    }
     closeModal('edit-policy-modal');
     filterPolicies();
     if (typeof Toast !== 'undefined') Toast.success('Policy updated successfully.');
@@ -155,7 +169,13 @@ window.confirmDeletePolicy = function(id, name) {
   btn.parentNode.replaceChild(newBtn, btn);
   newBtn.addEventListener('click', function() {
     var numId = isNaN(Number(id)) ? id : Number(id);
-    var ok = window.FinStackStore.deletePolicy(numId);
+    var ok = false;
+    try {
+      ok = window.FinStackStore.deletePolicy(numId);
+    } catch (error) {
+      policyMutationError(error);
+      return;
+    }
     if (ok) {
       filterPolicies();
       if (typeof Toast !== 'undefined') Toast.success('Policy deleted.');

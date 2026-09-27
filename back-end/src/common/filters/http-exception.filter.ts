@@ -20,9 +20,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = isHttpException
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
-    const message = isHttpException
-      ? this.getHttpExceptionMessage(exception)
-      : 'Internal server error';
+    const error = this.getError(exception, status);
 
     this.logger.logException({
       requestId: request.requestId,
@@ -30,7 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.path,
       statusCode: status,
       exceptionName: this.getExceptionName(exception),
-      message,
+      message: error.message,
       stack:
         !isHttpException && exception instanceof Error
           ? exception.stack
@@ -39,32 +37,48 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       success: false,
-      message,
+      error,
+      message: error.message,
       ...(request.requestId ? { requestId: request.requestId } : {}),
     });
-  }
-
-  private getHttpExceptionMessage(exception: HttpException): string {
-    const response = exception.getResponse();
-
-    if (typeof response === 'string') {
-      return response;
-    }
-
-    if (typeof response === 'object' && response !== null) {
-      const body = response as { message?: string | string[]; error?: string };
-      if (Array.isArray(body.message)) {
-        return body.message.join(', ');
-      }
-      return body.message || body.error || exception.message;
-    }
-
-    return exception.message;
   }
 
   private getExceptionName(exception: unknown): string {
     return exception instanceof Error
       ? exception.name
       : 'UnknownException';
+  }
+
+  private getError(
+    exception: unknown,
+    status: number,
+  ): { code: string; message: string } {
+    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      return {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred.',
+      };
+    }
+
+    if (exception instanceof HttpException) {
+      const response = exception.getResponse();
+
+      if (typeof response === 'string') {
+        return { code: `HTTP_${status}`, message: response };
+      }
+
+      if (typeof response === 'object' && response !== null) {
+        const body = response as {
+          code?: string;
+          message?: string | string[];
+          error?: string;
+        };
+        const message = Array.isArray(body.message)
+          ? body.message.join(', ')
+          : body.message || body.error || exception.message;
+        return { code: body.code || `HTTP_${status}`, message };
+      }
+    }
+    return { code: `HTTP_${status}`, message: 'Request failed.' };
   }
 }

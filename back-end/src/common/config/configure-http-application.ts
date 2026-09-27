@@ -26,6 +26,7 @@ export function configureHttpApplication(app: INestApplication): void {
     origin: (origin, callback) => {
       callback(null, !origin || allowedOrigins.includes(origin));
     },
+    credentials: true,
   });
 
   app.useGlobalPipes(

@@ -38,6 +38,11 @@ import { ReceiptUploadService } from './receipt-upload/receipt-upload.service';
     ReceiptRepository,
     ReceiptUploadService,
   ],
-  exports: [ExpensesService, ExpensesRepository, ReceiptRepository],
+  exports: [
+    ExpensesService,
+    ExpensesRepository,
+    ReceiptRepository,
+    ReceiptUploadService,
+  ],
 })
 export class ExpensesModule {}

@@ -75,6 +75,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (successBox) successBox.style.display = 'none';
   }
 
+  function tenantLogin(identifier, organizationId, password) {
+    var body = { organizationId: organizationId, password: password };
+    if (identifier.indexOf('@') !== -1) body.email = identifier;
+    else body.employeeId = identifier;
+    return fetch(getApiBaseUrl() + '/api/v1/tenant/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (response) {
+      return response.text().then(function (text) { var payload = text ? JSON.parse(text) : null; if (!response.ok) throw new Error(getErrorMessage(payload, 'Invalid tenant credentials.')); return payload && payload.data ? payload.data : payload; });
+    });
+  }
+
   function getApiBaseUrl() {
     return window.FinStackApi && window.FinStackApi.baseUrl
       ? window.FinStackApi.baseUrl
@@ -88,46 +97,15 @@ document.addEventListener('DOMContentLoaded', function () {
     return message || fallback;
   }
 
-  function unwrapUsersResponse(payload) {
-    if (payload && payload.success === false) {
-      throw new Error(getErrorMessage(payload, 'Unable to validate login.'));
-    }
-    return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
-  }
-
-  function fetchLatestUsers() {
-    return fetch(getApiBaseUrl() + '/users', {
-      method: 'GET',
-      headers: {
-        role: 'superuser',
-        'Content-Type': 'application/json'
-      }
-    }).then(function (response) {
-      return response.text().then(function (text) {
-        var payload = text ? JSON.parse(text) : null;
-        if (!response.ok) {
-          throw new Error(getErrorMessage(payload, 'Unable to validate login.'));
-        }
-        var users = unwrapUsersResponse(payload);
-        return Array.isArray(users) ? users : [];
-      });
-    });
-  }
-
-  function findMatchingUser(users, credentials) {
-    return users.find(function (user) {
-      return String(user.employeeId || '') === credentials.employeeId &&
-        String(user.organizationId || '') === credentials.organizationId &&
-        String(user.password || '') === credentials.password;
-    }) || null;
-  }
-
-  function resolveRole(user, selectedRole) {
-    var roles = user.roles || [];
-    if (!Array.isArray(roles)) roles = [roles];
-
-    if (roles.indexOf(selectedRole) !== -1) return selectedRole;
-    return user.role || roles[0] || selectedRole;
+  function workspaceRoleName(role) {
+    var labels = {
+      configuration_manager: 'Configuration Manager',
+      expense_submitter: 'Expense Submitter',
+      manager: 'Manager',
+      finance_officer: 'Finance Officer',
+      compliance_officer: 'Compliance Officer'
+    };
+    return labels[role] || 'another workspace role';
   }
 
   /* Toggle password visibility */
@@ -167,59 +145,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
       /* Client-side validation */
       if (!role) { showError('Please select a role.'); return; }
-      if (!orgId) { showError('Organization ID is required.'); return; }
-      if (!employeeId) { showError('Employee ID is required.'); return; }
+      if (!orgId) { showError('Organization slug is required.'); return; }
+      if (!employeeId) { showError('Email or employee ID is required.'); return; }
       if (!password) { showError('Password is required.'); return; }
-      if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+      if (password.length < 8) { showError('Password must be at least 8 characters.'); return; }
 
-      var credentials = {
-        employeeId: employeeId,
-        organizationId: orgId,
-        password: password
-      };
-
-      fetchLatestUsers()
-        .then(function (users) {
-          var user = findMatchingUser(users, credentials);
-          if (!user) {
-            showError('Invalid employee ID, organization ID, or password.');
+      tenantLogin(employeeId, orgId, password)
+        .then(function (result) {
+          if (!window.FinStackTenantSession) {
+            throw new Error('Tenant session handling is unavailable. Please perform a Hard Refresh (Ctrl+F5 or Cmd+Shift+R) and try again.');
+          }
+          var canonicalRole = window.FinStackTenantSession.workspaceRoleForTenantRole(
+            result && result.user && result.user.role,
+          );
+          if (!canonicalRole) {
+            throw new Error('This account does not have access to a FinStack workspace.');
+          }
+          if (canonicalRole !== role) {
+            showError('This account is assigned to ' + workspaceRoleName(canonicalRole) + '.');
             return;
           }
-
-          var resolvedRole = resolveRole(user, role);
-
-          var session = {
-            id: user.id || '',
-            employeeId: user.employeeId || employeeId,
-            fullName: user.fullName || user.name || '',
-            email: user.email || '',
-            role: resolvedRole,
-            roles: Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : [resolvedRole]),
-            organizationId: user.organizationId || orgId,
-            loginAt: new Date().toISOString()
-          };
-
-          sessionStorage.setItem('finstackUserSession', JSON.stringify(session));
-          localStorage.setItem('currentUser', JSON.stringify(session));
-          window.FinStackCurrentUser = user;
-
-          if (window.FinStackStore && typeof window.FinStackStore.rememberRoleUser === 'function') {
-            window.FinStackStore.rememberRoleUser(resolvedRole, session.employeeId, session.organizationId);
+          window.FinStackTenantSession.setTenantSession(result);
+          var route = roleRoutes[canonicalRole];
+          if (!route) {
+            throw new Error('No workspace is configured for this account.');
           }
-
-          var route = roleRoutes[resolvedRole];
-          if (route) {
-            showSuccess('Login successful! Redirecting...');
-            setTimeout(function () {
-              window.location.href = route;
-            }, 300);
-          } else {
-            showError('No workspace configured for the selected role.');
-          }
+          showSuccess('Login successful! Redirecting...');
+          setTimeout(function () { window.location.href = route; }, 300);
         })
-        .catch(function (err) {
-          console.error('[LOGIN] Error:', err);
-          showError(err.message || 'Login failed. Please try again.');
+        .catch(function (error) {
+          showError(error.message || 'Login failed.');
         });
     });
   }

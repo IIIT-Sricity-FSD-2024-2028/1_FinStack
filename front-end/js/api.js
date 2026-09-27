@@ -38,6 +38,20 @@
     return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
   }
 
+  function parseFetchResponse(response) {
+    return response.text().then(function (text) {
+      var payload = text ? JSON.parse(text) : null;
+      if (!response.ok) {
+        var message = payload && (payload.message || payload.error)
+          ? payload.message || payload.error
+          : 'Request failed with status ' + response.status + '.';
+        if (message && typeof message === 'object' && message.message) message = message.message;
+        throw new Error(Array.isArray(message) ? message.join(', ') : message);
+      }
+      return unwrap(payload);
+    });
+  }
+
   function request(path, options) {
     options = options || {};
     var isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -129,12 +143,31 @@
       }
     });
     formData.append('receipt', receipt, receipt.name);
+    var tenantSession = window.FinStackTenantSession && window.FinStackTenantSession.getTenantSession
+      ? window.FinStackTenantSession.getTenantSession()
+      : null;
+    if (tenantSession) {
+      return fetch(BASE_URL + '/api/v1/tenant/expenses', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + tenantSession.accessToken },
+        body: formData
+      }).then(parseFetchResponse);
+    }
     return request('/expenses', { method: 'POST', body: formData });
   }
 
   function downloadReceipt(expenseId) {
-    return fetch(BASE_URL + '/expenses/' + encodeURIComponent(expenseId) + '/receipt', {
-      headers: { role: getRbacRole() }
+    var tenantSession = window.FinStackTenantSession && window.FinStackTenantSession.getTenantSession
+      ? window.FinStackTenantSession.getTenantSession()
+      : null;
+    var path = tenantSession
+      ? '/api/v1/tenant/expenses/' + encodeURIComponent(expenseId) + '/receipt'
+      : '/expenses/' + encodeURIComponent(expenseId) + '/receipt';
+    var headers = tenantSession
+      ? { Authorization: 'Bearer ' + tenantSession.accessToken }
+      : { role: getRbacRole() };
+    return fetch(BASE_URL + path, {
+      headers: headers
     }).then(function (response) {
       if (response.ok) return response.blob();
       return response.text().then(function (text) {

@@ -157,7 +157,11 @@ describe('Client middleware foundation (e2e)', () => {
 
     expect(response.body).toEqual({
       success: false,
-      message: 'Internal server error',
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred.',
+      },
+      message: 'An unexpected error occurred.',
       requestId: response.headers['x-request-id'],
     });
     expect(JSON.stringify(response.body)).not.toContain('SECRET_INTERNAL_FAILURE');

@@ -1,7 +1,8 @@
 /* ===== SHARED.JS — FinStack Global Utilities ===== */
 
 function redirectToSharedLogin() {
-    sessionStorage.removeItem('finstackUserSession');
+    if (window.FinStackGuard) window.FinStackGuard.clearSession();
+    else sessionStorage.removeItem('finstackUserSession');
     window.location.href = '../../login.html?role=expense_submitter';
 }
 
@@ -12,6 +13,13 @@ var FinStack = {
             return;
         }
         window.FinStackStore.ready.then(callback);
+    },
+
+    reloadCanonical: function () {
+        if (!window.FinStackStore || typeof window.FinStackStore.reloadCanonical !== 'function') {
+            return Promise.reject(new Error('Canonical submitter data loader is unavailable.'));
+        }
+        return window.FinStackStore.reloadCanonical();
     },
 
     getExpenses: function () {

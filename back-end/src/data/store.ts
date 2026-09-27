@@ -136,6 +136,7 @@ export interface AuditRecord {
 
 export interface NotificationRecord {
   id: string;
+  organizationId?: string;
   unread: boolean;
   createdAt: string;
   type: 'info' | 'success' | 'warning' | 'danger';
@@ -369,7 +370,8 @@ export const store: Store = {
       currency: 'INR',
       approval: 'Manager + Finance',
       status: 'Active',
-      description: 'Travel expenses above the category threshold require finance review.',
+      description:
+        'Travel expenses above the category threshold require finance review.',
       requiresApproval: true,
       receiptRequired: true,
       ownerRole: 'configuration_manager',

@@ -1,10 +1,11 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, RouterModule } from '@nestjs/core';
+import { ThrottlerModule, seconds } from '@nestjs/throttler';
 import configuration, { AppConfiguration } from './common/config/configuration';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RolesGuard } from './common/guards/roles.guard';
+import { LegacyThrottlerGuard } from './common/guards/legacy-throttler.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggingModule } from './common/logging/logging.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -27,10 +28,15 @@ import { TransactionsController } from './modules/transactions/transactions.cont
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersController } from './modules/users/users.controller';
 import { UsersModule } from './modules/users/users.module';
+import { PlatformModule } from './platform/platform.module';
+import { platformRoutes } from './platform/platform.routes';
+import { TenantModule } from './tenant/tenant.module';
+import { tenantRoutes } from './tenant/tenant.routes';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
+      cache: true,
       isGlobal: true,
       load: [configuration],
     }),
@@ -56,11 +62,14 @@ import { UsersModule } from './modules/users/users.module';
     TransactionsModule,
     ReportsModule,
     DashboardModule,
+    PlatformModule,
+    TenantModule,
+    RouterModule.register([...platformRoutes, ...tenantRoutes]),
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: LegacyThrottlerGuard,
     },
     {
       provide: APP_GUARD,
