@@ -7,6 +7,8 @@ import { OrganizationStatus, Prisma } from '@prisma/client';
 import { PlatformOrganizationsService } from './platform-organizations.service';
 
 const baseOrganization = {
+  registrationStatus: 'LEGACY_APPROVED',
+  registrationSubmittedAt: null,
   id: 'b85ec943-b23a-477c-9030-935d8a8edb78',
   name: 'Acme Finance',
   slug: 'acme-finance',
@@ -29,6 +31,19 @@ const baseOrganization = {
 };
 
 function serviceWithPrisma(prisma: Record<string, unknown>) {
+  const organization = prisma.organization as Record<string, unknown>;
+  if (!organization.findFirst)
+    organization.findFirst = jest.fn().mockResolvedValue(null);
+  if (!prisma.$transaction)
+    prisma.$transaction = jest
+      .fn()
+      .mockImplementation((fn: (tx: unknown) => unknown) =>
+        fn({
+          ...prisma,
+          $queryRaw: jest.fn(),
+          platformAuditLog: { create: jest.fn() },
+        }),
+      );
   return new PlatformOrganizationsService(prisma as never);
 }
 
@@ -119,10 +134,13 @@ describe('PlatformOrganizationsService', () => {
       organization: { create },
     });
 
-    await service.create({
-      name: 'Acme Finance',
-      primaryEmail: 'ADMIN@ACME.TEST',
-    });
+    await service.create(
+      {
+        name: 'Acme Finance',
+        primaryEmail: 'ADMIN@ACME.TEST',
+      },
+      'reviewer-id',
+    );
 
     const createArg = create.mock.calls[0]?.[0] as {
       data: { status?: OrganizationStatus; primaryEmail?: string };
@@ -201,10 +219,13 @@ describe('PlatformOrganizationsService', () => {
     });
 
     await expect(
-      service.create({
-        name: 'Acme Finance',
-        primaryEmail: 'admin@acme.test',
-      }),
+      service.create(
+        {
+          name: 'Acme Finance',
+          primaryEmail: 'admin@acme.test',
+        },
+        'reviewer-id',
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });

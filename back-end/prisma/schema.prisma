@@ -57,32 +57,58 @@ enum TicketMessageAuthorType {
   PLATFORM_STAFF
 }
 
-model Organization {
-  id                   String                     @id @default(uuid()) @db.Uuid
-  name                 String                     @db.VarChar(180)
-  slug                 String?                    @unique @db.VarChar(120)
-  primaryEmail         String                     @unique @db.VarChar(320)
-  primaryContactName   String?                    @db.VarChar(160)
-  primaryContactEmail  String?                    @db.VarChar(320)
-  billingEmail         String?                    @db.VarChar(320)
-  country              String?                    @db.VarChar(100)
-  defaultCurrency      String                     @default("INR") @db.Char(3)
-  timezone             String?                    @db.VarChar(80)
-  status               OrganizationStatus         @default(PROVISIONING)
-  externalCustomerRef  String?                    @unique @db.VarChar(160)
-  metadata             Json?
-  statusChangedAt      DateTime?
-  suspendedAt          DateTime?
-  cancelledAt          DateTime?
-  archivedAt           DateTime?
-  createdAt            DateTime                   @default(now())
-  updatedAt            DateTime                   @updatedAt
-  subscriptions        OrganizationSubscription[]
-  invoices             Invoice[]
-  subscriptionPayments SubscriptionPayment[]
-  tenantUsers          TenantUser[]
-  supportTickets       SupportTicket[]
+enum OrganizationRegistrationStatus {
+  LEGACY_APPROVED
+  PENDING_ORGANIZATION_REVIEW
+  APPROVED
+  REJECTED
+}
 
+model Organization {
+  id                          String                         @id @default(uuid()) @db.Uuid
+  name                        String                         @db.VarChar(180)
+  slug                        String?                        @unique @db.VarChar(120)
+  primaryEmail                String                         @unique @db.VarChar(320)
+  primaryContactName          String?                        @db.VarChar(201)
+  primaryContactEmail         String?                        @db.VarChar(320)
+  billingEmail                String?                        @db.VarChar(320)
+  country                     String?                        @db.VarChar(100)
+  defaultCurrency             String                         @default("INR") @db.Char(3)
+  timezone                    String?                        @db.VarChar(80)
+  status                      OrganizationStatus             @default(PROVISIONING)
+  registrationStatus          OrganizationRegistrationStatus @default(LEGACY_APPROVED)
+  registrationIdentifier      String?                        @db.VarChar(160)
+  registrationIdentifierKey   String?                        @db.VarChar(320)
+  registrationExemptionReason String?                        @db.VarChar(500)
+  registrationCountry         String?                        @db.Char(2)
+  normalizedDomain            String?                        @unique @db.VarChar(253)
+  authorizedContactTitle      String?                        @db.VarChar(120)
+  registrationSubmittedAt     DateTime?
+  reviewedAt                  DateTime?
+  reviewedByStaffId           String?                        @db.Uuid
+  reviewNote                  String?                        @db.VarChar(2000)
+  domainVerifiedAt            DateTime?
+  externalCustomerRef         String?                        @unique @db.VarChar(160)
+  metadata                    Json?
+  statusChangedAt             DateTime?
+  suspendedAt                 DateTime?
+  cancelledAt                 DateTime?
+  archivedAt                  DateTime?
+  createdAt                   DateTime                       @default(now())
+  updatedAt                   DateTime                       @updatedAt
+  subscriptions               OrganizationSubscription[]
+  invoices                    Invoice[]
+  subscriptionPayments        SubscriptionPayment[]
+  expenseCategories           ExpenseCategory[]
+  expensePolicies             ExpensePolicy[]
+  tenantUsers                 TenantUser[]
+  tenantNotifications         TenantNotification[]
+  tenantAuditLogs             TenantAuditLog[]
+  employeeImportJobs          EmployeeImportJob[]
+  supportTickets              SupportTicket[]
+
+  @@unique([registrationCountry, registrationIdentifierKey])
+  @@index([registrationStatus, registrationSubmittedAt])
   @@index([status, createdAt])
   @@index([createdAt])
 }
@@ -101,27 +127,41 @@ enum TenantRole {
 }
 
 model TenantUser {
-  id             String           @id @default(uuid()) @db.Uuid
-  organizationId String           @db.Uuid
-  employeeId     String           @db.VarChar(80)
-  firstName      String           @db.VarChar(100)
-  lastName       String           @db.VarChar(100)
-  email          String           @db.VarChar(320)
-  passwordHash   String           @db.VarChar(255)
-  role           TenantRole       @default(EXPENSE_SUBMITTER)
-  status         TenantUserStatus @default(ACTIVE)
-  department     String           @default("General") @db.VarChar(120)
-  managerId      String?          @db.Uuid
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  manager        TenantUser?      @relation("TenantUserManager", fields: [managerId], references: [id], onDelete: SetNull)
-  directReports  TenantUser[]     @relation("TenantUserManager")
+  phone                   String?             @db.VarChar(40)
+  location                String?             @db.VarChar(180)
+  avatarColor             String?             @db.VarChar(7)
+  preferences             Json?
+  credentialVersion       Int                 @default(0)
+  credentialSetupRequired Boolean             @default(false)
+  activationTokenHash     String?             @unique @db.Char(64)
+  activationExpiresAt     DateTime?
+  initiatedImports        EmployeeImportJob[]
+  id                      String              @id @default(uuid()) @db.Uuid
+  organizationId          String              @db.Uuid
+  employeeId              String              @unique @db.VarChar(80)
+  firstName               String              @db.VarChar(100)
+  lastName                String              @db.VarChar(100)
+  email                   String              @db.VarChar(320)
+  passwordHash            String              @db.VarChar(255)
+  role                    TenantRole          @default(EXPENSE_SUBMITTER)
+  status                  TenantUserStatus    @default(ACTIVE)
+  department              String              @default("General") @db.VarChar(120)
+  managerId               String?             @db.Uuid
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  organization            Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager                 TenantUser?         @relation("TenantUserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports           TenantUser[]        @relation("TenantUserManager")
 
+  notifications TenantNotification[]
+
+  @@unique([organizationId, id])
   @@unique([organizationId, email])
   @@unique([organizationId, employeeId])
   @@index([organizationId, status])
   @@index([organizationId, managerId])
+  @@index([organizationId, firstName, lastName, id])
+  @@index([organizationId, role, status, firstName, lastName, id])
 }
 
 model PlatformStaff {
@@ -569,4 +609,144 @@ model TicketStatusHistory {
   @@index([newStatus])
   @@index([changedByStaffId])
   @@index([changedByUserId])
+}
+
+// Tenant configuration only. Other expense workflows are not yet persisted.
+model ExpenseCategory {
+  templateKey     String?         @db.VarChar(80)
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @db.Uuid
+  name            String          @db.VarChar(100)
+  description     String          @default("")
+  limit           Decimal         @default(0) @db.Decimal(12, 2)
+  currency        String          @default("INR") @db.Char(3)
+  status          String          @default("Active") @db.VarChar(20)
+  requiresReceipt Boolean         @default(true)
+  color           String          @default("#7C3AED") @db.VarChar(7)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  policies        ExpensePolicy[]
+  // Case-insensitive name uniqueness and checks are enforced in migration SQL.
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, templateKey])
+  @@index([organizationId, status])
+}
+
+model ExpensePolicy {
+  templateKey      String?         @db.VarChar(80)
+  id               String          @id @default(uuid()) @db.Uuid
+  organizationId   String          @db.Uuid
+  categoryId       String          @db.Uuid
+  name             String          @db.VarChar(100)
+  description      String          @default("")
+  maxAmount        Decimal         @db.Decimal(12, 2)
+  currency         String          @default("INR") @db.Char(3)
+  approval         String          @default("Manager Approval") @db.VarChar(100)
+  status           String          @default("Active") @db.VarChar(20)
+  requiresApproval Boolean         @default(true)
+  receiptRequired  Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  category         ExpenseCategory @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, templateKey])
+  @@index([organizationId, categoryId])
+  @@index([organizationId, status])
+}
+
+model EmployeeImportJob {
+  id              String              @id @default(uuid()) @db.Uuid
+  organizationId  String              @db.Uuid
+  createdById     String              @db.Uuid
+  confirmedById   String?             @db.Uuid
+  idempotencyKey  String              @db.Uuid
+  fileHash        String              @db.Char(64)
+  status          String              @default("VALIDATING") @db.VarChar(20)
+  totalCount      Int                 @default(0)
+  validCount      Int                 @default(0)
+  invalidCount    Int                 @default(0)
+  processedCount  Int                 @default(0)
+  successfulCount Int                 @default(0)
+  failedCount     Int                 @default(0)
+  retries         Int                 @default(0)
+  error           String?             @db.VarChar(500)
+  leaseToken      String?             @db.Uuid
+  leaseExpiresAt  DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy       TenantUser          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  rows            EmployeeImportRow[]
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@index([status, leaseExpiresAt])
+}
+
+model EmployeeImportRow {
+  id         String            @id @default(uuid()) @db.Uuid
+  jobId      String            @db.Uuid
+  rowNumber  Int
+  employeeId String            @db.VarChar(80)
+  email      String            @db.VarChar(320)
+  payload    Json
+  status     String            @db.VarChar(20)
+  errors     String[]
+  userId     String            @db.Uuid
+  job        EmployeeImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, rowNumber])
+  @@index([jobId, status, rowNumber])
+  @@index([jobId, employeeId])
+  @@index([jobId, email])
+}
+
+// Actor snapshots intentionally have no mutable TenantUser foreign key.
+model TenantAuditLog {
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @db.Uuid
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUserId       String?      @db.Uuid
+  actorKind         String       @db.VarChar(16)
+  actorName         String       @db.VarChar(201)
+  actorRole         TenantRole?
+  initiatedByUserId String?      @db.Uuid
+  eventCode         String       @db.VarChar(100)
+  targetType        String       @db.VarChar(40)
+  targetId          String       @db.VarChar(80)
+  outcome           String       @default("SUCCESS") @db.VarChar(20)
+  occurredAt        DateTime     @default(now())
+  changes           Json
+
+  @@index([organizationId, occurredAt, id])
+  @@index([organizationId, eventCode, occurredAt])
+  @@index([organizationId, targetType, targetId, occurredAt])
+  @@index([organizationId, actorUserId, occurredAt])
+}
+
+model TenantNotification {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @db.Uuid
+  recipientUserId String       @db.Uuid
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipient       TenantUser   @relation(fields: [organizationId, recipientUserId], references: [organizationId, id], onDelete: Cascade, map: "TenantNotification_recipient_fkey")
+  eventCode       String       @db.VarChar(100)
+  eventKey        String       @db.VarChar(320)
+  type            String       @db.VarChar(20)
+  title           String       @db.VarChar(200)
+  message         String       @db.VarChar(2000)
+  sourceType      String?      @db.VarChar(40)
+  sourceId        String?      @db.VarChar(100)
+  createdAt       DateTime     @default(now())
+  readAt          DateTime?
+  dismissedAt     DateTime?
+
+  @@unique([organizationId, recipientUserId, eventKey])
+  @@index([organizationId, recipientUserId, dismissedAt, createdAt, id], map: "TenantNotification_recipient_page_idx")
+  @@index([organizationId, recipientUserId, dismissedAt, readAt], map: "TenantNotification_recipient_unread_idx")
 }

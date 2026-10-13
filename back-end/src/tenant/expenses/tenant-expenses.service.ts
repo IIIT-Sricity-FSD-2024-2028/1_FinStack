@@ -1,10 +1,18 @@
+import { auditedMutation } from '../audit/tenant-audit-write';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TenantRole, TenantUserStatus } from '@prisma/client';
+import {
+  ExpenseCategory,
+  ExpensePolicy,
+  Prisma,
+  TenantRole,
+  TenantUserStatus,
+} from '@prisma/client';
 import {
   CategoryRecord,
   ExpenseRecord,
@@ -15,10 +23,8 @@ import {
   TransactionRecord,
 } from '../../data/store';
 import { PrismaService } from '../../database/prisma.service';
-import { CategoriesRepository } from '../../modules/categories/categories.repository';
 import { ExpensesRepository } from '../../modules/expenses/expenses.repository';
-import { NotificationsRepository } from '../../modules/notifications/notifications.repository';
-import { PoliciesRepository } from '../../modules/policies/policies.repository';
+import { TenantNotificationsService } from '../notifications/tenant-notifications.service';
 import { TransactionsRepository } from '../../modules/transactions/transactions.repository';
 import { TransactionsService } from '../../modules/transactions/transactions.service';
 import {
@@ -40,64 +46,274 @@ export class TenantExpensesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly expensesRepository: ExpensesRepository,
-    private readonly categoriesRepository: CategoriesRepository,
-    private readonly policiesRepository: PoliciesRepository,
-    private readonly notificationsRepository: NotificationsRepository,
+    private readonly notifications: TenantNotificationsService,
     private readonly transactionsRepository: TransactionsRepository,
     private readonly transactionsService: TransactionsService,
     private readonly receiptUploadService: ReceiptUploadService,
   ) {}
 
-  listCategories(organizationId: string) {
-    return this.categoriesRepository
-      .findAll()
-      .filter(
-        (category) =>
-          category.organizationId === organizationId &&
-          category.status === 'Active',
-      )
-      .map((category) => ({
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        requiresReceipt: category.requiresReceipt,
-      }));
-  }
-
-  listConfigurationCategories(organizationId: string) {
-    return this.categoriesRepository
-      .findAll()
-      .filter((category) => category.organizationId === organizationId);
-  }
-
-  createCategory(
-    organizationId: string,
-    dto: CreateTenantCategoryDto,
-  ): CategoryRecord {
-    this.ensureUniqueCategoryName(organizationId, dto.name);
-    return this.categoriesRepository.create({
-      name: dto.name.trim(),
-      description: dto.description?.trim() || '',
-      limit: dto.limit ?? 0,
-      currency: dto.currency?.trim().toUpperCase() || 'INR',
-      status: dto.status ?? 'Active',
-      organizationId,
-      requiresReceipt: dto.requiresReceipt ?? true,
-      color: dto.color?.trim() || '#7C3AED',
+  async listCategories(organizationId: string) {
+    const categories = await this.prisma.expenseCategory.findMany({
+      where: { organizationId, status: 'Active' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+    return categories.map(({ id, name, description, requiresReceipt }) => ({
+      id,
+      name,
+      description,
+      requiresReceipt,
+    }));
   }
 
-  updateCategory(
+  async listConfigurationCategories(organizationId: string) {
+    const rows = await this.prisma.expenseCategory.findMany({
+      where: { organizationId },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((row) => this.categoryDto(row));
+  }
+
+  async createCategory(organizationId: string, dto: CreateTenantCategoryDto) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      'category.created',
+      'category',
+      null,
+      async (tx) => {
+        const data = this.categoryData(dto);
+        try {
+          return this.categoryDto(
+            await tx.expenseCategory.create({
+              data: {
+                ...data,
+                organizationId,
+                name: this.configurationName(dto.name),
+              },
+            }),
+          );
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  async updateCategory(
     organizationId: string,
     categoryId: string,
     dto: UpdateTenantCategoryDto,
-  ): CategoryRecord {
-    const category = this.requireCategory(organizationId, categoryId);
-    if (dto.name && dto.name.trim() !== category.name) {
-      this.ensureUniqueCategoryName(organizationId, dto.name, categoryId);
-    }
-    const updated = this.categoriesRepository.update(categoryId, {
-      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+  ) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      (before, after) => {
+        const previousStatus = (before as { status?: string } | null)?.status;
+        const nextStatus = (after as { status?: string } | null)?.status;
+        if (previousStatus !== nextStatus && nextStatus === 'Inactive')
+          return 'category.deactivated';
+        if (previousStatus !== nextStatus && nextStatus === 'Active')
+          return 'category.reactivated';
+        return 'category.updated';
+      },
+      'category',
+      categoryId,
+      async (tx) => {
+        await this.requireCategory(organizationId, categoryId, tx);
+        try {
+          return this.categoryDto(
+            await tx.expenseCategory.update({
+              where: { organizationId_id: { organizationId, id: categoryId } },
+              data: this.categoryData(dto),
+            }),
+          );
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  async deleteCategory(organizationId: string, categoryId: string) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      'category.deleted',
+      'category',
+      categoryId,
+      async (tx) => {
+        await this.requireCategory(organizationId, categoryId, tx);
+        const policyCount = await tx.expensePolicy.count({
+          where: { organizationId, categoryId },
+        });
+        if (policyCount > 0) {
+          throw new BadRequestException({
+            code: 'TENANT_CATEGORY_IN_USE',
+            message:
+              'This category is used by one or more policies. Deactivate it instead; existing policies will remain unchanged.',
+          });
+        }
+        // Existing expenses remain in the legacy repository during this slice.
+        if (
+          this.expensesRepository
+            .findAll()
+            .some(
+              (expense) =>
+                expense.organizationId === organizationId &&
+                expense.categoryId === categoryId,
+            )
+        ) {
+          throw new BadRequestException({
+            code: 'TENANT_CATEGORY_IN_USE',
+            message:
+              'This category is used by existing expenses. Deactivate it instead; financial history will remain unchanged.',
+          });
+        }
+        try {
+          await tx.expenseCategory.delete({
+            where: { organizationId_id: { organizationId, id: categoryId } },
+          });
+          return { id: categoryId, deleted: true };
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  async listPolicies(organizationId: string) {
+    const rows = await this.prisma.expensePolicy.findMany({
+      where: { organizationId },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((row) => this.policyDto(row));
+  }
+
+  async createPolicy(organizationId: string, dto: CreateTenantPolicyDto) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      'policy.created',
+      'policy',
+      null,
+      async (tx) => {
+        const category = await this.requireCategory(
+          organizationId,
+          dto.categoryId,
+          tx,
+        );
+        if (category.status !== 'Active')
+          throw new BadRequestException(
+            'Select an active category for a new policy.',
+          );
+        const organization = await tx.organization.findUniqueOrThrow({
+          where: { id: organizationId },
+          select: { defaultCurrency: true },
+        });
+        const data = this.policyData(dto);
+        try {
+          return this.policyDto(
+            await tx.expensePolicy.create({
+              data: {
+                ...data,
+                organizationId,
+                categoryId: dto.categoryId,
+                name: this.configurationName(dto.name),
+                maxAmount: dto.maxAmount,
+                currency:
+                  dto.currency?.toUpperCase() || organization.defaultCurrency,
+              },
+            }),
+          );
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  async updatePolicy(
+    organizationId: string,
+    policyId: string,
+    dto: UpdateTenantPolicyDto,
+  ) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      (before, after) => {
+        const previous = (before as { status?: string } | null)?.status;
+        const next = (after as { status?: string } | null)?.status;
+        return previous !== next
+          ? next === 'Inactive'
+            ? 'policy.deactivated'
+            : 'policy.reactivated'
+          : 'policy.updated';
+      },
+      'policy',
+      policyId,
+      async (tx) => {
+        const existing = await this.requirePolicy(organizationId, policyId, tx);
+        const category = await this.requireCategory(
+          organizationId,
+          dto.categoryId ?? existing.categoryId,
+          tx,
+        );
+        if (
+          category.status !== 'Active' &&
+          ((dto.categoryId !== undefined &&
+            dto.categoryId !== existing.categoryId) ||
+            (dto.status === 'Active' && existing.status !== 'Active'))
+        )
+          throw new BadRequestException(
+            'Activate the linked category before selecting it or reactivating this policy.',
+          );
+        try {
+          return this.policyDto(
+            await tx.expensePolicy.update({
+              where: { id: policyId, organizationId },
+              data: this.policyData(dto),
+            }),
+          );
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  async deletePolicy(organizationId: string, policyId: string) {
+    return auditedMutation(
+      this.prisma,
+      organizationId,
+      'policy.deleted',
+      'policy',
+      policyId,
+      async (tx) => {
+        await this.requirePolicy(organizationId, policyId, tx);
+        try {
+          await tx.expensePolicy.delete({
+            where: { id: policyId, organizationId },
+          });
+          return { id: policyId, deleted: true };
+        } catch (error) {
+          this.configurationError(error);
+        }
+      },
+    );
+  }
+
+  private configurationName(name: string) {
+    const value = name.trim();
+    if (!value || value.length > 100)
+      throw new BadRequestException('Name must contain 1 to 100 characters.');
+    return value;
+  }
+
+  private categoryData(dto: UpdateTenantCategoryDto) {
+    return {
+      ...(dto.name !== undefined
+        ? { name: this.configurationName(dto.name) }
+        : {}),
       ...(dto.description !== undefined
         ? { description: dto.description.trim() }
         : {}),
@@ -109,101 +325,75 @@ export class TenantExpensesService {
       ...(dto.requiresReceipt !== undefined
         ? { requiresReceipt: dto.requiresReceipt }
         : {}),
-      ...(dto.color !== undefined ? { color: dto.color.trim() } : {}),
-    });
-    if (!updated) throw new NotFoundException('Category not found.');
-    return updated;
+      ...(dto.color !== undefined ? { color: dto.color } : {}),
+    };
   }
 
-  deleteCategory(organizationId: string, categoryId: string) {
-    this.requireCategory(organizationId, categoryId);
-    const isUsed =
-      this.expensesRepository
-        .findAll()
-        .some(
-          (expense) =>
-            expense.organizationId === organizationId &&
-            expense.categoryId === categoryId,
-        ) ||
-      this.policiesRepository
-        .findAll()
-        .some(
-          (policy) =>
-            policy.organizationId === organizationId &&
-            policy.categoryId === categoryId,
-        );
-    if (isUsed) {
-      throw new BadRequestException({
-        code: 'TENANT_CATEGORY_IN_USE',
-        message: 'Categories used by expenses or policies cannot be deleted.',
-      });
-    }
-    this.categoriesRepository.delete(categoryId);
-    return { id: categoryId, deleted: true };
-  }
-
-  listPolicies(organizationId: string): PolicyRecord[] {
-    return this.policiesRepository
-      .findAll()
-      .filter((policy) => policy.organizationId === organizationId);
-  }
-
-  createPolicy(
-    organizationId: string,
-    dto: CreateTenantPolicyDto,
-  ): PolicyRecord {
-    this.requireCategory(organizationId, dto.categoryId);
-    return this.policiesRepository.create({
-      name: dto.name.trim(),
-      categoryId: dto.categoryId,
-      maxAmount: dto.maxAmount,
-      currency: dto.currency?.trim().toUpperCase() || 'INR',
-      approval: dto.approval?.trim() || 'Manager Approval',
-      status: dto.status ?? 'Active',
-      description: dto.description?.trim() || '',
-      requiresApproval: dto.requiresApproval ?? true,
-      receiptRequired: dto.receiptRequired ?? true,
-      ownerRole: 'configuration_manager',
-      organizationId,
-    });
-  }
-
-  updatePolicy(
-    organizationId: string,
-    policyId: string,
-    dto: UpdateTenantPolicyDto,
-  ): PolicyRecord {
-    this.requirePolicy(organizationId, policyId);
-    if (dto.categoryId !== undefined) {
-      this.requireCategory(organizationId, dto.categoryId);
-    }
-    const updated = this.policiesRepository.update(policyId, {
-      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+  private policyData(dto: UpdateTenantPolicyDto) {
+    return {
+      ...(dto.name !== undefined
+        ? { name: this.configurationName(dto.name) }
+        : {}),
       ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description.trim() }
+        : {}),
       ...(dto.maxAmount !== undefined ? { maxAmount: dto.maxAmount } : {}),
       ...(dto.currency !== undefined
         ? { currency: dto.currency.trim().toUpperCase() }
         : {}),
       ...(dto.approval !== undefined ? { approval: dto.approval.trim() } : {}),
       ...(dto.status !== undefined ? { status: dto.status } : {}),
-      ...(dto.description !== undefined
-        ? { description: dto.description.trim() }
-        : {}),
       ...(dto.requiresApproval !== undefined
         ? { requiresApproval: dto.requiresApproval }
         : {}),
       ...(dto.receiptRequired !== undefined
         ? { receiptRequired: dto.receiptRequired }
         : {}),
-    });
-    if (!updated) throw new NotFoundException('Policy not found.');
-    return updated;
+    };
   }
 
-  deletePolicy(organizationId: string, policyId: string) {
-    this.requirePolicy(organizationId, policyId);
-    this.policiesRepository.delete(policyId);
-    return { id: policyId, deleted: true };
+  private categoryDto(row: ExpenseCategory): CategoryRecord {
+    return {
+      ...row,
+      limit: Number(row.limit),
+      status: row.status as CategoryRecord['status'],
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private policyDto(
+    row: ExpensePolicy,
+  ): PolicyRecord & { maxAmountExact: string } {
+    return {
+      ...row,
+      maxAmount: Number(row.maxAmount),
+      maxAmountExact: row.maxAmount.toFixed(2),
+      status: row.status as PolicyRecord['status'],
+      ownerRole: 'configuration_manager',
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private configurationError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002')
+        throw new ConflictException({
+          code: 'TENANT_CONFIGURATION_NAME_EXISTS',
+          message: 'This name already exists in your organization.',
+        });
+      if (error.code === 'P2003')
+        throw new BadRequestException({
+          code: 'TENANT_CONFIGURATION_REFERENCE',
+          message:
+            'The record is in use or its category is no longer available.',
+        });
+      if (error.code === 'P2025')
+        throw new NotFoundException('Configuration record not found.');
+    }
+    throw error;
   }
 
   async create(actor: TenantAuthContext, dto: CreateTenantExpenseDto) {
@@ -237,7 +427,9 @@ export class TenantExpensesService {
       });
     }
 
-    const category = this.categoriesRepository.findById(dto.categoryId);
+    const category = await this.prisma.expenseCategory.findFirst({
+      where: { id: dto.categoryId, organizationId: actor.organizationId },
+    });
     if (
       !category ||
       category.organizationId !== actor.organizationId ||
@@ -281,7 +473,7 @@ export class TenantExpensesService {
       ],
     });
 
-    this.notify(
+    await this.notify(
       actor.organizationId,
       manager.employeeId,
       'manager',
@@ -291,7 +483,7 @@ export class TenantExpensesService {
       expense.id,
       'expense_submitted_manager',
     );
-    this.notify(
+    await this.notify(
       actor.organizationId,
       submitter.employeeId,
       'expense_submitter',
@@ -373,7 +565,7 @@ export class TenantExpensesService {
       });
     }
     if (dto.categoryId !== undefined) {
-      const category = this.requireCategory(
+      const category = await this.requireCategory(
         actor.organizationId,
         dto.categoryId,
       );
@@ -423,7 +615,7 @@ export class TenantExpensesService {
     });
     if (!updated) throw new NotFoundException('Expense not found.');
     if (wasReturned) {
-      this.notify(
+      await this.notify(
         actor.organizationId,
         expense.managerEmployeeId,
         'manager',
@@ -476,7 +668,7 @@ export class TenantExpensesService {
       ]),
     );
     const categories = new Map(
-      this.listCategories(actor.organizationId).map((category) => [
+      (await this.listCategories(actor.organizationId)).map((category) => [
         category.id,
         category.name,
       ]),
@@ -546,7 +738,7 @@ export class TenantExpensesService {
       select: { employeeId: true },
     });
     if (financeEmployee) {
-      this.notify(
+      await this.notify(
         actor.organizationId,
         financeEmployee.employeeId,
         'finance_officer',
@@ -557,7 +749,7 @@ export class TenantExpensesService {
         'manager_approved_finance',
       );
     }
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Your Expense Was Approved',
       `${expense.id} was approved by your manager.`,
@@ -587,7 +779,7 @@ export class TenantExpensesService {
       'Returned by Manager',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Expense Returned',
       `${expense.id} was returned by your manager: ${message}`,
@@ -617,7 +809,7 @@ export class TenantExpensesService {
       'Rejected by Manager',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Your Expense Was Rejected',
       `${expense.id} was rejected by your manager.`,
@@ -712,7 +904,11 @@ export class TenantExpensesService {
     };
   }
 
-  financeApprove(actor: TenantAuthContext, expenseId: string, note?: string) {
+  async financeApprove(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Approved for payment.';
     const updated = this.transition(
@@ -728,7 +924,7 @@ export class TenantExpensesService {
       'Finance Approved',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Finance Approved Expense',
       `${expense.id} is approved for payment.`,
@@ -738,7 +934,11 @@ export class TenantExpensesService {
     return updated;
   }
 
-  financeReject(actor: TenantAuthContext, expenseId: string, note?: string) {
+  async financeReject(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Rejected during finance review.';
     const updated = this.transition(
@@ -754,7 +954,7 @@ export class TenantExpensesService {
       'Rejected by Finance',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Finance Rejected Expense',
       `${expense.id} was rejected by Finance.`,
@@ -764,7 +964,7 @@ export class TenantExpensesService {
     return updated;
   }
 
-  financeRequestInfo(
+  async financeRequestInfo(
     actor: TenantAuthContext,
     expenseId: string,
     note?: string,
@@ -784,7 +984,7 @@ export class TenantExpensesService {
       'Finance Requested Information',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'More Information Requested',
       `${expense.id} needs more information: ${message}`,
@@ -823,7 +1023,7 @@ export class TenantExpensesService {
       expense.id,
       'finance_flagged_compliance',
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Expense Under Compliance Review',
       `${expense.id} is under compliance review.`,
@@ -894,7 +1094,7 @@ export class TenantExpensesService {
       'Compliance Approved - Sent to Finance',
       message,
     );
-    this.notify(
+    await this.notify(
       actor.organizationId,
       financeOfficer.employeeId,
       'finance_officer',
@@ -904,7 +1104,7 @@ export class TenantExpensesService {
       expense.id,
       'compliance_approved_finance',
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Compliance Approved Your Expense',
       `${expense.id} was approved by Compliance.`,
@@ -914,7 +1114,11 @@ export class TenantExpensesService {
     return updated;
   }
 
-  complianceReject(actor: TenantAuthContext, expenseId: string, note?: string) {
+  async complianceReject(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = this.requireComplianceExpense(actor, expenseId);
     const message = note?.trim() || 'Rejected during compliance review.';
     const updated = this.transition(
@@ -930,7 +1134,7 @@ export class TenantExpensesService {
       'Rejected by Compliance',
       message,
     );
-    this.notifySubmitter(
+    await this.notifySubmitter(
       expense,
       'Expense Rejected by Compliance',
       `${expense.id} was rejected by Compliance.`,
@@ -960,7 +1164,7 @@ export class TenantExpensesService {
     );
   }
 
-  releasePayment(actor: TenantAuthContext, expenseIds: string[]) {
+  async releasePayment(actor: TenantAuthContext, expenseIds: string[]) {
     expenseIds.forEach((expenseId) => {
       const expense = this.requireFinanceOwnedExpense(actor, expenseId);
       if (
@@ -979,13 +1183,15 @@ export class TenantExpensesService {
       batchId,
       expenseIds,
     );
-    result.expenses.forEach((expense) =>
-      this.notifySubmitter(
-        expense,
-        'Payment Released',
-        `${expense.id} was released to the bank sandbox.`,
-        'info',
-        'payment_released_submitter',
+    await Promise.all(
+      result.expenses.map((expense) =>
+        this.notifySubmitter(
+          expense,
+          'Payment Released',
+          `${expense.id} was released to the bank sandbox.`,
+          'info',
+          'payment_released_submitter',
+        ),
       ),
     );
     return result;
@@ -996,12 +1202,12 @@ export class TenantExpensesService {
     return this.transactionsService.markProcessed(transaction.id);
   }
 
-  markBankFailed(actor: TenantAuthContext, transactionId: string) {
+  async markBankFailed(actor: TenantAuthContext, transactionId: string) {
     const transaction = this.requireFinanceTransaction(actor, transactionId);
     const failed = this.transactionsService.markFailed(transaction.id);
     const expense = this.expensesRepository.findById(transaction.expenseId);
     if (expense) {
-      this.notifySubmitter(
+      await this.notifySubmitter(
         expense,
         'Payment Processing Failed',
         `${expense.id} could not be processed by the bank sandbox.`,
@@ -1012,12 +1218,12 @@ export class TenantExpensesService {
     return failed;
   }
 
-  reconcileTransaction(actor: TenantAuthContext, transactionId: string) {
+  async reconcileTransaction(actor: TenantAuthContext, transactionId: string) {
     const transaction = this.requireFinanceTransaction(actor, transactionId);
     const reconciled = this.transactionsService.reconcile(transaction.id);
     const expense = this.expensesRepository.findById(transaction.expenseId);
     if (expense) {
-      this.notifySubmitter(
+      await this.notifySubmitter(
         expense,
         'Expense Paid',
         `${expense.id} has been reconciled and marked paid.`,
@@ -1029,34 +1235,16 @@ export class TenantExpensesService {
   }
 
   listNotifications(actor: TenantAuthContext) {
-    return this.notificationsRepository
-      .findAll()
-      .filter(
-        (notification) =>
-          notification.organizationId === actor.organizationId &&
-          notification.recipientEmployeeId === actor.user.employeeId,
-      );
+    return this.notifications.legacy(actor);
   }
-
-  markNotificationRead(actor: TenantAuthContext, notificationId: string) {
-    this.requireNotification(actor, notificationId);
-    return this.notificationsRepository.update(notificationId, {
-      unread: false,
-    });
+  markNotificationRead(actor: TenantAuthContext, id: string) {
+    return this.notifications.read(actor, id);
   }
-
   markAllNotificationsRead(actor: TenantAuthContext) {
-    const notifications = this.listNotifications(actor);
-    notifications.forEach((notification) =>
-      this.notificationsRepository.update(notification.id, { unread: false }),
-    );
-    return { updated: notifications.filter((item) => item.unread).length };
+    return this.notifications.readAll(actor);
   }
-
-  deleteNotification(actor: TenantAuthContext, notificationId: string) {
-    this.requireNotification(actor, notificationId);
-    this.notificationsRepository.delete(notificationId);
-    return { id: notificationId, deleted: true };
+  deleteNotification(actor: TenantAuthContext, id: string) {
+    return this.notifications.dismiss(actor, id);
   }
 
   private async requireManagerExpense(
@@ -1191,69 +1379,36 @@ export class TenantExpensesService {
     return transaction;
   }
 
-  private requireCategory(
+  private async requireCategory(
     organizationId: string,
     categoryId: string,
-  ): CategoryRecord {
-    const category = this.categoriesRepository.findById(categoryId);
-    if (!category || category.organizationId !== organizationId) {
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const category = await db.expenseCategory.findFirst({
+      where: { id: categoryId, organizationId },
+    });
+    if (!category)
       throw new NotFoundException({
         code: 'TENANT_CATEGORY_NOT_FOUND',
         message: 'Category not found.',
       });
-    }
     return category;
   }
 
-  private requirePolicy(
+  private async requirePolicy(
     organizationId: string,
     policyId: string,
-  ): PolicyRecord {
-    const policy = this.policiesRepository.findById(policyId);
-    if (!policy || policy.organizationId !== organizationId) {
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const policy = await db.expensePolicy.findFirst({
+      where: { id: policyId, organizationId },
+    });
+    if (!policy)
       throw new NotFoundException({
         code: 'TENANT_POLICY_NOT_FOUND',
         message: 'Policy not found.',
       });
-    }
     return policy;
-  }
-
-  private requireNotification(
-    actor: TenantAuthContext,
-    notificationId: string,
-  ): NotificationRecord {
-    const notification = this.notificationsRepository.findById(notificationId);
-    if (
-      !notification ||
-      notification.organizationId !== actor.organizationId ||
-      notification.recipientEmployeeId !== actor.user.employeeId
-    ) {
-      throw new NotFoundException('Notification not found.');
-    }
-    return notification;
-  }
-
-  private ensureUniqueCategoryName(
-    organizationId: string,
-    name: string,
-    exceptId?: string,
-  ) {
-    const normalized = name.trim().toLowerCase();
-    const duplicate = this.categoriesRepository
-      .findAll()
-      .some(
-        (category) =>
-          category.organizationId === organizationId &&
-          category.id !== exceptId &&
-          category.name.trim().toLowerCase() === normalized,
-      );
-    if (duplicate) {
-      throw new BadRequestException({
-        code: 'TENANT_CATEGORY_NAME_EXISTS',
-        message: 'A category with this name already exists.',
-      });
-    }
   }
 
   private async mapExpenses(organizationId: string, expenses: ExpenseRecord[]) {
@@ -1268,10 +1423,9 @@ export class TenantExpensesService {
       users.map((user) => [user.employeeId, this.fullName(user)]),
     );
     const categories = new Map(
-      this.categoriesRepository
-        .findAll()
-        .filter((category) => category.organizationId === organizationId)
-        .map((category) => [category.id, category.name]),
+      (await this.listConfigurationCategories(organizationId)).map(
+        (category) => [category.id, category.name],
+      ),
     );
     return expenses.map((expense) =>
       this.toExpenseDto(expense, categories.get(expense.categoryId), {
@@ -1279,6 +1433,11 @@ export class TenantExpensesService {
         fullName: names.get(expense.employeeId) || expense.employeeId,
       }),
     );
+  }
+
+  private notificationEventKey(expenseId: string, eventCode: string) {
+    const history = this.expensesRepository.findById(expenseId)?.history || [];
+    return `${eventCode}:${expenseId}:${history.length}:${history[history.length - 1]?.at || 'initial'}`;
   }
 
   private notify(
@@ -1291,38 +1450,27 @@ export class TenantExpensesService {
     expenseId: string,
     actionType: string,
   ) {
-    const dedupeKey = `${actionType}:${expenseId}:${recipientEmployeeId}`;
-    const exists = this.notificationsRepository
-      .findAll()
-      .some(
-        (item) =>
-          item.organizationId === organizationId &&
-          item.dedupeKey === dedupeKey,
-      );
-    if (exists) return;
-    this.notificationsRepository.create({
+    void recipientRole;
+    return this.notifications.notifyEmployee(
       organizationId,
-      unread: true,
-      type,
       recipientEmployeeId,
-      recipientRole,
       title,
       message,
-      relatedExpenseId: expenseId,
-      relatedEntityId: expenseId,
+      type,
+      expenseId,
       actionType,
-      dedupeKey,
-    });
+      this.notificationEventKey(expenseId, actionType),
+    );
   }
 
-  private notifySubmitter(
+  private async notifySubmitter(
     expense: ExpenseRecord,
     title: string,
     message: string,
     type: NotificationRecord['type'],
     actionType: string,
   ) {
-    this.notify(
+    await this.notify(
       expense.organizationId,
       expense.employeeId,
       'expense_submitter',
@@ -1343,22 +1491,32 @@ export class TenantExpensesService {
     expenseId: string,
     actionType: string,
   ) {
-    const users = await this.prisma.tenantUser.findMany({
-      where: { organizationId, role, status: TenantUserStatus.ACTIVE },
-      select: { employeeId: true },
-    });
-    users.forEach((user) =>
-      this.notify(
-        organizationId,
-        user.employeeId,
-        role.toLowerCase() as RoleId,
-        title,
-        message,
-        type,
-        expenseId,
-        actionType,
-      ),
-    );
+    let cursor: string | undefined;
+    for (;;) {
+      const users = await this.prisma.tenantUser.findMany({
+        where: { organizationId, role, status: TenantUserStatus.ACTIVE },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take: 200,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      if (!users.length) break;
+      await this.notifications.notifyRecipients(
+        users.map((user) => user.id),
+        {
+          organizationId,
+          title,
+          message,
+          type,
+          sourceId: expenseId,
+          sourceType: 'expense',
+          eventCode: actionType,
+          eventKey: this.notificationEventKey(expenseId, actionType),
+        },
+      );
+      cursor = users[users.length - 1].id;
+      if (users.length < 200) break;
+    }
   }
 
   private transition(

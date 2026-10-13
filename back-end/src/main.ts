@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { configureHttpApplication } from './common/config/configure-http-application';
 import { AppConfiguration } from './common/config/configuration';
+import { manualQaSettings } from './common/config/manual-qa';
 import { AppLoggerService } from './common/logging/app-logger.service';
 
 async function bootstrap() {
@@ -17,9 +19,8 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const appLogger = app.get(AppLoggerService);
-  const configService = app.get<ConfigService<AppConfiguration, true>>(
-    ConfigService,
-  );
+  const configService =
+    app.get<ConfigService<AppConfiguration, true>>(ConfigService);
 
   app.useLogger(appLogger);
   app.use(cookieParser());
@@ -53,14 +54,29 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  const manualQa = manualQaSettings();
   const swaggerPath = join(process.cwd(), 'docs', 'swagger.json');
   const swaggerDir = dirname(swaggerPath);
   if (!existsSync(swaggerDir)) {
     mkdirSync(swaggerDir, { recursive: true });
   }
-  writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
+  if (!manualQa) writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
 
-  await app.listen(configService.get('port', { infer: true }));
+  const port = configService.get('port', { infer: true });
+  if (manualQa) await app.listen(port, '127.0.0.1');
+  else await app.listen(port);
+  if (manualQa && process.send) {
+    process.send('manual-qa-ready');
+    process.on('message', (message) => {
+      if (message === 'manual-qa-stop') {
+        (app.getHttpServer() as Server).closeIdleConnections?.();
+        void app
+          .close()
+          .then(() => process.disconnect())
+          .catch(() => process.exit(1));
+      }
+    });
+  }
 }
 
 void bootstrap();

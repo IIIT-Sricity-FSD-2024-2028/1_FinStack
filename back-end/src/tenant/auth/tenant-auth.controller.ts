@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../platform/auth/decorators/public.decorator';
 import { TenantLoginDto } from './dto/tenant-login.dto';
@@ -13,6 +14,8 @@ export class TenantAuthController {
   constructor(private readonly auth: TenantAuthService) {}
 
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60 * 1000 } })
   @Post('login')
   login(@Body() dto: TenantLoginDto) {
     return this.auth.login(dto);

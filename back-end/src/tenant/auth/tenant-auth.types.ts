@@ -1,5 +1,6 @@
 import { TenantRole, TenantUserStatus } from '@prisma/client';
 import { Request } from 'express';
+import { TenantWorkspace } from './tenant-workspace';
 
 export interface TenantUserIdentity {
   id: string;
@@ -13,6 +14,8 @@ export interface TenantUserIdentity {
 }
 
 export interface TenantAuthContext {
+  effectiveRoles?: TenantRole[];
+  workspace?: TenantWorkspace;
   user: TenantUserIdentity;
   organizationId: string;
 }
@@ -25,6 +28,7 @@ export interface TenantAccessTokenClaims {
   sub: string;
   orgId: string;
   type: 'tenant-access';
+  cv?: number;
   iss?: string;
   aud?: string | string[];
   iat?: number;
@@ -32,6 +36,8 @@ export interface TenantAccessTokenClaims {
 }
 
 export interface TenantAuthResponse {
+  effectiveRoles: TenantRole[];
+  workspace: TenantWorkspace;
   accessToken: string;
   expiresIn: number;
   user: TenantUserIdentity;

@@ -1,3 +1,13 @@
+import { TenantSettingsController } from './settings/tenant-settings.controller';
+import { TenantSettingsService } from './settings/tenant-settings.service';
+import { TenantAuditController } from './audit/tenant-audit.controller';
+import { TenantHierarchyService } from './configuration/tenant-hierarchy.service';
+import { EmployeeImportService } from './configuration/employee-import.service';
+import { EmployeeActivationService } from './configuration/employee-activation.service';
+import {
+  EmployeeImportController,
+  EmployeeActivationController,
+} from './configuration/employee-import.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from '../database/database.module';
@@ -26,16 +36,24 @@ import { TenantOnboardingService } from './onboarding/tenant-onboarding.service'
     PlatformBillingModule,
   ],
   controllers: [
+    TenantSettingsController,
+    TenantAuditController,
     TenantAuthController,
     TenantOnboardingController,
     TenantRegistrationController,
     TenantCommercialController,
     TenantConfigurationController,
+    EmployeeImportController,
+    EmployeeActivationController,
   ],
   providers: [
+    TenantSettingsService,
     TenantOnboardingService,
     TenantCommercialService,
     TenantConfigurationService,
+    TenantHierarchyService,
+    EmployeeImportService,
+    EmployeeActivationService,
   ],
 })
 export class TenantModule {}

@@ -1,9 +1,16 @@
+import { Query } from '@nestjs/common';
+import {
+  TenantNotificationsService,
+  NotificationQuery,
+} from '../notifications/tenant-notifications.service';
+import { TenantAuditContextInterceptor } from '../audit/tenant-audit-context';
 import {
   Body,
   Controller,
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Req,
@@ -36,15 +43,25 @@ import { ReleaseTenantPaymentDto } from './dto/release-tenant-payment.dto';
 import { UpdateTenantCategoryDto } from './dto/update-tenant-category.dto';
 import { UpdateTenantExpenseDto } from './dto/update-tenant-expense.dto';
 import { UpdateTenantPolicyDto } from './dto/update-tenant-policy.dto';
+import { ConfigurationTemplatesService } from './configuration-templates.service';
+import {
+  ActivateCategoryTemplatesDto,
+  ActivatePolicyTemplatesDto,
+} from './dto/activate-configuration-templates.dto';
 import { TenantExpensesService } from './tenant-expenses.service';
 import { contentDisposition } from '../../modules/expenses/receipt-upload/receipt-upload.service';
 
 @ApiTags('Tenant expenses')
 @ApiBearerAuth('tenant-access-token')
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
+@UseInterceptors(TenantAuditContextInterceptor)
 @Controller('api/v1/tenant/expenses')
 export class TenantExpensesController {
-  constructor(private readonly expenses: TenantExpensesService) {}
+  constructor(
+    private readonly expenses: TenantExpensesService,
+    private readonly templates: ConfigurationTemplatesService,
+    private readonly notificationService: TenantNotificationsService,
+  ) {}
 
   @Get('categories')
   @TenantRoles(
@@ -68,6 +85,36 @@ export class TenantExpensesController {
   )
   policies(@Req() request: TenantRequest) {
     return this.expenses.listPolicies(request.tenantAuth!.organizationId);
+  }
+
+  @Get('configuration/templates')
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  configurationTemplates(@Req() request: TenantRequest) {
+    return this.templates.catalog(request.tenantAuth!.organizationId);
+  }
+
+  @Post('configuration/categories/activate-templates')
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  activateCategoryTemplates(
+    @Req() request: TenantRequest,
+    @Body() dto: ActivateCategoryTemplatesDto,
+  ) {
+    return this.templates.activateCategories(
+      request.tenantAuth!.organizationId,
+      dto,
+    );
+  }
+
+  @Post('configuration/policies/activate-templates')
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  activatePolicyTemplates(
+    @Req() request: TenantRequest,
+    @Body() dto: ActivatePolicyTemplatesDto,
+  ) {
+    return this.templates.activatePolicies(
+      request.tenantAuth!.organizationId,
+      dto,
+    );
   }
 
   @Get('configuration/categories')
@@ -94,7 +141,7 @@ export class TenantExpensesController {
   @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
   updateCategory(
     @Req() request: TenantRequest,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTenantCategoryDto,
   ) {
     return this.expenses.updateCategory(
@@ -106,7 +153,10 @@ export class TenantExpensesController {
 
   @Delete('configuration/categories/:id')
   @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
-  deleteCategory(@Req() request: TenantRequest, @Param('id') id: string) {
+  deleteCategory(
+    @Req() request: TenantRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.expenses.deleteCategory(request.tenantAuth!.organizationId, id);
   }
 
@@ -129,7 +179,7 @@ export class TenantExpensesController {
   @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
   updatePolicy(
     @Req() request: TenantRequest,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTenantPolicyDto,
   ) {
     return this.expenses.updatePolicy(
@@ -141,7 +191,10 @@ export class TenantExpensesController {
 
   @Delete('configuration/policies/:id')
   @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
-  deletePolicy(@Req() request: TenantRequest, @Param('id') id: string) {
+  deletePolicy(
+    @Req() request: TenantRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.expenses.deletePolicy(request.tenantAuth!.organizationId, id);
   }
 
@@ -384,6 +437,27 @@ export class TenantExpensesController {
     );
   }
 
+  @Get('notifications/page')
+  @TenantRoles(...Object.values(TenantRole))
+  notificationPage(
+    @Req() request: TenantRequest,
+    @Query() query: NotificationQuery,
+  ) {
+    return this.notificationService.page(request.tenantAuth!, query);
+  }
+  @Get('notifications/unread-count')
+  @TenantRoles(...Object.values(TenantRole))
+  unreadNotificationCount(@Req() request: TenantRequest) {
+    return this.notificationService.unread(request.tenantAuth!);
+  }
+  @Patch('notifications/:id/unread')
+  @TenantRoles(...Object.values(TenantRole))
+  notificationUnread(
+    @Req() request: TenantRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.notificationService.read(request.tenantAuth!, id, true);
+  }
   @Get('notifications')
   @TenantRoles(
     TenantRole.CONFIGURATION_MANAGER,
@@ -404,7 +478,10 @@ export class TenantExpensesController {
     TenantRole.FINANCE_OFFICER,
     TenantRole.COMPLIANCE_OFFICER,
   )
-  markNotificationRead(@Req() request: TenantRequest, @Param('id') id: string) {
+  markNotificationRead(
+    @Req() request: TenantRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.expenses.markNotificationRead(request.tenantAuth!, id);
   }
 
@@ -428,7 +505,10 @@ export class TenantExpensesController {
     TenantRole.FINANCE_OFFICER,
     TenantRole.COMPLIANCE_OFFICER,
   )
-  deleteNotification(@Req() request: TenantRequest, @Param('id') id: string) {
+  deleteNotification(
+    @Req() request: TenantRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.expenses.deleteNotification(request.tenantAuth!, id);
   }
 }

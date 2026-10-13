@@ -4,45 +4,56 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
-  IsOptional,
+  ValidateIf,
   IsString,
   Min,
+  Max,
+  MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class CreateTenantCategoryDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(/\S/, { message: 'Name cannot be blank.' })
   name: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
+  @MaxLength(1000)
   description?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_, value) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(9999999999.99)
   limit?: number;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
+  @Matches(/^[A-Za-z]{3}$/, {
+    message: 'Currency must be a three-letter code.',
+  })
   currency?: string;
 
   @ApiPropertyOptional({ enum: ['Active', 'Inactive'] })
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsIn(['Active', 'Inactive'])
   status?: 'Active' | 'Inactive';
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
   requiresReceipt?: boolean;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/)
   color?: string;
 }

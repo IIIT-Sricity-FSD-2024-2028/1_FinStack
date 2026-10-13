@@ -1,4 +1,4 @@
-import { TenantRole, TenantUserStatus } from '@prisma/client';
+import { Prisma, TenantRole, TenantUserStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { TenantConfigurationService } from './tenant-configuration.service';
 
@@ -23,19 +23,25 @@ describe('TenantConfigurationService', () => {
   };
 
   function setup() {
+    const update = jest.fn();
     const prisma = {
       tenantUser: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         count: jest.fn(),
-        update: jest.fn(),
+        update,
       },
     } as unknown as PrismaService;
-    return { prisma, service: new TenantConfigurationService(prisma) };
+    prisma.$queryRaw = jest.fn().mockResolvedValue([]);
+    prisma.$transaction = jest.fn(
+      async (operation: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+        operation(prisma),
+    ) as unknown as PrismaService['$transaction'];
+    return { prisma, update, service: new TenantConfigurationService(prisma) };
   }
 
   it('does not deactivate the final active Configuration Manager', async () => {
-    const { prisma, service } = setup();
+    const { prisma, update, service } = setup();
     prisma.tenantUser.findFirst = jest.fn().mockResolvedValue(user);
     prisma.tenantUser.count = jest.fn().mockResolvedValue(1);
 
@@ -44,11 +50,11 @@ describe('TenantConfigurationService', () => {
         status: TenantUserStatus.INACTIVE,
       }),
     ).rejects.toThrow('last active Configuration Manager');
-    expect(prisma.tenantUser.update).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('does not allow a reporting manager from another organization', async () => {
-    const { prisma, service } = setup();
+    const { prisma, update, service } = setup();
     prisma.tenantUser.findFirst = jest
       .fn()
       .mockResolvedValueOnce(user)
@@ -59,6 +65,6 @@ describe('TenantConfigurationService', () => {
         managerId: '40000000-0000-4000-8000-000000000001',
       }),
     ).rejects.toThrow('Manager must belong to this organization.');
-    expect(prisma.tenantUser.update).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });

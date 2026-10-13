@@ -3,4 +3,5 @@ import { CreateTenantCategoryDto } from './create-tenant-category.dto';
 
 export class UpdateTenantCategoryDto extends PartialType(
   CreateTenantCategoryDto,
+  { skipNullProperties: false },
 ) {}

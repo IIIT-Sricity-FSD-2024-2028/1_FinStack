@@ -1,3 +1,4 @@
+﻿import { auditActor, auditContext } from '../audit/tenant-audit-context';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TenantRole, TenantUserStatus } from '@prisma/client';
 import {
@@ -6,10 +7,8 @@ import {
   NotificationRecord,
 } from '../../data/store';
 import { PrismaService } from '../../database/prisma.service';
-import { CategoriesRepository } from '../../modules/categories/categories.repository';
 import { ExpensesRepository } from '../../modules/expenses/expenses.repository';
-import { NotificationsRepository } from '../../modules/notifications/notifications.repository';
-import { PoliciesRepository } from '../../modules/policies/policies.repository';
+import { TenantNotificationsService } from '../notifications/tenant-notifications.service';
 import { TransactionsRepository } from '../../modules/transactions/transactions.repository';
 import { TransactionsService } from '../../modules/transactions/transactions.service';
 import { ReceiptUploadService } from '../../modules/expenses/receipt-upload/receipt-upload.service';
@@ -121,6 +120,13 @@ describe('TenantExpensesService', () => {
     const prisma = {
       tenantUser: tenantUserMocks,
     } as unknown as PrismaService;
+    Object.assign(prisma, {
+      $transaction: jest.fn(<T>(fn: (tx: PrismaService) => Promise<T>) =>
+        fn(prisma),
+      ),
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      tenantAuditLog: { create: jest.fn().mockResolvedValue({}) },
+    });
     const expenseMocks = {
       findAll: jest.fn<ExpenseRecord[], []>().mockReturnValue([]),
       findById: jest.fn<ExpenseRecord | null, [string]>(),
@@ -142,24 +148,60 @@ describe('TenantExpensesService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     };
-    const categories = categoryMocks as unknown as CategoriesRepository;
-    const policyMocks = {
-      findAll: jest.fn().mockReturnValue([]),
-      findById: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
-    const policies = policyMocks as unknown as PoliciesRepository;
+
+    Object.assign(prisma, {
+      expenseCategory: {
+        findFirst: jest.fn(
+          ({ where }: { where: { id: string; organizationId: string } }) => {
+            const row = categoryMocks.findById(where.id);
+            return Promise.resolve(
+              row?.organizationId === where.organizationId ? row : null,
+            );
+          },
+        ),
+        findMany: jest.fn(
+          ({ where }: { where: { organizationId: string; status?: string } }) =>
+            Promise.resolve(
+              categoryMocks
+                .findAll()
+                .filter(
+                  (row) =>
+                    row.organizationId === where.organizationId &&
+                    (!where.status || row.status === where.status),
+                )
+                .map((row) => ({
+                  ...row,
+                  createdAt: new Date(row.createdAt),
+                  updatedAt: new Date(row.updatedAt),
+                })),
+            ),
+        ),
+        create: jest.fn(
+          ({
+            data,
+          }: {
+            data: Omit<CategoryRecord, 'id' | 'createdAt' | 'updatedAt'>;
+          }) => {
+            const row = categoryMocks.create(data);
+            categoryMocks.findById.mockReturnValue(row);
+            return Promise.resolve({
+              ...row,
+              createdAt: new Date(row.createdAt),
+              updatedAt: new Date(row.updatedAt),
+            });
+          },
+        ),
+      },
+    });
     const notificationMocks = {
-      findAll: jest.fn().mockReturnValue([]),
-      findById: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      legacy: jest.fn().mockResolvedValue([]),
+      notifyEmployee: jest.fn().mockResolvedValue({ count: 1 }),
+      read: jest.fn(),
+      readAll: jest.fn(),
+      dismiss: jest.fn(),
     };
     const notifications =
-      notificationMocks as unknown as NotificationsRepository;
+      notificationMocks as unknown as TenantNotificationsService;
     const transactionRepositoryMocks = {
       findAll: jest.fn().mockReturnValue([]),
       findById: jest.fn(),
@@ -188,17 +230,13 @@ describe('TenantExpensesService', () => {
       tenantUserMocks,
       expenses,
       expenseMocks,
-      categories,
       categoryMocks,
-      policyMocks,
       notificationMocks,
       transactionRepositoryMocks,
       transactionServiceMocks,
       service: new TenantExpensesService(
         prisma,
         expenses,
-        categories,
-        policies,
         notifications,
         transactionRepository,
         transactions,
@@ -251,14 +289,21 @@ describe('TenantExpensesService', () => {
     );
   });
 
-  it('creates categories for the authenticated organization only', () => {
+  it('creates categories for the authenticated organization only', async () => {
     const { categoryMocks, service } = setup();
     categoryMocks.create.mockImplementation((data) => category(data));
 
-    const result = service.createCategory(organizationId, {
-      name: 'Client Travel',
-      description: 'Customer travel',
-    });
+    const result = await auditContext.run(
+      auditActor({
+        ...managerActor,
+        user: { ...managerActor.user, role: TenantRole.CONFIGURATION_MANAGER },
+      }),
+      () =>
+        service.createCategory(organizationId, {
+          name: 'Client Travel',
+          description: 'Customer travel',
+        }),
+    );
 
     expect(result.organizationId).toBe(organizationId);
     expect(categoryMocks.create).toHaveBeenCalledWith(
@@ -269,7 +314,7 @@ describe('TenantExpensesService', () => {
     );
   });
 
-  it('lists only active categories from the authenticated organization', () => {
+  it('lists only active categories from the authenticated organization', async () => {
     const { categoryMocks, service } = setup();
     categoryMocks.findAll.mockReturnValue([
       category(),
@@ -277,7 +322,7 @@ describe('TenantExpensesService', () => {
       category({ id: 'other-category', organizationId: otherOrganizationId }),
     ]);
 
-    expect(service.listCategories(organizationId)).toEqual([
+    expect(await service.listCategories(organizationId)).toEqual([
       {
         id: 'category-1',
         name: 'Travel',
@@ -304,7 +349,7 @@ describe('TenantExpensesService', () => {
     ]);
   });
 
-  it('does not allow a finance officer to act on another officer expense', () => {
+  it('does not allow a finance officer to act on another officer expense', async () => {
     const { expenseMocks, service } = setup();
     expenseMocks.findById.mockReturnValue(
       expense({
@@ -313,13 +358,13 @@ describe('TenantExpensesService', () => {
       }),
     );
 
-    expect(() => service.financeApprove(financeActor, 'expense-1')).toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      service.financeApprove(financeActor, 'expense-1'),
+    ).rejects.toThrow(ForbiddenException);
     expect(expenseMocks.update).not.toHaveBeenCalled();
   });
 
-  it('moves an assigned finance expense to the payment queue', () => {
+  it('moves an assigned finance expense to the payment queue', async () => {
     const { expenseMocks, service } = setup();
     expenseMocks.findById.mockReturnValue(
       expense({
@@ -329,7 +374,7 @@ describe('TenantExpensesService', () => {
     );
     expenseMocks.update.mockImplementation((_id, updates) => expense(updates));
 
-    const result = service.financeApprove(
+    const result = await service.financeApprove(
       financeActor,
       'expense-1',
       'Verified.',
@@ -387,7 +432,7 @@ describe('TenantExpensesService', () => {
     ]);
   });
 
-  it('releases only eligible expenses assigned to the authenticated finance officer', () => {
+  it('releases only eligible expenses assigned to the authenticated finance officer', async () => {
     const { expenseMocks, transactionServiceMocks, service } = setup();
     const approved = expense({
       workflowStatus: 'approved_for_payment',
@@ -400,7 +445,7 @@ describe('TenantExpensesService', () => {
       transactions: [],
     });
 
-    service.releasePayment(financeActor, [approved.id]);
+    await service.releasePayment(financeActor, [approved.id]);
 
     expect(transactionServiceMocks.releasePaymentBatch).toHaveBeenCalledWith(
       expect.stringMatching(/^PB-/),
@@ -408,7 +453,7 @@ describe('TenantExpensesService', () => {
     );
   });
 
-  it('returns notifications only for the authenticated recipient and tenant', () => {
+  it('delegates notifications to the authenticated persistent recipient service', async () => {
     const { notificationMocks, service } = setup();
     const notification = {
       id: 'notification-1',
@@ -425,17 +470,11 @@ describe('TenantExpensesService', () => {
       actionType: 'expense_updated',
       dedupeKey: 'expense_updated:expense-1:EMP-001',
     } satisfies NotificationRecord;
-    notificationMocks.findAll.mockReturnValue([
+    notificationMocks.legacy.mockResolvedValue([notification]);
+    await expect(service.listNotifications(submitterActor)).resolves.toEqual([
       notification,
-      { ...notification, id: 'other-user', recipientEmployeeId: 'EMP-002' },
-      {
-        ...notification,
-        id: 'other-org',
-        organizationId: otherOrganizationId,
-      },
     ]);
-
-    expect(service.listNotifications(submitterActor)).toEqual([notification]);
+    expect(notificationMocks.legacy).toHaveBeenCalledWith(submitterActor);
   });
 
   it('rejects submission when the authenticated submitter has no active manager', async () => {
@@ -612,8 +651,8 @@ describe('TenantExpensesService', () => {
       fileName: 'receipt.pdf',
     });
 
-    await expect(service.getReceipt(submitterActor, 'expense-1')).resolves.toEqual(
-      expect.objectContaining({ fileName: 'receipt.pdf' }),
-    );
+    await expect(
+      service.getReceipt(submitterActor, 'expense-1'),
+    ).resolves.toEqual(expect.objectContaining({ fileName: 'receipt.pdf' }));
   });
 });

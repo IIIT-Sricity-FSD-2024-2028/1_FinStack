@@ -38,9 +38,18 @@ export class TenantTokenService {
       );
   }
 
-  sign(user: { id: string; organizationId: string }): Promise<string> {
+  sign(user: {
+    id: string;
+    organizationId: string;
+    credentialVersion?: number;
+  }): Promise<string> {
     return this.jwt.signAsync(
-      { sub: user.id, orgId: user.organizationId, type: 'tenant-access' },
+      {
+        sub: user.id,
+        orgId: user.organizationId,
+        type: 'tenant-access',
+        cv: user.credentialVersion ?? 0,
+      },
       {
         algorithm: 'HS256',
         secret: this.secret,

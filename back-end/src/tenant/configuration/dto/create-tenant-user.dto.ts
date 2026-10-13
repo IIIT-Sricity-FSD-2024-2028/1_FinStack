@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  Matches,
   IsEnum,
   IsOptional,
   IsString,
@@ -7,15 +8,46 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { TenantRole } from '@prisma/client';
 
 export class CreateTenantUserDto {
-  @IsString() @MinLength(1) @MaxLength(80) employeeId!: string;
-  @IsString() @MinLength(1) @MaxLength(100) firstName!: string;
-  @IsString() @MinLength(1) @MaxLength(100) lastName!: string;
-  @IsEmail() @MaxLength(320) email!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/)
+  employeeId!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  @Matches(/^[^\p{Cc}\p{Cf}]+$/u)
+  firstName!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  @Matches(/^[^\p{Cc}\p{Cf}]+$/u)
+  lastName!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
   @IsString() @MinLength(8) @MaxLength(200) initialPassword!: string;
   @IsEnum(TenantRole) role!: TenantRole;
-  @IsOptional() @IsString() @MaxLength(120) department?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Matches(/^[^\p{Cc}\p{Cf}]*$/u)
+  department?: string;
   @IsOptional() @IsUUID() managerId?: string;
 }

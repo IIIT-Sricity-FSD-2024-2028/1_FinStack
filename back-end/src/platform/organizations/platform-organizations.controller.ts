@@ -7,8 +7,11 @@ import {
   Post,
   ParseUUIDPipe,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PlatformRequest } from '../auth/auth.types';
+import { ReviewOrganizationDto } from './dto/review-organization.dto';
 import { Permissions } from '../rbac/decorators/platform-permissions.decorator';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { ListOrganizationsQueryDto } from './dto/list-organizations-query.dto';
@@ -31,8 +34,8 @@ export class PlatformOrganizationsController {
   @Post()
   @Permissions('platform.organization.create')
   @ApiOperation({ summary: 'Create or provision an organization' })
-  create(@Body() dto: CreateOrganizationDto) {
-    return this.organizations.create(dto);
+  create(@Body() dto: CreateOrganizationDto, @Req() request: PlatformRequest) {
+    return this.organizations.create(dto, request.platformAuth!.staff.id);
   }
 
   @Get(':id')
@@ -48,35 +51,65 @@ export class PlatformOrganizationsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrganizationDto,
+    @Req() request: PlatformRequest,
   ) {
-    return this.organizations.update(id, dto);
+    return this.organizations.update(id, dto, request.platformAuth!.staff.id);
+  }
+
+  @Post(':id/registration-reviews')
+  @Permissions(
+    'platform.organization.update',
+    'platform.organization.reactivate',
+  )
+  @ApiOperation({
+    summary:
+      'Record a manual organization review; does not verify domain control or legal identity automatically',
+  })
+  review(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewOrganizationDto,
+    @Req() request: PlatformRequest,
+  ) {
+    return this.organizations.review(id, dto, request.platformAuth!.staff.id);
   }
 
   @Post(':id/suspensions')
   @Permissions('platform.organization.suspend')
   @ApiOperation({ summary: 'Suspend an organization' })
-  suspend(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizations.suspend(id);
+  suspend(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: PlatformRequest,
+  ) {
+    return this.organizations.suspend(id, request.platformAuth!.staff.id);
   }
 
   @Post(':id/reactivations')
   @Permissions('platform.organization.reactivate')
   @ApiOperation({ summary: 'Reactivate a suspended organization' })
-  reactivate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizations.reactivate(id);
+  reactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: PlatformRequest,
+  ) {
+    return this.organizations.reactivate(id, request.platformAuth!.staff.id);
   }
 
   @Post(':id/cancellations')
   @Permissions('platform.organization.cancel')
   @ApiOperation({ summary: 'Cancel an organization' })
-  cancel(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizations.cancel(id);
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: PlatformRequest,
+  ) {
+    return this.organizations.cancel(id, request.platformAuth!.staff.id);
   }
 
   @Post(':id/archivals')
   @Permissions('platform.organization.archive')
   @ApiOperation({ summary: 'Archive a cancelled organization' })
-  archive(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizations.archive(id);
+  archive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: PlatformRequest,
+  ) {
+    return this.organizations.archive(id, request.platformAuth!.staff.id);
   }
 }

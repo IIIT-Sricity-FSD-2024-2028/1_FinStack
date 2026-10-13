@@ -1,12 +1,36 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import type { Request, Response, NextFunction } from 'express';
+import { manualQaSettings } from './manual-qa';
 import { AppConfiguration } from './configuration';
 
 export function configureHttpApplication(app: INestApplication): void {
-  const configService = app.get<ConfigService<AppConfiguration, true>>(
-    ConfigService,
-  );
+  if (manualQaSettings()) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      const loopback = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+      let originAllowed = true;
+      try {
+        if (req.headers.origin)
+          originAllowed = ['127.0.0.1', 'localhost', '[::1]'].includes(
+            new URL(req.headers.origin).hostname,
+          );
+      } catch {
+        originAllowed = false;
+      }
+      if (
+        !loopback.includes(req.socket.remoteAddress || '') ||
+        !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(req.hostname) ||
+        !originAllowed
+      ) {
+        res.status(403).json({ message: 'Manual QA is local-only.' });
+        return;
+      }
+      next();
+    });
+  }
+  const configService =
+    app.get<ConfigService<AppConfiguration, true>>(ConfigService);
 
   app.use(
     helmet({
