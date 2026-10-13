@@ -8,6 +8,17 @@ function setToggleState(id, active) {
 }
 
 window.FinStackStore.ready.then(() => {
+  if (sessionStorage.getItem('finstackTenantAccessToken')) {
+    const notice = document.createElement('p');
+    notice.setAttribute('role', 'status');
+    notice.textContent = 'Organization settings cannot be edited here yet. No persistent tenant settings API is implemented.';
+    const main = document.querySelector('main');
+    main.prepend(notice);
+    main.querySelectorAll('input, select, button, textarea').forEach(control => { control.disabled = true; });
+    main.querySelectorAll('.toggle-switch').forEach(control => { control.removeAttribute('onclick'); control.setAttribute('aria-disabled', 'true'); });
+    main.querySelectorAll('input').forEach(control => { control.value = ''; });
+    return;
+  }
   const org = window.FinStackStore.getOrganization();
   document.getElementById('org-name').value = org.name || '';
   document.getElementById('org-id').value = org.organizationId || '';

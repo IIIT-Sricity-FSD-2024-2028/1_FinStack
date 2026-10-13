@@ -1,0 +1,8 @@
+/* Preserve the existing client design system; no React-specific visual system is introduced. */
+@import "../../../css/base.css";
+@import "../../../css/components.css";
+@import "../../../css/layout.css";
+
+@import "../../../css/login.css";
+
+@import "../../../css/registration.css";

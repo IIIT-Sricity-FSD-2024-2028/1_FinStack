@@ -1,0 +1,5 @@
+body { display:grid; place-items:center; padding:24px; }
+.activation-card { width:100%; max-width:520px; padding:28px; background:var(--bg-card); border:1px solid var(--border-default); border-radius:16px; }
+.activation-card p { margin:16px 0; color:var(--text-secondary); }
+.activation-card label { display:block; margin:16px 0 8px; }
+.activation-card a { color:#22D3EE; }

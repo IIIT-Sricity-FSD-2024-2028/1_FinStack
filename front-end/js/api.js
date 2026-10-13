@@ -1,7 +1,16 @@
 (function () {
   'use strict';
 
-  var BASE_URL = 'http://localhost:3000';
+  function resolveBaseUrl() {
+    var configured = window.FINSTACK_API_BASE_URL;
+    if (!configured) {
+      var meta = document.querySelector('meta[name="finstack-api-base-url"]');
+      configured = meta && meta.content;
+    }
+    return String(configured || 'http://localhost:3000').replace(/\/$/, '');
+  }
+
+  var BASE_URL = resolveBaseUrl();
   var ROLE_MAP = {
     configuration_manager: 'superuser',
     manager: 'admin',
@@ -33,20 +42,30 @@
 
   function unwrap(payload) {
     if (payload && payload.success === false) {
-      throw new Error(payload.message || payload.error || 'Request failed.');
+      throw apiError(200, payload, 'Request failed.');
     }
     return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+  }
+
+  function apiError(status, payload, fallback) {
+    var message = payload && (payload.message || payload.error)
+      ? payload.message || payload.error
+      : fallback;
+    if (message && typeof message === 'object' && message.message) message = message.message;
+    var error = new Error(Array.isArray(message) ? message.join(', ') : message);
+    error.name = 'FinStackApiError';
+    error.status = status;
+    error.code = payload && payload.code ? payload.code : null;
+    error.requestId = payload && payload.requestId ? payload.requestId : null;
+    error.payload = payload;
+    return error;
   }
 
   function parseFetchResponse(response) {
     return response.text().then(function (text) {
       var payload = text ? JSON.parse(text) : null;
       if (!response.ok) {
-        var message = payload && (payload.message || payload.error)
-          ? payload.message || payload.error
-          : 'Request failed with status ' + response.status + '.';
-        if (message && typeof message === 'object' && message.message) message = message.message;
-        throw new Error(Array.isArray(message) ? message.join(', ') : message);
+        throw apiError(response.status, payload, 'Request failed with status ' + response.status + '.');
       }
       return unwrap(payload);
     });
@@ -67,10 +86,7 @@
       return response.text().then(function (text) {
         var payload = text ? JSON.parse(text) : null;
         if (!response.ok) {
-          var message = payload && (payload.message || payload.error)
-            ? payload.message || payload.error
-            : 'Request failed with status ' + response.status + '.';
-          throw new Error(Array.isArray(message) ? message.join(', ') : message);
+          throw apiError(response.status, payload, 'Request failed with status ' + response.status + '.');
         }
         return unwrap(payload);
       });
@@ -86,10 +102,7 @@
     xhr.send(options.body === undefined ? null : JSON.stringify(options.body));
     var payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
     if (xhr.status < 200 || xhr.status >= 300) {
-      var message = payload && (payload.message || payload.error)
-        ? payload.message || payload.error
-        : 'Request failed with status ' + xhr.status + '.';
-      throw new Error(Array.isArray(message) ? message.join(', ') : message);
+      throw apiError(xhr.status, payload, 'Request failed with status ' + xhr.status + '.');
     }
     return unwrap(payload);
   }
@@ -183,6 +196,7 @@
 
   window.FinStackApi = {
     baseUrl: BASE_URL,
+    resolveBaseUrl: resolveBaseUrl,
     roleMap: ROLE_MAP,
     getWorkspaceRole: getWorkspaceRole,
     getRbacRole: getRbacRole,

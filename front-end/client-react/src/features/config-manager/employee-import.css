@@ -1,0 +1,72 @@
+.employee-import {
+  padding: 20px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.import-file-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+.import-file-summary span {
+  min-width: 0;
+}
+.employee-import p {
+  margin: 12px 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.import-heading,
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 16px 0;
+}
+.import-heading > div {
+  flex: 1 1 260px;
+}
+.employee-import input[type="file"] {
+  display: block;
+  max-width: 100%;
+  margin-top: 10px;
+}
+.import-history,
+.import-job {
+  margin-top: 16px;
+}
+.employee-import progress {
+  width: 100%;
+  accent-color: #7c3aed;
+}
+.import-check {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  margin: 16px 0;
+}
+.import-check input {
+  accent-color: #7c3aed;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.employee-import .import-error {
+  color: #f87171;
+}
+.employee-import td {
+  white-space: normal;
+  min-width: 100px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .employee-import {
+    padding: 16px;
+  }
+  .import-actions > button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,147 @@
+export interface TenantUser {
+  id: string;
+  organizationId: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  status: string;
+}
+export interface Session {
+  accessToken: string;
+  user: TenantUser;
+  organizationId: string;
+}
+export interface LoginResult extends Session {
+  workspace: { path: string; key: string };
+  expiresIn: number;
+}
+declare global {
+  interface Window {
+    FINSTACK_API_BASE_URL?: string;
+    FinStackApi?: { baseUrl: string };
+    FinStackTenantSession?: typeof runtime;
+  }
+}
+export const apiBase = () =>
+  (
+    window.FINSTACK_API_BASE_URL ||
+    window.FinStackApi?.baseUrl ||
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+const SESSION_EVENT = "finstack:session";
+export function currentSession(): Session | null {
+  try {
+    const accessToken = sessionStorage.getItem("finstackTenantAccessToken");
+    const user = JSON.parse(
+      sessionStorage.getItem("finstackTenantUser") || "null",
+    );
+    return accessToken &&
+      user?.id &&
+      user?.organizationId &&
+      user.status === "ACTIVE"
+      ? { accessToken, user, organizationId: user.organizationId }
+      : null;
+  } catch {
+    return null;
+  }
+}
+export function saveSession(session: Session) {
+  if (
+    !session.accessToken ||
+    session.user.status !== "ACTIVE" ||
+    session.organizationId !== session.user.organizationId
+  )
+    throw Error("Invalid authentication response.");
+  sessionStorage.setItem("finstackTenantAccessToken", session.accessToken);
+  sessionStorage.setItem("finstackTenantUser", JSON.stringify(session.user));
+  const compatibility = {
+    ...session.user,
+    fullName: `${session.user.firstName} ${session.user.lastName}`,
+    role: session.user.role.toLowerCase(),
+    roles: [session.user.role.toLowerCase()],
+    loginAt: new Date().toISOString(),
+  };
+  sessionStorage.setItem("finstackUserSession", JSON.stringify(compatibility));
+  localStorage.setItem("currentUser", JSON.stringify(compatibility));
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+export function clearSession() {
+  [
+    "finstackTenantAccessToken",
+    "finstackTenantUser",
+    "finstackUserSession",
+  ].forEach((key) => sessionStorage.removeItem(key));
+  localStorage.removeItem("currentUser");
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+  ) {
+    super(message);
+  }
+}
+export async function request<T = any>(
+  path: string,
+  options: {
+    method?: string;
+    body?: unknown;
+    signal?: AbortSignal;
+    authenticated?: boolean;
+  } = {},
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (options.authenticated !== false) {
+    const session = currentSession();
+    if (!session) {
+      clearSession();
+      throw new ApiError("Sign in again to continue.", 401);
+    }
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  const response = await fetch(apiBase() + path, {
+    method: options.method || "GET",
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    signal: options.signal,
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 401 && options.authenticated !== false)
+      clearSession();
+    const message = payload?.error?.message || payload?.message;
+    throw new ApiError(
+      response.status >= 500
+        ? "The service is temporarily unavailable. Please retry."
+        : typeof message === "string"
+          ? message
+          : response.status === 403
+            ? "You do not have permission to perform this action."
+            : "Check the submitted values and try again.",
+      response.status,
+      payload?.error?.code,
+    );
+  }
+  return payload?.data ?? payload;
+}
+// Existing feature adapters keep their contracts, using this JWT-only transport.
+const runtime = {
+  getTenantSession: currentSession,
+  setTenantSession: saveSession,
+  clearTenantSession: clearSession,
+  isTenantAuthenticated: () => Boolean(currentSession()),
+  request,
+  handleUnauthorized: clearSession,
+};
+export function installSessionRuntime() {
+  window.FinStackApi = { baseUrl: apiBase() };
+  window.FinStackTenantSession = runtime;
+}
+export { SESSION_EVENT };

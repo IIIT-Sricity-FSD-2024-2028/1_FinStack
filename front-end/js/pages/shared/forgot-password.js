@@ -1,7 +1,3 @@
-lucide.createIcons();
-    document.getElementById('forgot-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      document.getElementById('form-view').style.display = 'none';
-      document.getElementById('success-view').style.display = 'block';
-      lucide.createIcons();
-    });
+/* Unsupported public forgot-password submission is intentionally disabled.
+ * See the corresponding shared page for supported provisioning/access guidance.
+ * No credentials, requests, reset links or success states are generated here. */

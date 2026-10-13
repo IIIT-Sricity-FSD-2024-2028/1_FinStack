@@ -1,0 +1,24 @@
+.client-login .auth-page { min-height: 100vh; min-height: 100svh; padding: 28px 16px; }
+.client-login .auth-card { width: 100%; max-width: 460px; position: relative; }
+.client-login .auth-card-inner { padding: 28px; }
+.login-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
+.login-heading { text-align: center; margin-bottom: 24px; }
+.login-heading h1 { font-size: 1.5rem; margin-bottom: 8px; }
+.login-heading p, .login-help { color: var(--text-secondary); }
+.login-heading p { font-size: .875rem; }
+.client-login #login-form { display: flex; flex-direction: column; gap: 20px; }
+.login-help, .login-field-error { margin-top: 7px; font-size: .8125rem; line-height: 1.5; }
+.login-field-error { color: #fca5a5; }
+.client-login [aria-invalid="true"] { border-color: #f87171; }
+.login-password { position: relative; }
+.login-password input { padding-right: 68px; }
+.login-password button { position: absolute; right: 4px; top: 4px; bottom: 4px; min-width: 56px; border: 0; border-radius: 6px; background: transparent; color: var(--text-primary); cursor: pointer; font: inherit; font-size: .8125rem; }
+.login-password button:focus-visible, .client-login a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.login-forgot { display: inline-block; margin-top: 10px; font-size: .8125rem; color: #c4b5fd; }
+.login-message { padding: 12px 14px; margin-bottom: 20px; border-radius: 8px; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.login-message-error { color: #fca5a5; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); }
+.login-message-success { color: #6ee7b7; background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); }
+.login-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 18px; margin-top: 24px; font-size: .8125rem; }
+.login-links a { color: #c4b5fd; }
+.login-home { display: block; margin-top: 24px; text-align: center; color: var(--text-secondary); font-size: .875rem; }
+@media (max-width: 480px) { .client-login .auth-page { padding: 20px 12px; } .client-login .auth-card-inner { padding: 22px 18px; } }

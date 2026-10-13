@@ -35,10 +35,6 @@ function renderSidebar() {
         <i data-lucide="shield" style="width:20px;height:20px;"></i>
         <span class="sidebar-item-text">Roles & Access</span>
       </a>
-      <a href="subscription.html" class="sidebar-item">
-        <i data-lucide="credit-card" style="width:20px;height:20px;"></i>
-        <span class="sidebar-item-text">Subscription</span>
-      </a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-title">Expense Config</div>
@@ -74,7 +70,7 @@ function renderSidebar() {
     </div>
   </nav>
   <div class="sidebar-footer" style="padding:16px 12px;border-top:1px solid var(--border-default);margin-top:auto;">
-    <a href="#" class="sidebar-item sidebar-logout-btn" id="sidebar-logout" style="color:var(--red);">
+    <a href="../../login.html" class="sidebar-item sidebar-logout-btn" id="sidebar-logout" style="color:var(--red);">
       <i data-lucide="log-out" style="width:20px;height:20px;"></i>
       <span class="sidebar-item-text">Logout</span>
     </a>
@@ -96,9 +92,9 @@ function renderTopnav(breadcrumb) {
     </div>
     <div class="dropdown">
       <button class="topnav-profile" id="profile-btn">
-        <div class="avatar avatar-md">PN</div>
+        <div class="avatar avatar-md">?</div>
         <div>
-          <div class="topnav-profile-name">Polasa Nikhil</div>
+          <div class="topnav-profile-name">Loading account</div>
           <div class="topnav-profile-role">Configuration Manager</div>
         </div>
         <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted);"></i>
@@ -123,6 +119,20 @@ function initLayout(breadcrumb) {
     sidebar.style.flexDirection = 'column';
   }
   if (topnav) topnav.innerHTML = renderTopnav(breadcrumb);
+  if (!document.querySelector('[id^="config-manager-"][id$="-root"]') && !document.querySelector('.template-mobile-nav')) {
+    const menu = document.createElement('button');
+    menu.type = 'button';
+    menu.className = 'template-mobile-nav btn btn-secondary';
+    menu.textContent = 'Menu';
+    menu.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-controls', 'sidebar');
+    menu.addEventListener('click', function () {
+      const open = document.body.classList.toggle('template-nav-open');
+      menu.textContent = open ? 'Close menu' : 'Menu';
+      menu.setAttribute('aria-expanded', String(open));
+    });
+    document.body.appendChild(menu);
+  }
 
   /* Populate profile from session */
   try {
@@ -143,7 +153,13 @@ function initLayout(breadcrumb) {
   /* Intercept logout links to clear session */
   function handleLogout(e) {
     e.preventDefault();
-    if (window.FinStackGuard) window.FinStackGuard.clearSession();
+    if (window.FinStackTenantSession && window.FinStackTenantSession.clearTenantSession) {
+      window.FinStackTenantSession.clearTenantSession();
+    } else if (window.FinStackGuard && window.FinStackGuard.clearSession) {
+      window.FinStackGuard.clearSession();
+    } else {
+      sessionStorage.removeItem('finstackUserSession');
+    }
     window.location.href = '../../login.html';
   }
 
@@ -175,17 +191,18 @@ function renderConfigNotifDropdown() {
   var notifications = [];
   if (window.FinStackStore) {
     try {
-      notifications = window.FinStackStore.getNotifications() || [];
+      notifications = (window.FinStackStore.getNotificationPreview ? window.FinStackStore.getNotificationPreview() : window.FinStackStore.getNotifications()) || [];
     } catch (e) {
       notifications = [];
     }
   }
   var unread = notifications.filter(function(n) { return n.unread; });
+  var unreadCount = window.FinStackStore && window.FinStackStore.getUnreadNotificationCount ? window.FinStackStore.getUnreadNotificationCount() : unread.length;
 
   // Sync unread count badge
   if (dot) {
-    dot.textContent = unread.length > 9 ? '9+' : String(unread.length);
-    dot.style.display = unread.length > 0 ? 'flex' : 'none';
+    dot.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+    dot.style.display = unreadCount > 0 ? 'flex' : 'none';
   }
 
   var displayList = notifications.slice(0, 5);
@@ -211,7 +228,7 @@ function renderConfigNotifDropdown() {
     });
   }
 
-  var markAllBtn = '<button class="notif-mark-read" id="cm-mark-all-read" type="button"' + (unread.length ? '' : ' disabled') + '>Mark all as read</button>';
+  var markAllBtn = '<button class="notif-mark-read" id="cm-mark-all-read" type="button"' + (unreadCount ? '' : ' disabled') + '>Mark all as read</button>';
 
   dropdown.innerHTML =
     '<div class="notif-dropdown-header">' +
@@ -540,14 +557,28 @@ document.addEventListener('DOMContentLoaded', function () {
     if (link.style.color === 'var(--red)' || link.textContent.trim().toLowerCase().includes('logout')) {
       link.addEventListener('click', function (e) {
         e.preventDefault();
-        if (window.FinStackGuard) window.FinStackGuard.clearSession();
+        if (window.FinStackTenantSession && window.FinStackTenantSession.clearTenantSession) {
+          window.FinStackTenantSession.clearTenantSession();
+        } else if (window.FinStackGuard && window.FinStackGuard.clearSession) {
+          window.FinStackGuard.clearSession();
+        } else {
+          sessionStorage.removeItem('finstackUserSession');
+        }
         window.location.href = '../../login.html';
       });
     }
   });
 
-  if (window.FinStackTenantSession && window.FinStackTenantSession.isTenantAuthenticated()) {
-    loadDashboardMetrics();
+  var tenantRuntime = window.FinStackTenantSession;
+  var tenantSession = tenantRuntime && tenantRuntime.getTenantSession();
+  var store = window.FinStackStore;
+  if (tenantSession && store && store.ready) {
+    store.ready.then(function () {
+      if (!tenantRuntime.isTenantAuthenticated()) return;
+      renderConfigNotifDropdown();
+      loadPendingRequests();
+      loadRecentActivity();
+    });
   }
 });
 
@@ -557,9 +588,12 @@ function loadPendingRequests() {
   var badge = document.getElementById('pending-count-badge');
   if (!section || !tbody) return;
 
-  var session = null;
-  try { session = JSON.parse(sessionStorage.getItem('finstackUserSession')); } catch (e) {}
-  var orgId = session ? session.organizationId : '';
+  var tenantSession = window.FinStackTenantSession && window.FinStackTenantSession.getTenantSession();
+  var orgId = tenantSession && tenantSession.organizationId;
+  if (!orgId) {
+    section.style.display = 'none';
+    return;
+  }
 
   var requests = window.FinStackStore.getAccountRequests(orgId);
   var pending = requests.filter(function (r) { return r.status === 'pending'; });
@@ -573,30 +607,43 @@ function loadPendingRequests() {
   if (badge) badge.textContent = pending.length;
 
   tbody.innerHTML = pending.map(function (req) {
-    var roleName = window.FinStackStore.titleCase(req.requestedRole);
+    var roleName = escapeDashboardHtml(window.FinStackStore.titleCase(req.requestedRole));
     var date = new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    var initials = req.fullName.split(' ').map(function (n) { return n[0]; }).join('');
+    var initials = escapeDashboardHtml(String(req.fullName || '').split(' ').map(function (n) { return n[0] || ''; }).join(''));
+    var requestId = escapeDashboardHtml(req.id);
     return '<tr>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
           '<div class="avatar avatar-lg">' + initials + '</div>' +
           '<div>' +
-            '<div style="font-weight:500;color:var(--text-primary);">' + req.fullName + '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-secondary);">' + req.email + '</div>' +
+            '<div style="font-weight:500;color:var(--text-primary);">' + escapeDashboardHtml(req.fullName) + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-secondary);">' + escapeDashboardHtml(req.email) + '</div>' +
           '</div>' +
         '</div>' +
       '</td>' +
-      '<td style="color:var(--text-secondary);">' + req.employeeId + '</td>' +
+      '<td style="color:var(--text-secondary);">' + escapeDashboardHtml(req.employeeId) + '</td>' +
       '<td><span class="badge badge-purple">' + roleName + '</span></td>' +
-      '<td style="color:var(--text-secondary);">' + date + '</td>' +
+      '<td style="color:var(--text-secondary);">' + escapeDashboardHtml(date) + '</td>' +
       '<td>' +
         '<div style="display:flex;gap:8px;">' +
-          '<button class="btn btn-primary" style="padding:6px 12px;font-size:0.75rem;" onclick="approveRequest(\'' + req.id + '\')">Approve</button>' +
-          '<button class="btn btn-secondary" style="padding:6px 12px;font-size:0.75rem;color:var(--red);border-color:rgba(239,68,68,0.3);" onclick="rejectRequest(\'' + req.id + '\')">Reject</button>' +
+          '<button class="btn btn-primary" data-request-action="approve" data-request-id="' + requestId + '" style="padding:6px 12px;font-size:0.75rem;">Approve</button>' +
+          '<button class="btn btn-secondary" data-request-action="reject" data-request-id="' + requestId + '" style="padding:6px 12px;font-size:0.75rem;color:var(--red);border-color:rgba(239,68,68,0.3);">Reject</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
   }).join('');
+  tbody.onclick = function (event) {
+    var button = event.target.closest('button[data-request-action]');
+    if (!button || !tbody.contains(button)) return;
+    if (button.dataset.requestAction === 'approve') approveRequest(button.dataset.requestId);
+    if (button.dataset.requestAction === 'reject') rejectRequest(button.dataset.requestId);
+  };
+}
+
+function escapeDashboardHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function (character) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+  });
 }
 
 function approveRequest(requestId) {
@@ -614,26 +661,6 @@ function rejectRequest(requestId) {
 }
 
 function loadDashboardMetrics() {
-  if (window.FinStackTenantSession && window.FinStackTenantSession.isTenantAuthenticated()) {
-    window.FinStackTenantSession.request('/api/v1/tenant/subscription')
-      .then(function (payload) {
-        var subscription = payload;
-        if (!subscription || !subscription.plan) return;
-        var labels = document.querySelectorAll('.metric-label');
-        var values = document.querySelectorAll('.metric-value');
-        if (labels[0]) labels[0].textContent = 'Organization';
-        if (values[0]) values[0].textContent = subscription.organization.name;
-        if (labels[1]) labels[1].textContent = 'Current Plan';
-        if (values[1]) values[1].textContent = subscription.plan.name;
-        if (labels[2]) labels[2].textContent = 'Recurring Price';
-        if (values[2]) values[2].textContent = subscription.currency + ' ' + subscription.priceAtSubscription;
-        if (labels[3]) labels[3].textContent = 'Employee Seats';
-        if (values[3]) values[3].textContent = String(subscription.employeeCount);
-      })
-      .catch(function (error) {
-        if (error && error.code === 'TENANT_SESSION_EXPIRED') return;
-      });
-  }
   /* Dynamic metrics from store */
   var state = window.FinStackStore.getState();
   var expenses = state.expenses || [];
@@ -668,7 +695,7 @@ function loadRecentActivity() {
   });
 
   if (!logs.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">No recent activity yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">Tenant activity is unavailable: durable tenant audit storage is not implemented.</td></tr>';
     return;
   }
 
@@ -720,95 +747,17 @@ function loadRecentActivity() {
     return '<tr>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
-          '<div class="avatar avatar-lg">' + initial + '</div>' +
+          '<div class="avatar avatar-lg">' + escapeDashboardHtml(initial) + '</div>' +
           '<div>' +
-            '<div style="font-weight:500;color:var(--text-primary);font-size:0.875rem;">' + userName + '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-secondary);">' + (log.action || '—') + '</div>' +
+            '<div style="font-weight:500;color:var(--text-primary);font-size:0.875rem;">' + escapeDashboardHtml(userName) + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-secondary);">' + escapeDashboardHtml(log.action || '—') + '</div>' +
           '</div>' +
         '</div>' +
       '</td>' +
-      '<td style="color:var(--text-secondary);font-size:0.875rem;">' + resource + '</td>' +
-      '<td style="color:var(--text-secondary);font-size:0.8rem;">' + (log.userRole || '—') + '</td>' +
-      '<td><span class="badge" style="background:' + statusBg + ';color:' + statusColor + ';border-color:' + statusColor + '40;">' + (log.status || 'Success') + '</span></td>' +
-      '<td style="color:var(--text-secondary);font-size:0.8rem;white-space:nowrap;">' + timeAgo + '</td>' +
+      '<td style="color:var(--text-secondary);font-size:0.875rem;">' + escapeDashboardHtml(resource) + '</td>' +
+      '<td style="color:var(--text-secondary);font-size:0.8rem;">' + escapeDashboardHtml(log.userRole || '—') + '</td>' +
+      '<td><span class="badge" style="background:' + statusBg + ';color:' + statusColor + ';border-color:' + statusColor + '40;">' + escapeDashboardHtml(log.status || 'Success') + '</span></td>' +
+      '<td style="color:var(--text-secondary);font-size:0.8rem;white-space:nowrap;">' + escapeDashboardHtml(timeAgo) + '</td>' +
     '</tr>';
   }).join('');
-}
-
-// The configuration dashboard reports only canonical tenant configuration data.
-loadDashboardMetrics = function () {
-  document.querySelectorAll('.metric-change').forEach(function (node) { node.style.display = 'none'; });
-  document.querySelectorAll('.metric-value').forEach(function (node) { node.textContent = '—'; });
-  document.querySelectorAll('h2').forEach(function (heading) {
-    if (heading.textContent === 'Recent Activity' || heading.textContent === 'Active Alerts') {
-      var card = heading.closest('.card');
-      if (card) card.style.display = 'none';
-    }
-  });
-  window.FinStackTenantSession.request('/api/v1/tenant/subscription')
-    .then(function (subscription) {
-      if (!subscription || !subscription.plan || !subscription.organization) return;
-      var values = document.querySelectorAll('.metric-value');
-      var purchasedSeats = Number(subscription.employeeCount);
-      var includedSeats = Number(subscription.plan.includedEmployeeCount);
-      var seatsAvailable = Number.isFinite(purchasedSeats) && Number.isFinite(includedSeats);
-      var periodText = subscription.status === 'TRIAL'
-        ? (subscription.trialEndAt ? 'Trial ends ' + formatDashboardDate(subscription.trialEndAt) : 'Trial end not available')
-        : (subscription.currentPeriodEnd ? 'Current period ends ' + formatDashboardDate(subscription.currentPeriodEnd) : 'Billing period end not available');
-
-      if (values[0]) values[0].textContent = subscription.organization.name;
-      if (values[1]) values[1].textContent = subscription.status;
-      if (values[2]) values[2].textContent = formatDashboardMoney(subscription.priceAtSubscription, subscription.currency) + ' / ' + formatBillingInterval(subscription.billingInterval);
-      if (values[3]) values[3].textContent = seatsAvailable ? purchasedSeats + ' purchased' : 'Not available';
-
-      setDashboardDetail('organization', subscription.plan.name + ' plan');
-      setDashboardDetail('subscription', periodText);
-      setDashboardDetail('price', subscription.plan.name + ' recurring total');
-      setDashboardDetail(
-        'seats',
-        seatsAvailable
-          ? includedSeats + ' included \u00b7 ' + Math.max(0, purchasedSeats - includedSeats) + ' additional'
-          : 'Seat allowance not available',
-      );
-      ['pending-requests-section', 'recent-activity-section', 'budget-alerts-section'].forEach(function (id) {
-        var section = document.getElementById(id);
-        if (section) section.style.display = 'none';
-      });
-    })
-    .catch(function () {});
-};
-
-function setDashboardDetail(name, value) {
-  var node = document.querySelector('[data-dashboard-detail="' + name + '"]');
-  if (node) node.textContent = value;
-}
-
-function formatDashboardMoney(amount, currency) {
-  var numeric = Number(amount);
-  if (!Number.isFinite(numeric)) return 'Not available';
-  try {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currency,
-      maximumFractionDigits: 2,
-    }).format(numeric);
-  } catch (error) {
-    return String(currency || '') + ' ' + String(amount);
-  }
-}
-
-function formatDashboardDate(value) {
-  var date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function formatBillingInterval(interval) {
-  if (interval === 'MONTHLY') return 'month';
-  if (interval === 'YEARLY' || interval === 'ANNUAL') return 'year';
-  return String(interval || 'recurring').toLowerCase();
 }

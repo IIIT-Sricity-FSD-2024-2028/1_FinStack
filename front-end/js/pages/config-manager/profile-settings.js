@@ -7,6 +7,21 @@ window.togglePw = function(id) {
 };
 
 window.FinStackStore.ready.then(() => {
+  if (sessionStorage.getItem('finstackTenantAccessToken')) {
+    const notice = document.createElement('p');
+    notice.setAttribute('role', 'status');
+    notice.textContent = 'Profile editing and password changes are unavailable here until authenticated backend endpoints are implemented.';
+    const main = document.querySelector('main');
+    main.prepend(notice);
+    main.querySelectorAll('input, select, button, textarea').forEach(control => { control.disabled = true; });
+    main.querySelectorAll('.toggle-switch').forEach(control => { control.removeAttribute('onclick'); control.setAttribute('aria-disabled', 'true'); });
+    const user = window.FinStackStore.getCurrentUser();
+    document.getElementById('profile-fullname').value = user?.fullName || '';
+    document.getElementById('profile-email').value = user?.email || '';
+    document.getElementById('profile-empid').value = user?.employeeId || '';
+    document.getElementById('profile-display-name').textContent = user?.fullName || '';
+    return;
+  }
   const user = window.FinStackStore.getCurrentUser();
   if (!user) return;
 

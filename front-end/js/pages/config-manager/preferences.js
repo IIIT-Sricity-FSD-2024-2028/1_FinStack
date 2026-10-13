@@ -37,6 +37,17 @@ initLayout('Preferences');
     if (window.lucide) lucide.createIcons();
     var btn = document.getElementById('save-preferences-btn');
     if (!btn) return;
+    if (sessionStorage.getItem('finstackTenantAccessToken')) {
+      btn.disabled = true;
+      const main = document.querySelector('main');
+      const notice = document.createElement('p');
+      notice.setAttribute('role', 'status');
+      notice.textContent = 'Preference controls are unavailable. Saved values are not currently applied to the application.';
+      main.prepend(notice);
+      main.querySelectorAll('input, select, button').forEach(control => { control.disabled = true; });
+      main.querySelectorAll('[onclick]').forEach(control => { control.removeAttribute('onclick'); control.setAttribute('aria-disabled', 'true'); });
+      return;
+    }
     btn.addEventListener('click', function () {
       var all = safeRead();
       all[getUserKey()] = collectPreferences();

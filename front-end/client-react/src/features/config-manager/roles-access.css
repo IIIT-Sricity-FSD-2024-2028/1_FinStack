@@ -1,0 +1,2 @@
+.config-manager-roles-grid { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 24px; }
+@media (max-width: 900px) { .config-manager-roles-grid { grid-template-columns: minmax(0, 1fr); } }

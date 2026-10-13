@@ -1,0 +1,139 @@
+.policy-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.policy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 20px;
+}
+.policy-header h1,
+.policy-onboarding h2 {
+  margin: 0 0 8px;
+}
+.policy-header p,
+.policy-note,
+.policy-onboarding p {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+.policy-note {
+  padding: 12px;
+  border-left: 3px solid #7c3aed;
+  font-size: 0.85rem;
+  background: rgb(124 58 237 / 7%);
+}
+.policy-onboarding {
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+.policy-onboarding .btn {
+  justify-self: start;
+}
+.policy-actions,
+.policy-row-actions,
+.policy-receipt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.policy-row-actions {
+  min-width: 230px;
+}
+.policy-row-actions .btn {
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  min-height: 34px;
+}
+.policy-row-actions .btn-outline-red {
+  color: #fca5a5;
+  border: 1px solid #f87171;
+  background-color: #111827;
+}
+.policy-row-actions .btn-outline-red:hover:not(:disabled) {
+  color: #fecaca;
+  border-color: #fca5a5;
+  background-color: #450a0a;
+}
+.policy-row-actions .btn-outline-red:focus-visible {
+  outline: 2px solid #fca5a5;
+  outline-offset: 3px;
+}
+.policy-row-actions .btn-outline-red:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.policy-receipt {
+  justify-content: space-between;
+}
+.policy-error {
+  color: #fca5a5;
+  line-height: 1.5;
+}
+.policy-approval-help {
+  color: var(--text-secondary);
+  line-height: 1.4;
+  font-size: 0.8rem;
+}
+.policy-table {
+  min-width: 0;
+  overflow: hidden;
+}
+.policy-page .filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+.policy-page .filters-bar > * {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.policy-page td {
+  overflow-wrap: anywhere;
+  max-width: 260px;
+}
+.policy-modal-scope .modal-content {
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+}
+.policy-modal-scope .modal-content form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.policy-modal-scope .modal-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+.policy-modal-scope .modal-footer,
+.policy-modal-scope .modal-header {
+  flex-shrink: 0;
+}
+.policy-modal-scope label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-primary);
+}
+.policy-modal-scope small {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+@media (max-width: 760px) {
+  .policy-header {
+    flex-direction: column;
+  }
+  .policy-actions {
+    width: 100%;
+  }
+  .policy-header .btn {
+    flex: 1;
+  }
+}

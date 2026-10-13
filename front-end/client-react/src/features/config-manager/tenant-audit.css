@@ -1,0 +1,7 @@
+.audit-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.audit-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.audit-filters > .form-input { width:auto; flex:1 1 160px; min-width:0; }
+.audit-filters > label { flex:1 1 150px; min-width:0; }
+.audit-detail { max-width:720px; width:calc(100vw - 32px); }
+.audit-detail p, .audit-detail pre { overflow-wrap:anywhere; white-space:pre-wrap; }
+.audit-detail pre { max-height:45vh; overflow:auto; }

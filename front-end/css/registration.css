@@ -1,0 +1,28 @@
+.organization-registration { background:#0B0F19; color:#E5E7EB; margin:0; font-family:Inter,system-ui,sans-serif; }
+.organization-registration main { width:min(100% - 32px,900px); margin:32px auto; padding:24px; box-sizing:border-box; background:#111827; border:1px solid #374151; border-radius:12px; }
+.organization-registration h1 { font-size:2rem; line-height:1.2; margin:24px 0 16px; }
+.organization-registration p { line-height:1.6; margin:8px 0 16px; }
+.organization-registration a { color:#c4b5fd; }
+.registration-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:24px 0; }
+.organization-registration label { display:block; margin-bottom:8px; font-weight:600; }
+.organization-registration input,.organization-registration select,.organization-registration button { box-sizing:border-box; max-width:100%; font:inherit; padding:12px; color:#E5E7EB; background:#0B0F19; border:1px solid #6b7280; border-radius:8px; }
+.organization-registration input,.organization-registration select { width:100%; }
+.organization-registration button { cursor:pointer; margin:8px 8px 8px 0; }
+.organization-registration button[type=submit] { background:#6d28d9; }
+.organization-registration button:disabled { opacity:.55; cursor:default; }
+.organization-registration :focus-visible { outline:3px solid #22D3EE; outline-offset:3px; }
+.organization-registration input[aria-invalid=true],.organization-registration select[aria-invalid=true] { border-color:#fca5a5; }
+.organization-registration .field-error,.organization-registration #reg-error { color:#fca5a5; }
+.organization-registration .registration-grid p { font-size:.85rem; margin:6px 0; }
+.organization-registration [hidden] { display:none!important; }
+@media(max-width:600px) { .registration-grid { grid-template-columns:1fr; } .organization-registration main { padding:16px; margin:16px auto; } }
+
+.organization-registration fieldset { min-width:0; margin:24px 0; padding:16px; border:1px solid #374151; border-radius:8px; }
+.organization-registration legend { padding:0 8px; font-size:1.15rem; font-weight:600; }
+.organization-registration .registration-password { position:relative; }
+.organization-registration .registration-password input { padding-right:58px; }
+.organization-registration .registration-password button { position:absolute; right:2px; top:2px; margin:0; padding:10px; min-width:44px; min-height:44px; border:0; background:transparent; }
+.registration-password .eye-slash { display:none; }
+.registration-password button[aria-pressed=true] .eye-slash { display:block; }
+.organization-registration nav { display:flex; flex-wrap:wrap; gap:16px; }
+.organization-registration strong { overflow-wrap:anywhere; }

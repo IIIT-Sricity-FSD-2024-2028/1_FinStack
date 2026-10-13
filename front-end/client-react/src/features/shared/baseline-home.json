@@ -1,0 +1,1795 @@
+{
+  "tag": "div",
+  "attrs": {
+    "class": "landing-page"
+  },
+  "children": [
+    {
+      "tag": "nav",
+      "attrs": {
+        "class": "landing-nav"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-nav-logo"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "sidebar-logo-icon"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "F"
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "attrs": {
+                "class": "sidebar-logo-text",
+                "style": "color: white; font-size: 1.25rem;"
+              },
+              "children": [
+                "FinStack"
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-nav-links"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "#features"
+              },
+              "children": [
+                "Features"
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "#workflow"
+              },
+              "children": [
+                "How It Works"
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "#pricing"
+              },
+              "children": [
+                "Pricing"
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "#contact"
+              },
+              "children": [
+                "Contact"
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-nav-actions"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "btn btn-secondary",
+                "style": "padding: 8px 20px; font-size: 0.875rem;"
+              },
+              "children": [
+                "Login"
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "views/shared/register.html",
+                "class": "btn btn-primary",
+                "style": "padding: 8px 20px; font-size: 0.875rem;"
+              },
+              "children": [
+                "Get Started"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-hero"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-hero-badge"
+          },
+          "children": [
+            {
+              "tag": "svg",
+              "attrs": {
+                "xmlns": "http://www.w3.org/2000/svg",
+                "style": "width:16px;height:16px;",
+                "width": "16px",
+                "height": "16px",
+                "viewbox": "0 0 24 24",
+                "fill": "none",
+                "stroke": "currentColor",
+                "stroke-width": "2",
+                "stroke-linecap": "round",
+                "stroke-linejoin": "round",
+                "aria-hidden": "true"
+              },
+              "children": [
+                {
+                  "tag": "path",
+                  "attrs": {
+                    "d": "M9.9 2.1 12 7l4.9 2.1L12 11.2 9.9 16 7.8 11.2 3 9.1 7.8 7z"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "path",
+                  "attrs": {
+                    "d": "m19 14 1 2.5 2.5 1L20 18.5 19 21l-1-2.5-2.5-1L18 16.5z"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            "\n        Enterprise-Grade Financial Management\n      "
+          ]
+        },
+        {
+          "tag": "h1",
+          "attrs": {},
+          "children": [
+            "\n        Intelligent",
+            {
+              "tag": "br",
+              "attrs": {},
+              "children": []
+            },
+            {
+              "tag": "span",
+              "attrs": {
+                "class": "gradient-text"
+              },
+              "children": [
+                "Expense Management"
+              ]
+            },
+            {
+              "tag": "br",
+              "attrs": {},
+              "children": []
+            },
+            "\n        for Modern Teams\n      "
+          ]
+        },
+        {
+          "tag": "p",
+          "attrs": {},
+          "children": [
+            "\n        Automate compliance validation, streamline approval workflows, and gain real-time financial insights.\n        Built for enterprises that demand precision and transparency.\n      "
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-hero-actions"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "views/shared/register.html",
+                "class": "landing-hero-btn landing-hero-btn-primary"
+              },
+              "children": [
+                "\n          Start Free Trial\n          ",
+                {
+                  "tag": "svg",
+                  "attrs": {
+                    "xmlns": "http://www.w3.org/2000/svg",
+                    "style": "width:18px;height:18px;",
+                    "width": "18px",
+                    "height": "18px",
+                    "viewbox": "0 0 24 24",
+                    "fill": "none",
+                    "stroke": "currentColor",
+                    "stroke-width": "2",
+                    "stroke-linecap": "round",
+                    "stroke-linejoin": "round",
+                    "aria-hidden": "true"
+                  },
+                  "children": [
+                    {
+                      "tag": "path",
+                      "attrs": {
+                        "d": "M5 12h14"
+                      },
+                      "children": []
+                    },
+                    {
+                      "tag": "path",
+                      "attrs": {
+                        "d": "m12 5 7 7-7 7"
+                      },
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "landing-hero-btn landing-hero-btn-secondary"
+              },
+              "children": [
+                "\n          Login\n          ",
+                {
+                  "tag": "svg",
+                  "attrs": {
+                    "xmlns": "http://www.w3.org/2000/svg",
+                    "style": "width:18px;height:18px;",
+                    "width": "18px",
+                    "height": "18px",
+                    "viewbox": "0 0 24 24",
+                    "fill": "none",
+                    "stroke": "currentColor",
+                    "stroke-width": "2",
+                    "stroke-linecap": "round",
+                    "stroke-linejoin": "round",
+                    "aria-hidden": "true"
+                  },
+                  "children": [
+                    {
+                      "tag": "path",
+                      "attrs": {
+                        "d": "m8 5 11 7-11 7z"
+                      },
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-features landing-role-access",
+        "id": "role-access"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-header"
+          },
+          "children": [
+            {
+              "tag": "h2",
+              "attrs": {},
+              "children": [
+                "Role-Based Login Access"
+              ]
+            },
+            {
+              "tag": "p",
+              "attrs": {},
+              "children": [
+                "Choose the right FinStack workspace for your responsibilities and sign in from one shared entry point."
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-grid"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-cyan",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M12 17.5V6.5"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Expense Submitter"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Employees can submit claims, track approvals, and manage reimbursement activity."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-green",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "rect",
+                          "attrs": {
+                            "width": "20",
+                            "height": "14",
+                            "x": "2",
+                            "y": "7",
+                            "rx": "2"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M2 12h20"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Manager"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Team leads can review requests, approve budgets, and monitor their reporting structure."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-orange",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 12h.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M4 7V5a2 2 0 0 1 2-2h12"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Finance Officer"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Finance teams can reconcile payments, monitor transactions, and manage controls."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-pink",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Compliance Officer"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Compliance staff can audit activity, enforce policies, and review risk signals."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "login.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-purple",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M20 7h-9"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M14 17H5"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "circle",
+                          "attrs": {
+                            "cx": "17",
+                            "cy": "17",
+                            "r": "3"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "circle",
+                          "attrs": {
+                            "cx": "7",
+                            "cy": "7",
+                            "r": "3"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Configuration Manager"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Full system control across all platform modules, roles, and organization-wide environment setup."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "views/shared/register.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-cyan",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M3 21h18"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M5 21V7l8-4v18"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M19 21V11l-6-4"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M9 9v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M9 12v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M9 15v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M13 9v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M13 12v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M13 15v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M17 13v.01"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M17 16v.01"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "New Organization"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Submit your organization for review. Workspace access begins after Admin approval."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "a",
+              "attrs": {
+                "href": "views/shared/account-request.html",
+                "class": "feature-card",
+                "style": "text-decoration:none;color:inherit;"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-green",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "circle",
+                          "attrs": {
+                            "cx": "9",
+                            "cy": "7",
+                            "r": "4"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "line",
+                          "attrs": {
+                            "x1": "19",
+                            "x2": "19",
+                            "y1": "8",
+                            "y2": "14"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "line",
+                          "attrs": {
+                            "x1": "22",
+                            "x2": "16",
+                            "y1": "11",
+                            "y2": "11"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Request an Account"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Learn how your Configuration Manager can securely provision your employee account."
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-features",
+        "id": "features"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-header"
+          },
+          "children": [
+            {
+              "tag": "h2",
+              "attrs": {},
+              "children": [
+                "Everything You Need"
+              ]
+            },
+            {
+              "tag": "p",
+              "attrs": {},
+              "children": [
+                "Comprehensive tools to manage, track, and optimize your organization's expenses"
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-grid"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-purple",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "m9 12 2 2 4-4"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Policy & Compliance Checks"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Review expenses against configured policies and route exceptions for compliance review."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-cyan",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M6 3v12"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M18 9a3 3 0 1 0-3-3"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M6 15a3 3 0 1 0 3 3"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M18 6a6 6 0 0 0-6 6v3"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M6 15h6"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Approval Workflows"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Move expenses through structured manager, compliance, and finance review stages."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-pink",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M3 3v18h18"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M18 17V9"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M13 17V5"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M8 17v-3"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Expense Visibility"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Use dashboard and reporting views to monitor expense activity and financial operations."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-green",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "circle",
+                          "attrs": {
+                            "cx": "9",
+                            "cy": "7",
+                            "r": "4"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M22 21v-2a4 4 0 0 0-3-3.87"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 3.13a4 4 0 0 1 0 7.75"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Role-Based Access"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Role-specific workspaces keep expense actions aligned with each user's responsibilities."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-orange",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M14 2v6h6"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 13H8"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M16 17H8"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M10 9H8"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Audit History"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Track key expense workflow decisions, reviews, and operational activity."
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "class": "feature-card"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "attrs": {
+                    "class": "icon-box icon-box-cyan",
+                    "style": "width:48px;height:48px;"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:24px;height:24px;",
+                        "width": "24px",
+                        "height": "24px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "rect",
+                          "attrs": {
+                            "width": "20",
+                            "height": "14",
+                            "x": "2",
+                            "y": "5",
+                            "rx": "2"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M2 10h20"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "h3",
+                  "attrs": {},
+                  "children": [
+                    "Bank & Reconciliation"
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "attrs": {},
+                  "children": [
+                    "Process payment activity through the Bank Sandbox and reconcile related transactions."
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-workflow",
+        "id": "workflow",
+        "aria-labelledby": "workflow-title"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-header"
+          },
+          "children": [
+            {
+              "tag": "h2",
+              "attrs": {
+                "id": "workflow-title"
+              },
+              "children": [
+                "How FinStack Works"
+              ]
+            },
+            {
+              "tag": "p",
+              "attrs": {},
+              "children": [
+                "A clear workflow from expense submission to reconciled payment."
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "ol",
+          "attrs": {
+            "class": "landing-workflow-grid"
+          },
+          "children": [
+            {
+              "tag": "li",
+              "attrs": {
+                "class": "landing-workflow-step"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "1"
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "tag": "h3",
+                      "attrs": {},
+                      "children": [
+                        "Submit Expense"
+                      ]
+                    },
+                    {
+                      "tag": "p",
+                      "attrs": {},
+                      "children": [
+                        "Employees submit an expense and attach the supporting receipt."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "li",
+              "attrs": {
+                "class": "landing-workflow-step"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "2"
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "tag": "h3",
+                      "attrs": {},
+                      "children": [
+                        "Manager Review"
+                      ]
+                    },
+                    {
+                      "tag": "p",
+                      "attrs": {},
+                      "children": [
+                        "Managers review the request and approve or reject it in the workflow."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "li",
+              "attrs": {
+                "class": "landing-workflow-step"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "3"
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "tag": "h3",
+                      "attrs": {},
+                      "children": [
+                        "Compliance Review"
+                      ]
+                    },
+                    {
+                      "tag": "p",
+                      "attrs": {},
+                      "children": [
+                        "Policy and compliance checks are completed when the workflow requires them."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "li",
+              "attrs": {
+                "class": "landing-workflow-step"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "4"
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "tag": "h3",
+                      "attrs": {},
+                      "children": [
+                        "Finance Processing"
+                      ]
+                    },
+                    {
+                      "tag": "p",
+                      "attrs": {},
+                      "children": [
+                        "Finance validates approved expenses and prepares the payment step."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "li",
+              "attrs": {
+                "class": "landing-workflow-step"
+              },
+              "children": [
+                {
+                  "tag": "span",
+                  "attrs": {},
+                  "children": [
+                    "5"
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "tag": "h3",
+                      "attrs": {},
+                      "children": [
+                        "Bank & Reconciliation"
+                      ]
+                    },
+                    {
+                      "tag": "p",
+                      "attrs": {},
+                      "children": [
+                        "Payments are processed through the Bank Sandbox and reconciled before the expense is paid."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-pricing",
+        "id": "pricing",
+        "aria-labelledby": "pricing-title"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-features-header"
+          },
+          "children": [
+            {
+              "tag": "h2",
+              "attrs": {
+                "id": "pricing-title"
+              },
+              "children": [
+                "Pricing Built Around Your Team"
+              ]
+            },
+            {
+              "tag": "p",
+              "attrs": {},
+              "children": [
+                "Choose an active FinStack plan and see its included seats, features, and optional add-ons."
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "id": "pricing-status",
+            "class": "landing-pricing-status",
+            "role": "status"
+          },
+          "children": [
+            "Loading active plans..."
+          ]
+        },
+        {
+          "tag": "div",
+          "attrs": {
+            "id": "pricing-plan-grid",
+            "class": "landing-pricing-grid",
+            "aria-live": "polite"
+          },
+          "children": []
+        },
+        {
+          "tag": "p",
+          "attrs": {
+            "class": "landing-pricing-note"
+          },
+          "children": [
+            "Your recurring subscription is based on the selected plan, employee count, and optional paid add-ons."
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "section",
+      "attrs": {
+        "class": "landing-cta",
+        "id": "contact"
+      },
+      "children": [
+        {
+          "tag": "div",
+          "attrs": {
+            "class": "landing-cta-card"
+          },
+          "children": [
+            {
+              "tag": "h2",
+              "attrs": {},
+              "children": [
+                "Need help with onboarding, billing, or using FinStack?"
+              ]
+            },
+            {
+              "tag": "p",
+              "attrs": {},
+              "children": [
+                "Register a prospective organization for review, or sign in to an existing account. For access and support options, read our contact guidance; public enquiries and ticket submission are not configured."
+              ]
+            },
+            {
+              "tag": "div",
+              "attrs": {
+                "style": "display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;"
+              },
+              "children": [
+                {
+                  "tag": "a",
+                  "attrs": {
+                    "href": "views/shared/register.html",
+                    "class": "landing-hero-btn landing-hero-btn-primary"
+                  },
+                  "children": [
+                    "\n            Register for Review\n            ",
+                    {
+                      "tag": "svg",
+                      "attrs": {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "style": "width:18px;height:18px;",
+                        "width": "18px",
+                        "height": "18px",
+                        "viewbox": "0 0 24 24",
+                        "fill": "none",
+                        "stroke": "currentColor",
+                        "stroke-width": "2",
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round",
+                        "aria-hidden": "true"
+                      },
+                      "children": [
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "M5 12h14"
+                          },
+                          "children": []
+                        },
+                        {
+                          "tag": "path",
+                          "attrs": {
+                            "d": "m12 5 7 7-7 7"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "a",
+                  "attrs": {
+                    "href": "login.html",
+                    "class": "landing-hero-btn landing-hero-btn-secondary"
+                  },
+                  "children": [
+                    "Login"
+                  ]
+                },
+                {
+                  "tag": "a",
+                  "attrs": {
+                    "href": "views/shared/help.html",
+                    "class": "landing-hero-btn landing-hero-btn-secondary"
+                  },
+                  "children": [
+                    "Contact and support guidance"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "footer",
+      "attrs": {
+        "class": "landing-footer"
+      },
+      "children": [
+        {
+          "tag": "p",
+          "attrs": {},
+          "children": [
+            "© 2026 FinStack. All rights reserved. Built for modern enterprise teams."
+          ]
+        }
+      ]
+    }
+  ]
+}

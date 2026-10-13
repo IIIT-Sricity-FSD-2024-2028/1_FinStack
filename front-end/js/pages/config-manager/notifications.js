@@ -1,7 +1,36 @@
 initLayout('Notifications');
+const notice = document.createElement('p');
+notice.setAttribute('role', 'status');
+notice.textContent = 'Notifications and their read or dismissed state are stored securely and persist after a backend restart.';
+document.querySelector('main').prepend(notice);
 
 (function () {
-  var currentFilter = 'all';
+  var currentFilter = 'all', currentPage = 1, pages = 0, requestId = 0;
+  var controls = document.createElement('div');
+  controls.style.cssText = 'display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px';
+  controls.innerHTML = '<button type="button" id="notifications-prev">Previous</button><span id="notifications-page" role="status"></span><button type="button" id="notifications-next">Next</button><button type="button" id="notifications-refresh">Refresh</button>';
+  document.getElementById('notif-list').after(controls);
+  function esc(value) { return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function load(initial) {
+    var version = ++requestId;
+    notice.textContent = 'Loading notifications...';
+    var types = { approved: 'success', pending: 'warning', 'high-risk': 'danger', info: 'info' };
+    var cached = initial === true && window.FinStackStore.getNotificationPage();
+    var response = cached ? Promise.resolve(cached) : window.FinStackStore.loadNotifications(Object.assign({page:currentPage,pageSize:25}, types[currentFilter] ? {type:types[currentFilter]} : {}));
+    return response.then(function (result) {
+      if (version !== requestId) return;
+      pages = result.totalPages;
+      if (currentPage > Math.max(1,pages)) { currentPage = Math.max(1,pages); return load(); }
+      notice.textContent = 'Notifications and their read or dismissed state are stored securely and persist after a backend restart.';
+      document.getElementById('notifications-page').textContent = 'Page ' + currentPage + ' of ' + Math.max(1,pages) + ' / ' + result.total + ' notifications';
+      document.getElementById('notifications-prev').disabled = currentPage <= 1;
+      document.getElementById('notifications-next').disabled = currentPage >= pages;
+      render();
+    }).catch(function (error) { if(version===requestId) notice.textContent = 'Unable to load notifications. Use Refresh to retry. ' + error.message; });
+  }
+  document.getElementById('notifications-prev').onclick = function () { currentPage--; load(); };
+  document.getElementById('notifications-next').onclick = function () { currentPage++; load(); };
+  document.getElementById('notifications-refresh').onclick = load;
 
   function icon(type) {
     if (type === 'danger' || type === 'high-risk') return 'alert-triangle';
@@ -37,8 +66,7 @@ initLayout('Notifications');
   }
 
   function updateBadge() {
-    var all = window.FinStackStore ? window.FinStackStore.getNotifications() : [];
-    var unread = all.filter(function (item) { return item.unread !== false && item.isRead !== true; }).length;
+    var unread = window.FinStackStore.getUnreadNotificationCount();
     var badge = document.getElementById('notif-badge');
     if (badge) {
       badge.style.display = unread ? 'inline' : 'none';
@@ -66,12 +94,12 @@ initLayout('Notifications');
       return '<div class="notif-item' + (read ? '' : ' unread') + '">' +
         '<div class="notif-icon-wrap" style="background:' + c.bg + ';color:' + c.color + ';"><i data-lucide="' + icon(item.type) + '" style="width:18px;height:18px;"></i></div>' +
         '<div class="notif-content">' +
-          '<div class="notif-title">' + item.title + '</div>' +
-          '<div class="notif-body">' + item.message + '</div>' +
-          '<div class="notif-meta"><span>' + (item.time || window.FinStackStore.formatTimeAgo(item.createdAt)) + '</span><span class="dot-sep">•</span><span>' + (read ? 'Read' : 'Unread') + '</span></div>' +
+          '<div class="notif-title">' + esc(item.title) + '</div>' +
+          '<div class="notif-body">' + esc(item.message) + '</div>' +
+          '<div class="notif-meta"><span>' + (item.time || window.FinStackStore.formatTimeAgo(item.createdAt)) + '</span><span class="dot-sep">â€¢</span><span>' + (read ? 'Read' : 'Unread') + '</span></div>' +
         '</div>' +
         '<div class="notif-actions">' +
-          '<button onclick="toggleRead(\'' + item.id + '\')" title="Mark as read"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>' +
+          '<button onclick="toggleRead(\'' + item.id + '\')" title="' + (read ? 'Mark as unread' : 'Mark as read') + '"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>' +
           '<button class="del-btn" onclick="deleteNotif(\'' + item.id + '\')" title="Delete notification"><i data-lucide="trash-2" style="width:16px;height:16px;"></i></button>' +
         '</div>' +
       '</div>';
@@ -84,23 +112,27 @@ initLayout('Notifications');
     currentFilter = filter;
     document.querySelectorAll('#notif-tabs .notif-tab').forEach(function (tab) { tab.classList.remove('active'); });
     if (btn) btn.classList.add('active');
-    render();
+    currentPage = 1; load();
   };
 
   window.markAllRead = function () {
-    if (window.FinStackStore) window.FinStackStore.markAllNotificationsRead();
-    render();
+    try { window.FinStackStore.markAllNotificationsRead(true); } catch(error) { notice.textContent = 'Unable to update notifications. ' + error.message; return; }
+    load();
   };
 
   window.toggleRead = function (id) {
-    if (window.FinStackStore) window.FinStackStore.markNotificationRead(id);
-    render();
+    var item = window.FinStackStore.getNotifications().find(function (n) { return n.id === id; });
+    try {
+      if (item && item.unread === false) window.FinStackStore.markNotificationUnread(id, true);
+      else window.FinStackStore.markNotificationRead(id, true);
+    } catch (error) { notice.textContent = 'Unable to update notification. ' + error.message; return; }
+    load();
   };
 
   window.deleteNotif = function (id) {
-    if (window.FinStackStore && window.FinStackStore.deleteNotification) window.FinStackStore.deleteNotification(id);
-    render();
+    try { window.FinStackStore.deleteNotification(id, true); } catch(error) { notice.textContent = 'Unable to dismiss notification. ' + error.message; return; }
+    load();
   };
 
-  window.FinStackStore.ready.then(render);
+  window.FinStackStore.ready.then(function () { load(true); });
 })();

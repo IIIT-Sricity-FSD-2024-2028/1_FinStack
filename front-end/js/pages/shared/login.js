@@ -1,181 +1,135 @@
-/* ===== FINSTACK LOGIN PAGE LOGIC ===== */
-document.addEventListener('DOMContentLoaded', function () {
-  var form = document.getElementById('login-form');
-  var roleSelect = document.getElementById('user-role');
-  var orgIdInput = document.getElementById('org-id');
-  var employeeIdInput = document.getElementById('employee-id');
-  var passwordInput = document.getElementById('password-input');
-  var helperText = document.getElementById('role-helper-text');
-  var errorBox = document.getElementById('login-error');
-  var errorText = document.getElementById('login-error-text');
-  var successBox = document.getElementById('login-success');
-  var successText = document.getElementById('login-success-text');
+/* Tenant login: identity, organization and workspace come from the backend. */
+(function () {
+  'use strict';
 
-  var roleDescriptions = {
-    configuration_manager: 'Configuration Manager is the Super User workspace with full platform access.',
-    expense_submitter: 'Expense Submitter workspace – submit and track your expense claims.',
-    manager: 'Manager workspace – approve, reject, or return team expenses.',
-    finance_officer: 'Finance Officer workspace – review, reconcile, and approve payments.',
-    compliance_officer: 'Compliance Officer workspace – investigate flagged expenses and policy violations.'
-  };
-
-  var rootPrefix = window.location.pathname.toLowerCase().indexOf('/views/shared/') !== -1 ? '../../' : '';
-  var roleRoutes = {
-    configuration_manager: rootPrefix + 'views/config-manager/dashboard.html',
-    expense_submitter: rootPrefix + 'views/submitter/dashboard.html',
-    manager: rootPrefix + 'views/manager/dashboard.html',
-    finance_officer: rootPrefix + 'views/finance/dashboard.html',
-    compliance_officer: rootPrefix + 'views/compliance/dashboard.html'
-  };
-
-  /* Show error from query params (sent by auth-guard redirects) */
-  var params = new URLSearchParams(window.location.search);
-  var errorParam = params.get('error');
-  if (errorParam) {
-    showError(decodeURIComponent(errorParam));
+  function employeeIdError(raw) {
+    var value = raw.trim();
+    if (!value) return 'Employee ID is required.';
+    if (!/^[A-Za-z0-9._-]+$/.test(value)) return 'Employee ID contains unsupported characters. Use letters, numbers, periods, underscores or hyphens.';
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value)) return 'Employee ID format is invalid. Start with a letter or number and use at most 80 characters.';
+    return '';
   }
 
-  /* Pre-select role from query param */
-  var roleParam = params.get('role');
-  if (roleParam && roleSelect) {
-    roleSelect.value = roleParam;
-    updateHelper();
+  function passwordError(value) {
+    if (!value) return 'Password is required.';
+    if (value.length > 200) return 'Password must be at most 200 characters.';
+    return '';
   }
 
-  /* Role helper text update */
-  if (roleSelect) {
-    roleSelect.addEventListener('change', updateHelper);
-  }
+  window.FinStackLoginValidation = { employeeIdError: employeeIdError, passwordError: passwordError };
 
-  function updateHelper() {
-    if (helperText && roleSelect) {
-      helperText.textContent = roleDescriptions[roleSelect.value] || '';
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('login-form');
+    if (!form) return;
+    var employee = document.getElementById('employee-id');
+    var password = document.getElementById('password-input');
+    var button = document.getElementById('login-submit');
+    var toggle = document.getElementById('password-toggle');
+    var errorBox = document.getElementById('login-error');
+    var errorText = document.getElementById('login-error-text');
+    var successBox = document.getElementById('login-success');
+    var touched = { employee: false, password: false };
+    var submitting = false;
+    var accepted = false;
+    var rootPrefix = window.location.pathname.indexOf('/views/shared/') !== -1 ? '../../' : '';
+    var genericCredentials = 'Employee ID or password is incorrect.';
+    var unavailable = 'The sign-in server is temporarily unavailable. Please try again.';
+
+    function fieldState(input, outputId, message, show) {
+      var output = document.getElementById(outputId);
+      output.textContent = show ? message : '';
+      output.hidden = !show || !message;
+      input.setAttribute('aria-invalid', String(Boolean(show && message)));
     }
-  }
 
-  function showError(msg) {
-    if (errorBox && errorText) {
-      errorText.textContent = msg;
-      errorBox.style.display = 'block';
-      errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    function validate() {
+      var employeeMessage = employeeIdError(employee.value);
+      var passwordMessage = passwordError(password.value);
+      fieldState(employee, 'employee-id-error', employeeMessage, touched.employee);
+      fieldState(password, 'password-error', passwordMessage, touched.password);
+      button.disabled = submitting || Boolean(employeeMessage || passwordMessage);
+      return !employeeMessage && !passwordMessage;
     }
-    if (successBox) successBox.style.display = 'none';
-  }
 
-  function showSuccess(msg) {
-    if (successBox && successText) {
-      successText.textContent = msg;
-      successBox.style.display = 'block';
+    function showError(message) {
+      errorText.textContent = message;
+      errorBox.hidden = false;
+      successBox.hidden = true;
+      errorBox.focus();
     }
-    if (errorBox) errorBox.style.display = 'none';
-  }
 
-  function hideMessages() {
-    if (errorBox) errorBox.style.display = 'none';
-    if (successBox) successBox.style.display = 'none';
-  }
-
-  function tenantLogin(identifier, organizationId, password) {
-    var body = { organizationId: organizationId, password: password };
-    if (identifier.indexOf('@') !== -1) body.email = identifier;
-    else body.employeeId = identifier;
-    return fetch(getApiBaseUrl() + '/api/v1/tenant/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (response) {
-      return response.text().then(function (text) { var payload = text ? JSON.parse(text) : null; if (!response.ok) throw new Error(getErrorMessage(payload, 'Invalid tenant credentials.')); return payload && payload.data ? payload.data : payload; });
+    [[employee, 'employee'], [password, 'password']].forEach(function (pair) {
+      pair[0].addEventListener('input', function () { touched[pair[1]] = true; errorBox.hidden = true; validate(); });
+      pair[0].addEventListener('blur', function () { touched[pair[1]] = true; validate(); });
+      pair[0].addEventListener('change', validate);
     });
-  }
-
-  function getApiBaseUrl() {
-    return window.FinStackApi && window.FinStackApi.baseUrl
-      ? window.FinStackApi.baseUrl
-      : 'http://localhost:3000';
-  }
-
-  function getErrorMessage(payload, fallback) {
-    if (!payload) return fallback;
-    var message = payload.message || payload.error;
-    if (Array.isArray(message)) return message.join(', ');
-    return message || fallback;
-  }
-
-  function workspaceRoleName(role) {
-    var labels = {
-      configuration_manager: 'Configuration Manager',
-      expense_submitter: 'Expense Submitter',
-      manager: 'Manager',
-      finance_officer: 'Finance Officer',
-      compliance_officer: 'Compliance Officer'
-    };
-    return labels[role] || 'another workspace role';
-  }
-
-  /* Toggle password visibility */
-  window.togglePassword = function () {
-    if (!passwordInput) return;
-    var eyeIcon = document.getElementById('eye-icon');
-    if (passwordInput.type === 'password') {
-      passwordInput.type = 'text';
-      if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye-off');
-    } else {
-      passwordInput.type = 'password';
-      if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye');
-    }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  };
-
-  /* Role shortcut buttons */
-  document.querySelectorAll('.role-shortcut').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var role = btn.dataset.role;
-      if (roleSelect) roleSelect.value = role;
-      updateHelper();
-      if (orgIdInput) orgIdInput.focus();
+    window.addEventListener('pageshow', validate);
+    toggle.addEventListener('click', function () {
+      var show = password.type === 'password';
+      password.type = show ? 'text' : 'password';
+      toggle.textContent = show ? 'Hide' : 'Show';
+      toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      toggle.setAttribute('aria-pressed', String(show));
     });
-  });
 
-  /* Form Submit */
-  if (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      hideMessages();
-
-      var role = roleSelect ? roleSelect.value : '';
-      var orgId = orgIdInput ? orgIdInput.value.trim() : '';
-      var employeeId = employeeIdInput ? employeeIdInput.value.trim() : '';
-      var password = passwordInput ? passwordInput.value : '';
-
-      /* Client-side validation */
-      if (!role) { showError('Please select a role.'); return; }
-      if (!orgId) { showError('Organization slug is required.'); return; }
-      if (!employeeId) { showError('Email or employee ID is required.'); return; }
-      if (!password) { showError('Password is required.'); return; }
-      if (password.length < 8) { showError('Password must be at least 8 characters.'); return; }
-
-      tenantLogin(employeeId, orgId, password)
-        .then(function (result) {
-          if (!window.FinStackTenantSession) {
-            throw new Error('Tenant session handling is unavailable. Please perform a Hard Refresh (Ctrl+F5 or Cmd+Shift+R) and try again.');
-          }
-          var canonicalRole = window.FinStackTenantSession.workspaceRoleForTenantRole(
-            result && result.user && result.user.role,
-          );
-          if (!canonicalRole) {
-            throw new Error('This account does not have access to a FinStack workspace.');
-          }
-          if (canonicalRole !== role) {
-            showError('This account is assigned to ' + workspaceRoleName(canonicalRole) + '.');
-            return;
-          }
-          window.FinStackTenantSession.setTenantSession(result);
-          var route = roleRoutes[canonicalRole];
-          if (!route) {
-            throw new Error('No workspace is configured for this account.');
-          }
-          showSuccess('Login successful! Redirecting...');
-          setTimeout(function () { window.location.href = route; }, 300);
-        })
-        .catch(function (error) {
-          showError(error.message || 'Login failed.');
+    async function authenticate() {
+      var base = (window.FinStackApi && window.FinStackApi.baseUrl) || 'http://localhost:3000';
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 15000);
+      try {
+        var response = await fetch(base + '/api/v1/tenant/auth/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeId: employee.value.trim(), password: password.value }),
+          signal: controller.signal,
         });
+        if (response.status === 401) throw new Error(genericCredentials);
+        if (response.status === 429) throw new Error('Too many sign-in attempts. Please wait a minute and try again.');
+        if (!response.ok) throw new Error(unavailable);
+        var envelope = await response.json();
+        return Object.prototype.hasOwnProperty.call(envelope, 'data') ? envelope.data : envelope;
+      } finally { clearTimeout(timeout); }
+    }
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (submitting) return;
+      touched.employee = touched.password = true;
+      if (!validate()) { (employeeIdError(employee.value) ? employee : password).focus(); return; }
+      submitting = true; accepted = false;
+      errorBox.hidden = successBox.hidden = true;
+      form.setAttribute('aria-busy', 'true');
+      button.textContent = 'Signing in…'; validate();
+      var sessionCreated = false;
+      var runtime = window.FinStackTenantSession;
+      try {
+        if (!runtime) throw new Error(unavailable);
+        var result = await authenticate();
+        runtime.setTenantSession(result);
+        sessionCreated = true;
+        var context = await runtime.request('/api/v1/tenant/auth/me');
+        var workspace = context && context.workspace;
+        if (!context || !context.user || context.user.id !== result.user.id || context.organizationId !== result.organizationId ||
+          !Array.isArray(context.effectiveRoles) || context.effectiveRoles.indexOf(context.user.role) === -1 || !workspace ||
+          workspace.key !== runtime.workspaceRoleForTenantRole(context.user.role) ||
+          !/^views\/(config-manager|submitter|manager|finance|compliance)\/dashboard\.html$/.test(workspace.path)) {
+          throw new Error('Your account has no available workspace. Contact your administrator.');
+        }
+        password.value = '';
+        document.getElementById('login-success-text').textContent = 'Signed in. Opening your workspace…';
+        successBox.hidden = false;
+        accepted = true;
+        window.location.assign(rootPrefix + workspace.path);
+      } catch (error) {
+        if (sessionCreated && runtime) runtime.clearTenantSession();
+        var safeMessages = [genericCredentials, 'Too many sign-in attempts. Please wait a minute and try again.', 'Your account has no available workspace. Contact your administrator.'];
+        showError(safeMessages.indexOf(error.message) !== -1 ? error.message : unavailable);
+      } finally {
+        if (!accepted) { submitting = false; form.setAttribute('aria-busy', 'false'); button.textContent = 'Sign in'; validate(); }
+      }
     });
-  }
-});
+
+    var redirectReason = new URLSearchParams(window.location.search).get('error');
+    if (redirectReason) showError(redirectReason);
+    validate();
+  });
+})();

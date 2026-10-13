@@ -11,6 +11,11 @@
         configuration_manager: 'CFG-1001'
     };
     var state = null;
+    var pageLeaving = false;
+    if (typeof window.addEventListener === 'function') {
+        window.addEventListener('pagehide', function () { pageLeaving = true; });
+        window.addEventListener('pageshow', function () { pageLeaving = false; });
+    }
 
     function deepClone(value) {
         return JSON.parse(JSON.stringify(value));
@@ -324,16 +329,20 @@
             return Promise.reject(new Error('Tenant session request helper is unavailable.'));
         }
         var role = currentUser.role;
-        var requests = {
+        // React configuration pages own their data. Keep only shell notifications.
+        var employeeManagement = ['dashboard', 'audit-logs', 'expense-categories', 'expense-policies', 'roles-access', 'manage-users', 'user-hierarchy'].some(function (page) { return Boolean(document.getElementById('config-manager-' + page + '-root')); }) || /\/views\/config-manager\/(organization-settings|profile-settings|preferences|notifications)\.html$/.test(window.location.pathname);
+        var requests = employeeManagement ? {
+            notifications: tenantSession.request('/api/v1/tenant/expenses/notifications/page?pageSize=' + (window.location.pathname.indexOf('/config-manager/notifications.html') >= 0 ? '25' : '50'))
+        } : {
             categories: tenantSession.request(role === 'configuration_manager'
                 ? '/api/v1/tenant/expenses/configuration/categories'
                 : '/api/v1/tenant/expenses/categories'),
             policies: tenantSession.request(role === 'configuration_manager'
                 ? '/api/v1/tenant/expenses/configuration/policies'
                 : '/api/v1/tenant/expenses/policies'),
-            notifications: tenantSession.request('/api/v1/tenant/expenses/notifications')
+            notifications: tenantSession.request('/api/v1/tenant/expenses/notifications/page?pageSize=' + (window.location.pathname.indexOf('/config-manager/notifications.html') >= 0 ? '25' : '50'))
         };
-        if (role === 'configuration_manager') {
+        if (role === 'configuration_manager' && !employeeManagement) {
             requests.users = tenantSession.request('/api/v1/tenant/configuration/users');
         } else if (role === 'expense_submitter') {
             requests.expenses = tenantSession.request('/api/v1/tenant/expenses/mine');
@@ -353,7 +362,10 @@
             var next = emptyStateForTenant(currentUser);
             next.categories = Array.isArray(data.categories) ? data.categories : [];
             next.policies = Array.isArray(data.policies) ? data.policies : [];
-            next.notifications = Array.isArray(data.notifications) ? data.notifications : [];
+            next.notifications = Array.isArray(data.notifications) ? data.notifications : (data.notifications.items || []);
+            next.notificationUnreadCount = data.notifications.unreadCount;
+            next.notificationPage = data.notifications;
+            next.notificationPreview = next.notifications.slice(0,5);
             var expenses = [];
             var users = [currentUser];
             if (data.users && Array.isArray(data.users.items)) {
@@ -734,7 +746,7 @@
         })
         .catch(function (error) {
             var currentUser = getCanonicalTenantSessionUser();
-            console.error('[FinStackStore] Failed to load tenant state:', error.message);
+            if (!pageLeaving) console.error('[FinStackStore] Failed to load tenant state:', error.message);
             state = emptyStateForTenant(currentUser);
             return state;
         });
@@ -888,121 +900,18 @@
         },
 
         /* ===== Account Request APIs ===== */
-        getAccountRequests: function (orgId) {
-            var requests = deepClone(state.accountRequests);
-            if (orgId) {
-                requests = requests.filter(function (r) { return r.organizationId === orgId; });
-            }
-            return requests;
+        getAccountRequests: function () {
+            // No durable public account-request workflow exists.
+            return [];
         },
-        submitAccountRequest: function (payload) {
-            if (!payload.organizationId) return { success: false, error: 'Organization ID is required.' };
-            var org = getOrganizationById(payload.organizationId);
-            if (!org) return { success: false, error: 'Organization not found.' };
-            // Check duplicate employee ID in same org
-            var existingUser = state.users.find(function (u) {
-                return u.employeeId === payload.employeeId && u.organizationId === payload.organizationId;
-            });
-            if (existingUser) return { success: false, error: 'Employee ID already exists in this organization.' };
-            var existingRequest = state.accountRequests.find(function (r) {
-                return r.employeeId === payload.employeeId && r.organizationId === payload.organizationId && r.status === 'pending';
-            });
-            if (existingRequest) return { success: false, error: 'A pending request already exists for this Employee ID.' };
-
-            // Check role is enabled
-            if (payload.requestedRole && org.enabledRoles.indexOf(payload.requestedRole) === -1) {
-                return { success: false, error: 'The requested role is not enabled for this organization.' };
-            }
-            if (payload.requestedRole === 'configuration_manager') {
-                return { success: false, error: 'Cannot request the Configuration Manager role.' };
-            }
-
-            var request = {
-                id: makeId('REQ'),
-                organizationId: payload.organizationId,
-                employeeId: payload.employeeId,
-                fullName: payload.fullName,
-                email: payload.email,
-                requestedRole: payload.requestedRole || 'expense_submitter',
-                password: payload.password,
-                status: 'pending',
-                createdAt: nowIso()
-            };
-            state.accountRequests.push(request);
-
-            // Notify config managers
-            addNotification({
-                recipientRole: 'configuration_manager',
-                title: 'New Account Request',
-                message: payload.fullName + ' (' + payload.employeeId + ') has requested access as ' + titleCase(payload.requestedRole) + '.',
-                type: 'warning',
-                actionType: 'account_request_submitted',
-                relatedEntityId: request.id
-            });
-
-            addAuditLog({ fullName: payload.fullName, roles: [payload.requestedRole] }, 'Submitted Account Request', 'Account Request', request.id, 'Success');
-            writeStoredState(state);
-            return { success: true, request: deepClone(request) };
+        submitAccountRequest: function () {
+            return { success: false, error: 'Self-service account requests are unavailable. Contact your organization Configuration Manager for secure provisioning.' };
         },
-        approveAccountRequest: function (requestId) {
-            var request = state.accountRequests.find(function (r) { return r.id === requestId; });
-            if (!request) return { success: false, error: 'Request not found.' };
-            if (request.status !== 'pending') return { success: false, error: 'Request is not pending.' };
-
-            request.status = 'approved';
-            request.decidedAt = nowIso();
-
-            // Create user account
-            var newUser = {
-                employeeId: request.employeeId,
-                fullName: request.fullName,
-                email: request.email,
-                department: 'General',
-                phone: '',
-                location: '',
-                roles: [request.requestedRole],
-                managerEmployeeId: '',
-                status: 'Active',
-                accountStatus: 'approved',
-                organizationId: request.organizationId,
-                password: request.password,
-                firstLoginRequired: true
-            };
-            state.users.push(newUser);
-
-            addNotification({
-                recipientEmployeeId: request.employeeId,
-                title: 'Account Approved',
-                message: 'Your account request has been approved. You can now login.',
-                type: 'success',
-                actionType: 'account_request_approved',
-                relatedEntityId: request.id
-            });
-
-            addAuditLog(getCurrentUser(), 'Approved Account Request', 'Account Request', request.id, 'Success');
-            writeStoredState(state);
-            return { success: true, user: deepClone(newUser) };
+        approveAccountRequest: function () {
+            return { success: false, error: 'Self-service account requests are unavailable. Contact your organization Configuration Manager for secure provisioning.' };
         },
-        rejectAccountRequest: function (requestId) {
-            var request = state.accountRequests.find(function (r) { return r.id === requestId; });
-            if (!request) return { success: false, error: 'Request not found.' };
-            if (request.status !== 'pending') return { success: false, error: 'Request is not pending.' };
-
-            request.status = 'rejected';
-            request.decidedAt = nowIso();
-
-            addNotification({
-                recipientEmployeeId: request.employeeId,
-                title: 'Account Request Rejected',
-                message: 'Your account request was rejected. Contact the administrator.',
-                type: 'danger',
-                actionType: 'account_request_rejected',
-                relatedEntityId: request.id
-            });
-
-            addAuditLog(getCurrentUser(), 'Rejected Account Request', 'Account Request', request.id, 'Success');
-            writeStoredState(state);
-            return { success: true };
+        rejectAccountRequest: function () {
+            return { success: false, error: 'Self-service account requests are unavailable. Contact your organization Configuration Manager for secure provisioning.' };
         },
 
         /* ===== Role APIs ===== */
@@ -1581,7 +1490,6 @@
             return expense ? deepClone(getStatusTimeline(expense)) : [];
         },
         /* Utility */
-        titleCase: titleCase,
         formatCurrency: function (amount, currency) {
             var symbol = currency === 'USD' ? '$' : '₹';
             return symbol + Number(amount || 0).toLocaleString(currency === 'USD' ? 'en-US' : 'en-IN');
@@ -1950,18 +1858,47 @@
             return result || deepClone(batch);
         };
 
-        storeApi.markNotificationRead = function (id) {
+        storeApi.getUnreadNotificationCount = function () {
+            return typeof state.notificationUnreadCount === 'number' ? state.notificationUnreadCount : getNotificationsForUser().filter(function (n) { return n.unread; }).length;
+        };
+        var notificationRequest = 0;
+        storeApi.getNotificationPreview = function () { return deepClone(Array.isArray(state.notificationPreview) ? state.notificationPreview : getNotificationsForUser().slice(0,5)); };
+        function updateNotificationPreview(notification) {
+            state.notificationPreview = (state.notificationPreview || []).map(function (item) { return item.id === notification.id ? notification : item; });
+        };
+
+        storeApi.getNotificationPage = function () { return state.notificationPage; };
+        storeApi.loadNotifications = function (query) {
+            var request = ++notificationRequest;
+            var params = new URLSearchParams(query || {});
+            return window.FinStackTenantSession.request('/api/v1/tenant/expenses/notifications/page?' + params.toString()).then(function (result) {
+                if (request === notificationRequest) { state.notifications = result.items; state.notificationUnreadCount = result.unreadCount; state.notificationPage = result; if ((!query || !query.type) && (!query || !query.state || query.state === 'all') && (!query || Number(query.page || 1) === 1)) state.notificationPreview = result.items.slice(0,5); }
+                return result;
+            });
+        };
+        function refreshNotificationCount() {
+            state.notificationUnreadCount = tryApi('/api/v1/tenant/expenses/notifications/unread-count', 'GET', undefined, null).unreadCount;
+        }
+        storeApi.markNotificationUnread = function (id, skipCountRefresh) {
+            var notification = tryApi('/api/v1/tenant/expenses/notifications/' + encodeURIComponent(id) + '/unread', 'PATCH', {}, null);
+            upsert(state.notifications, notification); updateNotificationPreview(notification); if (!skipCountRefresh) refreshNotificationCount(); return notification;
+        };
+        storeApi.markNotificationRead = function (id, skipCountRefresh) {
             if (isCanonicalTenantSession()) {
                 var notification = tryApi('/api/v1/tenant/expenses/notifications/' + encodeURIComponent(id) + '/read', 'PATCH', {}, null);
                 upsert(state.notifications, notification);
+                updateNotificationPreview(notification);
+                if (!skipCountRefresh) refreshNotificationCount();
                 return notification;
             }
             return tryApi('/notifications/' + encodeURIComponent(id), 'PATCH', { unread: false }, null);
         };
-        storeApi.markAllNotificationsRead = function () {
+        storeApi.markAllNotificationsRead = function (skipCountRefresh) {
             if (isCanonicalTenantSession()) {
                 var result = tryApi('/api/v1/tenant/expenses/notifications/read-all', 'POST', {}, null);
                 state.notifications.forEach(function (notification) { notification.unread = false; });
+                (state.notificationPreview || []).forEach(function (notification) { notification.unread = false; });
+                if (!skipCountRefresh) refreshNotificationCount();
                 return result;
             }
             getNotificationsForUser().forEach(function (notification) {
@@ -1969,10 +1906,11 @@
             });
             refreshFromBackendSync();
         };
-        storeApi.deleteNotification = function (id) {
+        storeApi.deleteNotification = function (id, skipCountRefresh) {
             if (isCanonicalTenantSession()) {
                 var removed = tryApi('/api/v1/tenant/expenses/notifications/' + encodeURIComponent(id), 'DELETE', undefined, null);
-                if (removed && removed.deleted) state.notifications = state.notifications.filter(function (item) { return item.id !== id; });
+                if (removed && removed.deleted) { state.notifications = state.notifications.filter(function (item) { return item.id !== id; }); state.notificationPreview = (state.notificationPreview || []).filter(function (item) { return item.id !== id; }); }
+                if (!skipCountRefresh) refreshNotificationCount();
                 return !!(removed && removed.deleted);
             }
             return !!tryApi('/notifications/' + encodeURIComponent(id), 'DELETE', undefined, false);
