@@ -119,6 +119,7 @@ export function OrganizationsPage() {
                 <tr>
                   <th>Name</th>
                   <th>Status</th>
+                  <th>Registration review</th>
                   <th>Primary email</th>
                   <th>Country</th>
                   <th>Created</th>
@@ -143,6 +144,7 @@ export function OrganizationsPage() {
                         {statusLabel(organization.status)}
                       </span>
                     </td>
+                    <td>{organization.registrationStatus?.replaceAll('_', ' ') ?? 'Historical organization'}</td>
                     <td>{organization.primaryEmail}</td>
                     <td>{organization.country || 'Not set'}</td>
                     <td>{formatDate(organization.createdAt)}</td>

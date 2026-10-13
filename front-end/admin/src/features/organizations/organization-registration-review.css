@@ -1,0 +1,8 @@
+.organization-registration-review { overflow-wrap:anywhere; min-width:0; }
+.organization-registration-review dl { display:grid; gap:6px; margin:20px 0; }
+.organization-registration-review dt { font-weight:650; color:var(--color-muted); }
+.organization-registration-review dd { margin:0 0 10px; }
+.organization-registration-review textarea { min-height:120px; }
+.organization-registration-review [aria-invalid=true] { border-color:#fca5a5; }
+.organization-registration-review #registration-note-error { color:#fca5a5; margin:0; }
+.organization-detail .detail-card { overflow-wrap:anywhere; }

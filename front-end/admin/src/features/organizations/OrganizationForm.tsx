@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import type {
   Organization,
   OrganizationPayload,
@@ -52,8 +52,10 @@ export function OrganizationForm({
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
 
+  const submitLock = useRef(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting || submitLock.current) return;
     setError(null);
 
     let metadata: Record<string, unknown> | undefined;
@@ -76,7 +78,8 @@ export function OrganizationForm({
       }
     }
 
-    await onSubmit({
+    submitLock.current = true;
+    try { await onSubmit({
       name: values.name.trim(),
       slug: optional(values.slug),
       primaryEmail: values.primaryEmail.trim(),
@@ -88,7 +91,7 @@ export function OrganizationForm({
       timezone: optional(values.timezone),
       externalCustomerRef: optional(values.externalCustomerRef),
       metadata,
-    });
+    }); } finally { submitLock.current = false; }
   }
 
   function update(field: keyof OrganizationFormValues, value: string) {
@@ -96,7 +99,7 @@ export function OrganizationForm({
   }
 
   return (
-    <form className="login-form organization-form" onSubmit={(event) => void submit(event)}>
+    <form aria-busy={submitting} className="login-form organization-form" onSubmit={(event) => void submit(event)}>
       {error && (
         <div className="form-error" role="alert">
           {error}
@@ -107,6 +110,10 @@ export function OrganizationForm({
           Organization name
           <input
             required
+            maxLength={180}
+            minLength={2}
+            pattern={String.raw`[^\p{Cc}\p{Cf}<>]*\S[^\p{Cc}\p{Cf}<>]*`}
+            disabled={submitting || Boolean(organization?.registrationSubmittedAt)}
             value={values.name}
             onChange={(event) => update('name', event.target.value)}
           />
@@ -114,6 +121,9 @@ export function OrganizationForm({
         <label>
           Slug
           <input
+            maxLength={120}
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+            disabled={submitting}
             value={values.slug}
             placeholder="acme-finance"
             onChange={(event) => update('slug', event.target.value)}
@@ -124,6 +134,8 @@ export function OrganizationForm({
           <input
             required
             type="email"
+            maxLength={320}
+            disabled={submitting || Boolean(organization?.registrationSubmittedAt)}
             value={values.primaryEmail}
             onChange={(event) => update('primaryEmail', event.target.value)}
           />
@@ -131,6 +143,8 @@ export function OrganizationForm({
         <label>
           Primary contact
           <input
+            maxLength={201}
+            disabled={submitting || Boolean(organization?.registrationSubmittedAt)}
             value={values.primaryContactName}
             onChange={(event) =>
               update('primaryContactName', event.target.value)
@@ -141,6 +155,8 @@ export function OrganizationForm({
           Contact email
           <input
             type="email"
+            maxLength={320}
+            disabled={submitting || Boolean(organization?.registrationSubmittedAt)}
             value={values.primaryContactEmail}
             onChange={(event) =>
               update('primaryContactEmail', event.target.value)
@@ -151,6 +167,8 @@ export function OrganizationForm({
           Billing email
           <input
             type="email"
+            maxLength={320}
+            disabled={submitting}
             value={values.billingEmail}
             onChange={(event) => update('billingEmail', event.target.value)}
           />
@@ -158,6 +176,8 @@ export function OrganizationForm({
         <label>
           Country
           <input
+            maxLength={100}
+            disabled={submitting || Boolean(organization?.registrationSubmittedAt)}
             value={values.country}
             onChange={(event) => update('country', event.target.value)}
           />
@@ -175,6 +195,8 @@ export function OrganizationForm({
         <label>
           Timezone
           <input
+            maxLength={80}
+            disabled={submitting}
             value={values.timezone}
             placeholder="Asia/Kolkata"
             onChange={(event) => update('timezone', event.target.value)}
@@ -183,6 +205,8 @@ export function OrganizationForm({
         <label>
           External customer ref
           <input
+            maxLength={160}
+            disabled={submitting}
             value={values.externalCustomerRef}
             onChange={(event) =>
               update('externalCustomerRef', event.target.value)

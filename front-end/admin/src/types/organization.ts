@@ -7,6 +7,17 @@ export type OrganizationStatus =
   | 'ARCHIVED';
 
 export interface Organization {
+  registrationStatus?: 'LEGACY_APPROVED' | 'PENDING_ORGANIZATION_REVIEW' | 'APPROVED' | 'REJECTED';
+  registrationCountry?: string | null;
+  registrationIdentifier?: string | null;
+  registrationExemptionReason?: string | null;
+  normalizedDomain?: string | null;
+  authorizedContactTitle?: string | null;
+  registrationSubmittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedByStaffId?: string | null;
+  reviewNote?: string | null;
+  domainVerifiedAt?: string | null;
   id: string;
   name: string;
   slug: string | null;

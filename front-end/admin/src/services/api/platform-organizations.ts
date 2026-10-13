@@ -66,3 +66,9 @@ function lifecycle(id: string, action: string) {
     method: 'POST',
   });
 }
+
+export function reviewOrganization(id: string, decision: 'APPROVED' | 'REJECTED', note: string) {
+  return apiRequest<Organization>(`/organizations/${id}/registration-reviews`, {
+    method: 'POST', body: JSON.stringify({ decision, note }),
+  });
+}

@@ -1,3 +1,4 @@
+import { OrganizationRegistrationReview } from './OrganizationRegistrationReview';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PermissionGate } from '../../auth/PermissionGate';
@@ -63,7 +64,7 @@ export function OrganizationDetailPage() {
   }
 
   return (
-    <section aria-labelledby="organization-detail-title">
+    <section className="organization-detail" aria-labelledby="organization-detail-title">
       <div className="page-header">
         <div>
           <p className="eyebrow">Organization detail</p>
@@ -203,6 +204,8 @@ export function OrganizationDetailPage() {
               <strong>{actionError}</strong>
             </div>
           )}
+
+          <OrganizationRegistrationReview organization={data} onReviewed={reload} />
 
           <OrganizationCommercialSummary organizationId={data.id} />
 
