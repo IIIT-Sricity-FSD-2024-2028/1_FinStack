@@ -35,4 +35,11 @@ export const legacyPaths: Record<string, string> = {
       `/configuration/${name}`,
     ]),
   ),
+  "/views/finance/dashboard.html": "/finance/dashboard",
+  "/views/finance/finance-review.html": "/finance/queue",
+  "/views/finance/payments.html": "/finance/payments",
+  "/views/finance/transactions.html": "/finance/transactions",
+  "/views/finance/reconciliation.html": "/finance/transactions",
+  "/views/finance/flagged-expenses.html": "/finance/queue",
+  "/views/finance/reports.html": "/finance/dashboard",
 };
