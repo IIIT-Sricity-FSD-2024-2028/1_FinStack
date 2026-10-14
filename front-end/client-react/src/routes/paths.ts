@@ -35,4 +35,11 @@ export const legacyPaths: Record<string, string> = {
       `/configuration/${name}`,
     ]),
   ),
+  '/views/compliance/dashboard.html': '/compliance/dashboard',
+  '/views/compliance/escalated-expenses.html': '/compliance/queue',
+  '/views/compliance/compliance.html': '/compliance/queue',
+  '/views/compliance/policies.html': '/compliance/policies',
+  '/views/compliance/audit.html': '/compliance/audit',
+  '/views/compliance/communications.html': '/compliance/notifications',
+  '/views/compliance/profile-settings.html': '/compliance/dashboard',
 };

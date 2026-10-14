@@ -201,6 +201,16 @@ export function LoginPage() {
                       replace: true,
                     },
                   );
+                else if (result.user.role === "COMPLIANCE_OFFICER")
+                  navigate(
+                    typeof location.state?.from === "string" &&
+                      location.state.from.startsWith("/compliance/")
+                      ? location.state.from
+                      : "/compliance/dashboard",
+                    {
+                      replace: true,
+                    },
+                  );
                 else {
                   const allowed = [
                     "/views/submitter/dashboard.html",
