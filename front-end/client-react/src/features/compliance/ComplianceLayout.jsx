@@ -14,6 +14,8 @@ export function ComplianceLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const profileDropdownRef = useRef(null)
+  const sidebarRef = useRef(null)
+  const menuButtonRef = useRef(null)
 
   // Sync notification and queue badges
   useEffect(() => {
@@ -42,6 +44,7 @@ export function ComplianceLayout() {
   useEffect(() => {
     setMobileOpen(false)
     setProfileMenuOpen(false)
+    document.getElementById('workspace-main')?.focus()
   }, [location.pathname])
 
   // Close profile dropdown on outside click
@@ -55,6 +58,20 @@ export function ComplianceLayout() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [profileMenuOpen])
+
+  // Escape key handler for mobile drawer and profile menu
+  useEffect(() => {
+    if (!profileMenuOpen && !mobileOpen) return
+    const escape = (event) => {
+      if (event.key === 'Escape') {
+        setMobileOpen(false)
+        setProfileMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
+  }, [profileMenuOpen, mobileOpen])
 
   const titles = {
     '/compliance/dashboard': 'Compliance Dashboard',
@@ -73,125 +90,51 @@ export function ComplianceLayout() {
 
   return (
     <div
-      className={`compliance-workspace ${collapsed ? 'nav-collapsed' : ''} ${mobileOpen ? 'nav-mobile-open' : ''}`}
+      className={`spa-workspace compliance-workspace ${collapsed ? 'nav-collapsed' : ''} ${mobileOpen ? 'nav-mobile-open' : ''}`}
     >
+      <a className="skip-link" href="#workspace-main">
+        Skip to content
+      </a>
+
       {/* Mobile scrim */}
       {mobileOpen && (
         <button
           className="nav-scrim"
           aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
-          style={{
-            display: 'block',
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.6)',
-            zIndex: 99,
-            border: 'none',
-            cursor: 'pointer',
-          }}
         />
       )}
 
       {/* Sidebar Navigation */}
-      <aside
-        className="spa-sidebar"
-        style={{
-          width: collapsed ? '72px' : '260px',
-          background: 'var(--bg-card, #111827)',
-          borderRight: '1px solid var(--border-default, #1f2937)',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh',
-          transition: 'width 0.2s ease',
-        }}
-      >
-        {/* Sidebar Header with Brand and Collapse Button */}
-        <div
-          className="compliance-sidebar-heading"
-          style={{
-            padding: '18px 16px',
-            borderBottom: '1px solid var(--border-default, #1f2937)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
-        >
-          <Link
-            to="/compliance/dashboard"
-            className="compliance-brand"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              textDecoration: 'none',
-              color: 'var(--text-primary, #e5e7eb)',
-              minWidth: 0,
-            }}
-          >
-            <div
-              className="compliance-logo-icon"
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #7c3aed, #22d3ee)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '16px',
-                flexShrink: 0,
-              }}
-            >
-              F
-            </div>
-            <div className="compliance-brand-text" style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.3px', color: '#f9fafb' }}>
-                FinStack
-              </div>
-              <div style={{ fontSize: '10px', color: '#a78bfa', fontWeight: 600, letterSpacing: '0.04em' }}>
-                COMPLIANCE OFFICER
-              </div>
-            </div>
+      <aside ref={sidebarRef} className="spa-sidebar" id="workspace-navigation">
+        {/* Restored Sidebar Heading: Side-by-side Brand and Toggle */}
+        <div className="restored-sidebar-heading">
+          <Link to="/compliance/dashboard" className="spa-brand">
+            <b style={{ background: 'linear-gradient(135deg, #7c3aed, #22d3ee)' }}>F</b>
+            <span>FinStack</span>
           </Link>
-
           <button
             type="button"
-            className="compliance-collapse-btn"
+            className="sidebar-toggle"
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={18} />
+            <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={20} />
           </button>
         </div>
 
         {/* Navigation Links */}
-        <nav style={{ padding: '16px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p
-            className="compliance-nav-section-title"
-            style={{
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              color: 'var(--text-muted, #9ca3af)',
-              padding: '4px 10px',
-              margin: '4px 0',
-              fontWeight: 600,
-            }}
-          >
-            Compliance Oversight
-          </p>
+        <nav aria-label="Compliance navigation">
+          <p className="nav-section">Compliance Oversight</p>
 
           <NavLink
             to="/compliance/dashboard"
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
             title={collapsed ? 'Dashboard' : undefined}
           >
-            <Icon name="home" size={18} />
-            <span className="compliance-nav-text">Dashboard</span>
+            <Icon name="home" size={19} />
+            <span>Dashboard</span>
           </NavLink>
 
           <NavLink
@@ -199,10 +142,10 @@ export function ComplianceLayout() {
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
             title={collapsed ? 'Review Queue' : undefined}
           >
-            <Icon name="shieldCheck" size={18} />
-            <span className="compliance-nav-text">Review Queue</span>
+            <Icon name="folder" size={19} />
+            <span>Review Queue</span>
             {queueCount > 0 && (
-              <span className="compliance-badge-count" style={{ background: '#7c3aed' }}>
+              <span className="badge badge-red compliance-badge" style={{ marginLeft: 'auto' }}>
                 {queueCount}
               </span>
             )}
@@ -211,10 +154,10 @@ export function ComplianceLayout() {
           <NavLink
             to="/compliance/policies"
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
-            title={collapsed ? 'Policies & Rules' : undefined}
+            title={collapsed ? 'Policy Monitoring' : undefined}
           >
-            <Icon name="file" size={18} />
-            <span className="compliance-nav-text">Policies & Rules</span>
+            <Icon name="shield" size={19} />
+            <span>Policies &amp; Rules</span>
           </NavLink>
 
           <NavLink
@@ -222,8 +165,8 @@ export function ComplianceLayout() {
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
             title={collapsed ? 'Audit Trail' : undefined}
           >
-            <Icon name="audit" size={18} />
-            <span className="compliance-nav-text">Audit Trail</span>
+            <Icon name="clock" size={19} />
+            <span>Audit Trail</span>
           </NavLink>
 
           <NavLink
@@ -231,100 +174,63 @@ export function ComplianceLayout() {
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
             title={collapsed ? 'Notifications' : undefined}
           >
-            <Icon name="bell" size={18} />
-            <span className="compliance-nav-text">Notifications</span>
-            {unreadCount > 0 && <span className="compliance-badge-count">{unreadCount}</span>}
+            <Icon name="bell" size={19} />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="badge badge-red compliance-badge" style={{ marginLeft: 'auto' }}>
+                {unreadCount}
+              </span>
+            )}
           </NavLink>
+
+          <p className="nav-section">Account</p>
 
           <NavLink
             to="/compliance/settings"
             className={({ isActive }) => `compliance-nav-item ${isActive ? 'active' : ''}`}
             title={collapsed ? 'Profile & Settings' : undefined}
           >
-            <Icon name="settings" size={18} />
-            <span className="compliance-nav-text">Profile & Settings</span>
+            <Icon name="settings" size={19} />
+            <span>Profile &amp; Settings</span>
           </NavLink>
         </nav>
 
-        {/* User profile & explicit Logout Footer */}
-        <div
-          className="compliance-sidebar-footer"
-          style={{
-            padding: '16px',
-            borderTop: '1px solid var(--border-default, #1f2937)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: '#4c1d95',
-                color: '#e9d5ff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 600,
-                fontSize: '13px',
-                flexShrink: 0,
-              }}
-              title={`${user?.firstName} ${user?.lastName} (${user?.employeeId})`}
-            >
-              {user?.firstName?.[0] || 'C'}
-            </div>
-            <div className="compliance-footer-details" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', color: '#f3f4f6' }}>
-                {user?.firstName} {user?.lastName}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted, #9ca3af)', whiteSpace: 'nowrap' }}>
-                {user?.employeeId}
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="compliance-sidebar-logout-btn"
-            onClick={logout}
-            title="Sign out of FinStack"
-          >
-            <Icon name="userX" size={16} />
-            <span className="compliance-logout-text">Logout</span>
+        {/* Sidebar Footer with Settings link & full-width Logout button */}
+        <div className="sidebar-bottom">
+          <Link to="/compliance/settings">Profile &amp; Settings</Link>
+          <button type="button" className="sidebar-logout-btn" onClick={logout}>
+            Logout
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className="compliance-main">
-        {/* Header Bar */}
-        <header className="compliance-header-bar">
-          <div className="compliance-header-title">
-            <button
-              type="button"
-              className="btn-icon mobile-menu-toggle"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Toggle navigation menu"
-              style={{ display: 'none', background: 'transparent', border: 'none', color: 'inherit' }}
-            >
-              <Icon name="chevronRight" size={20} />
-            </button>
-            <h1>{currentTitle}</h1>
-          </div>
+      <div className="spa-workspace-body">
+        {/* Unified FinStack Header Bar */}
+        <header className="spa-header">
+          <button
+            ref={menuButtonRef}
+            className="btn btn-secondary mobile-menu"
+            aria-expanded={mobileOpen}
+            aria-controls="workspace-navigation"
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            Menu
+          </button>
 
-          <div className="compliance-header-actions">
+          <span className="header-breadcrumb">{currentTitle}</span>
+
+          <div className="header-actions">
             {/* Notifications Shortcut */}
             <Link
               to="/compliance/notifications"
+              aria-label="Notifications"
               style={{
                 position: 'relative',
-                color: 'var(--text-secondary, #9ca3af)',
-                textDecoration: 'none',
-                padding: '6px',
                 display: 'inline-flex',
                 alignItems: 'center',
+                color: 'var(--text-secondary, #9ca3af)',
+                padding: '6px',
               }}
               title="Notifications"
             >
@@ -338,64 +244,35 @@ export function ComplianceLayout() {
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    background: '#7c3aed',
+                    background: '#ef4444',
                   }}
                 />
               )}
             </Link>
 
-            {/* Profile Dropdown Menu */}
-            <div className="compliance-header-profile-wrap" ref={profileDropdownRef}>
+            {/* Profile Dropdown Menu matching Configuration Manager */}
+            <div className="profile-menu" ref={profileDropdownRef}>
               <button
                 type="button"
-                className="compliance-header-profile-btn"
+                className="btn btn-secondary"
                 onClick={() => setProfileMenuOpen((v) => !v)}
                 aria-expanded={profileMenuOpen}
-                aria-haspopup="true"
+                aria-controls="account-menu"
               >
-                <span>{user?.firstName} {user?.lastName}</span>
-                <span style={{ fontSize: '10px', color: '#9ca3af' }}>▾</span>
+                {user?.firstName} {user?.lastName} ▾
               </button>
 
               {profileMenuOpen && (
-                <div className="compliance-profile-dropdown" role="menu">
-                  <div style={{ padding: '8px 16px', borderBottom: '1px solid #1f2937' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#f9fafb' }}>
-                      {user?.firstName} {user?.lastName}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{user?.employeeId}</div>
-                  </div>
-
-                  <Link
-                    to="/compliance/settings"
-                    className="compliance-dropdown-item"
-                    role="menuitem"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <Icon name="settings" size={16} />
-                    <span>Profile & Settings</span>
+                <div id="account-menu">
+                  <p>{user?.employeeId || user?.email} · Compliance Officer</p>
+                  <Link to="/compliance/settings" onClick={() => setProfileMenuOpen(false)}>
+                    Profile &amp; Settings
                   </Link>
-
-                  <Link
-                    to="/compliance/notifications"
-                    className="compliance-dropdown-item"
-                    role="menuitem"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <Icon name="bell" size={16} />
-                    <span>Notifications</span>
+                  <Link to="/compliance/notifications" onClick={() => setProfileMenuOpen(false)}>
+                    Notifications ({unreadCount})
                   </Link>
-
-                  <div className="compliance-dropdown-divider" />
-
-                  <button
-                    type="button"
-                    className="compliance-dropdown-item is-logout"
-                    role="menuitem"
-                    onClick={logout}
-                  >
-                    <Icon name="userX" size={16} />
-                    <span>Sign Out</span>
+                  <button type="button" onClick={logout}>
+                    Sign out
                   </button>
                 </div>
               )}
@@ -404,9 +281,16 @@ export function ComplianceLayout() {
         </header>
 
         {/* Child Pages Content */}
-        <main className="compliance-content">
-          <Outlet />
+        <main id="workspace-main" tabIndex={-1} inert={mobileOpen}>
+          <div className="compliance-content">
+            <Outlet />
+          </div>
         </main>
+
+        <footer className="spa-footer">
+          FinStack · Compliance Officer{' '}
+          <Link to="/compliance/settings">Profile &amp; Settings</Link>
+        </footer>
       </div>
     </div>
   )
