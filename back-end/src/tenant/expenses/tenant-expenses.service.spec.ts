@@ -7,10 +7,9 @@ import {
   NotificationRecord,
 } from '../../data/store';
 import { PrismaService } from '../../database/prisma.service';
-import { ExpensesRepository } from '../../modules/expenses/expenses.repository';
+import { PersistentExpensesRepository } from './persistent-expenses.repository';
+import { LocalFileStorageService } from '../../common/upload/local-file-storage.service';
 import { TenantNotificationsService } from '../notifications/tenant-notifications.service';
-import { TransactionsRepository } from '../../modules/transactions/transactions.repository';
-import { TransactionsService } from '../../modules/transactions/transactions.service';
 import { ReceiptUploadService } from '../../modules/expenses/receipt-upload/receipt-upload.service';
 import { TenantAuthContext } from '../auth/tenant-auth.types';
 import { CreateTenantExpenseDto } from './dto/create-tenant-expense.dto';
@@ -120,6 +119,18 @@ describe('TenantExpensesService', () => {
     const prisma = {
       tenantUser: tenantUserMocks,
     } as unknown as PrismaService;
+    const paymentCreate = jest.fn(
+      ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({
+          ...data,
+          id: 'payment-1',
+          status: 'pending',
+          transactionDate: new Date(),
+          processedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+    );
     Object.assign(prisma, {
       $transaction: jest.fn(<T>(fn: (tx: PrismaService) => Promise<T>) =>
         fn(prisma),
@@ -137,7 +148,7 @@ describe('TenantExpensesService', () => {
       update: jest.fn<ExpenseRecord | null, [string, Partial<ExpenseRecord>]>(),
       delete: jest.fn<ExpenseRecord | null, [string]>(),
     };
-    const expenses = expenseMocks as unknown as ExpensesRepository;
+    const expenses = expenseMocks as unknown as PersistentExpensesRepository;
     const categoryMocks = {
       findAll: jest.fn<CategoryRecord[], []>().mockReturnValue([]),
       findById: jest.fn<CategoryRecord | null, [string]>(),
@@ -150,6 +161,20 @@ describe('TenantExpensesService', () => {
     };
 
     Object.assign(prisma, {
+      tenantNotification: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      receipt: {
+        findFirst: jest.fn().mockResolvedValue({
+          storageName: 'receipt.pdf',
+          mimeType: 'application/pdf',
+          originalName: 'receipt.pdf',
+        }),
+      },
+      expensePayment: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: paymentCreate,
+      },
       expenseCategory: {
         findFirst: jest.fn(
           ({ where }: { where: { id: string; organizationId: string } }) => {
@@ -207,16 +232,12 @@ describe('TenantExpensesService', () => {
       findById: jest.fn(),
       findByExpenseId: jest.fn().mockReturnValue([]),
     };
-    const transactionRepository =
-      transactionRepositoryMocks as unknown as TransactionsRepository;
     const transactionServiceMocks = {
       releasePaymentBatch: jest.fn(),
       markProcessed: jest.fn(),
       markFailed: jest.fn(),
       reconcile: jest.fn(),
     };
-    const transactions =
-      transactionServiceMocks as unknown as TransactionsService;
     const receiptUploadMocks = {
       stage: jest.fn(),
       associate: jest.fn(),
@@ -225,6 +246,11 @@ describe('TenantExpensesService', () => {
     };
     const receiptUploadService =
       receiptUploadMocks as unknown as ReceiptUploadService;
+    Object.assign(tenantUserMocks, { count: jest.fn().mockResolvedValue(1) });
+    tenantUserMocks.findFirst.mockResolvedValue({ id: submitterActor.user.id });
+    const storage = {
+      read: jest.fn().mockResolvedValue(Buffer.from('%PDF-test')),
+    } as unknown as LocalFileStorageService;
     return {
       prisma,
       tenantUserMocks,
@@ -238,11 +264,11 @@ describe('TenantExpensesService', () => {
         prisma,
         expenses,
         notifications,
-        transactionRepository,
-        transactions,
         receiptUploadService,
+        storage,
       ),
       receiptUploadMocks,
+      paymentCreate,
     };
   }
 
@@ -433,23 +459,26 @@ describe('TenantExpensesService', () => {
   });
 
   it('releases only eligible expenses assigned to the authenticated finance officer', async () => {
-    const { expenseMocks, transactionServiceMocks, service } = setup();
+    const { expenseMocks, paymentCreate, service } = setup();
     const approved = expense({
       workflowStatus: 'approved_for_payment',
       assignedFinanceOfficerId: financeActor.user.id,
     });
     expenseMocks.findById.mockReturnValue(approved);
-    transactionServiceMocks.releasePaymentBatch.mockReturnValue({
-      batchId: 'PB-1',
-      expenses: [approved],
-      transactions: [],
-    });
+    expenseMocks.update.mockImplementation((_id, updates) =>
+      expense({ ...approved, ...updates }),
+    );
 
     await service.releasePayment(financeActor, [approved.id]);
 
-    expect(transactionServiceMocks.releasePaymentBatch).toHaveBeenCalledWith(
-      expect.stringMatching(/^PB-/),
-      [approved.id],
+    expect(paymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId,
+          expenseId: approved.id,
+          requestedById: financeActor.user.id,
+        }) as unknown,
+      }),
     );
   });
 

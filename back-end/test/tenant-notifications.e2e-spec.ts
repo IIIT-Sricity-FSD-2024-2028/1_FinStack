@@ -138,6 +138,12 @@ const enabled = process.env.FINSTACK_CONFIGURATION_E2E === '1';
   afterAll(async () => {
     enqueueSpy?.mockRestore();
     if (db) {
+      // Disposable test fixtures now have durable expense dependencies.
+      const where = { organizationId: { in: orgs } };
+      await db.expensePayment.deleteMany({ where });
+      await db.receipt.deleteMany({ where });
+      await db.expenseStatusHistory.deleteMany({ where });
+      await db.expense.deleteMany({ where });
       await db.expenseCategory.deleteMany({
         where: { organizationId: { in: orgs } },
       });

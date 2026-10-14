@@ -9,6 +9,8 @@ import { TenantAuthModule } from '../auth/tenant-auth.module';
 import { TenantExpensesController } from './tenant-expenses.controller';
 import { ConfigurationTemplatesService } from './configuration-templates.service';
 import { TenantExpensesService } from './tenant-expenses.service';
+import { PersistentExpensesRepository } from './persistent-expenses.repository';
+import { LocalFileStorageService } from '../../common/upload/local-file-storage.service';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { TenantExpensesService } from './tenant-expenses.service';
   ],
   controllers: [TenantExpensesController],
   providers: [
+    PersistentExpensesRepository,
+    LocalFileStorageService,
     TenantExpensesService,
     ConfigurationTemplatesService,
     TenantNotificationsService,

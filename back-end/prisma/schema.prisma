@@ -65,6 +65,7 @@ enum OrganizationRegistrationStatus {
 }
 
 model Organization {
+  expenses                    Expense[]
   id                          String                         @id @default(uuid()) @db.Uuid
   name                        String                         @db.VarChar(180)
   slug                        String?                        @unique @db.VarChar(120)
@@ -127,6 +128,9 @@ enum TenantRole {
 }
 
 model TenantUser {
+  submittedExpenses       Expense[]           @relation("ExpenseEmployee")
+  managedExpenses         Expense[]           @relation("ExpenseManager")
+  financeExpenses         Expense[]           @relation("ExpenseFinance")
   phone                   String?             @db.VarChar(40)
   location                String?             @db.VarChar(180)
   avatarColor             String?             @db.VarChar(7)
@@ -611,8 +615,9 @@ model TicketStatusHistory {
   @@index([changedByUserId])
 }
 
-// Tenant configuration only. Other expense workflows are not yet persisted.
+// Tenant configuration shared with the durable expense lifecycle below.
 model ExpenseCategory {
+  expenses        Expense[]
   templateKey     String?         @db.VarChar(80)
   id              String          @id @default(uuid()) @db.Uuid
   organizationId  String          @db.Uuid
@@ -749,4 +754,99 @@ model TenantNotification {
   @@unique([organizationId, recipientUserId, eventKey])
   @@index([organizationId, recipientUserId, dismissedAt, createdAt, id], map: "TenantNotification_recipient_page_idx")
   @@index([organizationId, recipientUserId, dismissedAt, readAt], map: "TenantNotification_recipient_unread_idx")
+}
+
+model Expense {
+  submissionKey            String?                @db.VarChar(100)
+  submissionFingerprint    String?                @db.Char(64)
+  id                       String                 @id @default(uuid()) @db.Uuid
+  organizationId           String                 @db.Uuid
+  employeeId               String                 @db.VarChar(80)
+  managerEmployeeId        String                 @db.VarChar(80)
+  assignedFinanceOfficerId String?                @db.Uuid
+  categoryId               String                 @db.Uuid
+  amount                   Decimal                @db.Decimal(18, 2)
+  currency                 String                 @db.Char(3)
+  merchant                 String                 @db.VarChar(500)
+  date                     DateTime
+  status                   String                 @db.VarChar(20)
+  workflowStatus           String                 @db.VarChar(40)
+  notes                    String                 @default("") @db.Text
+  paymentMethod            String                 @db.VarChar(100)
+  receiptFileName          String                 @default("") @db.VarChar(500)
+  // Compatibility projections for decisions and optional extraction hints.
+  details                  Json                   @default("{}")
+  deletedAt                DateTime?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  organization             Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee                 TenantUser             @relation("ExpenseEmployee", fields: [organizationId, employeeId], references: [organizationId, employeeId], onDelete: Restrict)
+  manager                  TenantUser             @relation("ExpenseManager", fields: [organizationId, managerEmployeeId], references: [organizationId, employeeId], onDelete: Restrict)
+  financeOfficer           TenantUser?            @relation("ExpenseFinance", fields: [organizationId, assignedFinanceOfficerId], references: [organizationId, id], onDelete: Restrict)
+  category                 ExpenseCategory        @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
+  history                  ExpenseStatusHistory[]
+  receipt                  Receipt?
+  payments                 ExpensePayment[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, employeeId, submissionKey])
+  @@index([organizationId, employeeId, createdAt])
+  @@index([organizationId, managerEmployeeId, workflowStatus])
+  @@index([organizationId, assignedFinanceOfficerId, workflowStatus])
+  @@index([organizationId, workflowStatus])
+}
+
+// Append-only decisions and transitions; actor UUID is an immutable snapshot.
+model ExpenseStatusHistory {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  expenseId      String     @db.Uuid
+  sequence       Int
+  actorUserId    String     @db.Uuid
+  actorRole      TenantRole
+  previousStatus String?    @db.VarChar(40)
+  newStatus      String     @db.VarChar(40)
+  code           String     @db.VarChar(100)
+  label          String     @db.VarChar(200)
+  note           String     @db.Text
+  at             DateTime   @default(now())
+  expense        Expense    @relation(fields: [organizationId, expenseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([expenseId, sequence])
+  @@index([organizationId, expenseId, at])
+}
+
+model Receipt {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  expenseId      String   @unique @db.Uuid
+  originalName   String   @db.VarChar(500)
+  storageName    String   @unique @db.VarChar(100)
+  mimeType       String   @db.VarChar(80)
+  size           Int
+  uploadedAt     DateTime @default(now())
+  expense        Expense  @relation(fields: [organizationId, expenseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, expenseId])
+}
+
+// An internal processing request. Pending does not mean money was sent or settled.
+model ExpensePayment {
+  id                     String    @id @default(uuid()) @db.Uuid
+  organizationId         String    @db.Uuid
+  expenseId              String    @unique @db.Uuid
+  batchId                String    @db.VarChar(80)
+  amount                 Decimal   @db.Decimal(18, 2)
+  currency               String    @db.Char(3)
+  status                 String    @default("pending") @db.VarChar(20)
+  requestedById          String    @db.Uuid
+  transactionDate        DateTime  @default(now())
+  processedAt            DateTime?
+  bankReference          String?   @db.VarChar(160)
+  reconciliationMetadata Json?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  expense                Expense   @relation(fields: [organizationId, expenseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt])
 }

@@ -8,6 +8,7 @@ export type RoleId =
   | 'configuration_manager';
 
 export type WorkflowStatus =
+  | 'draft'
   | 'manager_review'
   | 'finance_review'
   | 'compliance_review'
@@ -58,6 +59,7 @@ export interface ExpenseHistoryRecord {
 }
 
 export interface ExpenseRecord {
+  amountExact?: string;
   id: string;
   employeeId: string;
   organizationId: string;

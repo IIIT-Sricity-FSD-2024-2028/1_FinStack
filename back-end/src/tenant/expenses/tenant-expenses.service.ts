@@ -23,10 +23,14 @@ import {
   TransactionRecord,
 } from '../../data/store';
 import { PrismaService } from '../../database/prisma.service';
-import { ExpensesRepository } from '../../modules/expenses/expenses.repository';
+import { PersistentExpensesRepository } from './persistent-expenses.repository';
+import { expenseWorkflowContext } from './expense-workflow-context';
+import { auditActor } from '../audit/tenant-audit-context';
+import { appendAudit } from '../audit/tenant-audit-write';
+import { enqueueNotification } from '../notifications/tenant-notifications.service';
+import { LocalFileStorageService } from '../../common/upload/local-file-storage.service';
+import { randomUUID, createHash } from 'node:crypto';
 import { TenantNotificationsService } from '../notifications/tenant-notifications.service';
-import { TransactionsRepository } from '../../modules/transactions/transactions.repository';
-import { TransactionsService } from '../../modules/transactions/transactions.service';
 import {
   ReceiptDownload,
   ReceiptUploadService,
@@ -45,15 +49,56 @@ import { UpdateTenantPolicyDto } from './dto/update-tenant-policy.dto';
 export class TenantExpensesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly expensesRepository: ExpensesRepository,
+    private readonly expensesRepository: PersistentExpensesRepository,
     private readonly notifications: TenantNotificationsService,
-    private readonly transactionsRepository: TransactionsRepository,
-    private readonly transactionsService: TransactionsService,
     private readonly receiptUploadService: ReceiptUploadService,
+    private readonly storage: LocalFileStorageService,
   ) {}
 
+  private get db(): Prisma.TransactionClient {
+    return expenseWorkflowContext.getStore()?.tx ?? this.prisma;
+  }
+  private async workflow<T>(
+    actor: TenantAuthContext,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    if (expenseWorkflowContext.getStore()) return work();
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Shared with hierarchy/configuration writes; serializes decisions and assignments.
+        await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${actor.organizationId}::uuid FOR UPDATE`;
+        const current = await tx.tenantUser.count({
+          where: {
+            id: actor.user.id,
+            employeeId: actor.user.employeeId,
+            organizationId: actor.organizationId,
+            status: TenantUserStatus.ACTIVE,
+            role: actor.user.role,
+            credentialSetupRequired: false,
+            organization: {
+              OR: [
+                {
+                  registrationStatus: 'LEGACY_APPROVED',
+                  status: { in: ['PROVISIONING', 'ACTIVE', 'TRIAL'] },
+                },
+                {
+                  registrationStatus: 'APPROVED',
+                  status: { in: ['ACTIVE', 'TRIAL'] },
+                },
+              ],
+            },
+          },
+        });
+        if (!current)
+          throw new ForbiddenException('Active tenant actor required.');
+        return expenseWorkflowContext.run({ tx, actor }, work);
+      },
+      { timeout: 15000 },
+    );
+  }
+
   async listCategories(organizationId: string) {
-    const categories = await this.prisma.expenseCategory.findMany({
+    const categories = await this.db.expenseCategory.findMany({
       where: { organizationId, status: 'Active' },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
@@ -66,7 +111,7 @@ export class TenantExpensesService {
   }
 
   async listConfigurationCategories(organizationId: string) {
-    const rows = await this.prisma.expenseCategory.findMany({
+    const rows = await this.db.expenseCategory.findMany({
       where: { organizationId },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
@@ -153,15 +198,13 @@ export class TenantExpensesService {
               'This category is used by one or more policies. Deactivate it instead; existing policies will remain unchanged.',
           });
         }
-        // Existing expenses remain in the legacy repository during this slice.
+        // Durable financial records prevent deleting a referenced category.
         if (
-          this.expensesRepository
-            .findAll()
-            .some(
-              (expense) =>
-                expense.organizationId === organizationId &&
-                expense.categoryId === categoryId,
-            )
+          (await this.expensesRepository.findAll(organizationId)).some(
+            (expense) =>
+              expense.organizationId === organizationId &&
+              expense.categoryId === categoryId,
+          )
         ) {
           throw new BadRequestException({
             code: 'TENANT_CATEGORY_IN_USE',
@@ -397,7 +440,15 @@ export class TenantExpensesService {
   }
 
   async create(actor: TenantAuthContext, dto: CreateTenantExpenseDto) {
-    const submitter = await this.prisma.tenantUser.findUnique({
+    return this.workflow(actor, () => this.performCreate(actor, dto));
+  }
+
+  private async performCreate(
+    actor: TenantAuthContext,
+    dto: CreateTenantExpenseDto,
+    draft = false,
+  ) {
+    const submitter = await this.db.tenantUser.findUnique({
       where: { id: actor.user.id },
       include: { manager: true },
     });
@@ -427,7 +478,7 @@ export class TenantExpensesService {
       });
     }
 
-    const category = await this.prisma.expenseCategory.findFirst({
+    const category = await this.db.expenseCategory.findFirst({
       where: { id: dto.categoryId, organizationId: actor.organizationId },
     });
     if (
@@ -442,7 +493,7 @@ export class TenantExpensesService {
       });
     }
 
-    const expense = this.expensesRepository.create({
+    const expense = await this.expensesRepository.create({
       employeeId: submitter.employeeId,
       organizationId: submitter.organizationId,
       managerEmployeeId: manager.employeeId,
@@ -453,7 +504,7 @@ export class TenantExpensesService {
       merchant: dto.merchant.trim(),
       date: dto.date,
       status: 'pending',
-      workflowStatus: 'manager_review',
+      workflowStatus: draft ? 'draft' : 'manager_review',
       notes: dto.notes?.trim() || '',
       paymentMethod: dto.paymentMethod?.trim() || 'personal-card',
       receiptFileName: dto.receiptFileName?.trim() || '',
@@ -465,34 +516,38 @@ export class TenantExpensesService {
       complianceDecision: '',
       history: [
         {
-          code: 'submitted',
-          label: 'Submitted',
+          code: draft ? 'draft_created' : 'submitted',
+          label: draft ? 'Draft Saved' : 'Submitted',
           at: nowIso(),
-          note: 'Expense submitted for manager review.',
+          note: draft
+            ? 'Expense draft saved.'
+            : 'Expense submitted for manager review.',
         },
       ],
     });
 
-    await this.notify(
-      actor.organizationId,
-      manager.employeeId,
-      'manager',
-      'New Expense Submitted',
-      `${this.fullName(submitter)} submitted expense ${expense.id}.`,
-      'warning',
-      expense.id,
-      'expense_submitted_manager',
-    );
-    await this.notify(
-      actor.organizationId,
-      submitter.employeeId,
-      'expense_submitter',
-      'Expense Submitted',
-      `${expense.id} is awaiting manager review.`,
-      'info',
-      expense.id,
-      'expense_submitted_submitter',
-    );
+    if (!draft)
+      await this.notify(
+        actor.organizationId,
+        manager.employeeId,
+        'manager',
+        'New Expense Submitted',
+        `${this.fullName(submitter)} submitted expense ${expense.id}.`,
+        'warning',
+        expense.id,
+        'expense_submitted_manager',
+      );
+    if (!draft)
+      await this.notify(
+        actor.organizationId,
+        submitter.employeeId,
+        'expense_submitter',
+        'Expense Submitted',
+        `${expense.id} is awaiting manager review.`,
+        'info',
+        expense.id,
+        'expense_submitted_submitter',
+      );
 
     return this.toExpenseDto(expense, category.name, {
       employeeId: submitter.employeeId,
@@ -504,26 +559,164 @@ export class TenantExpensesService {
     actor: TenantAuthContext,
     dto: CreateTenantExpenseDto,
     file: Express.Multer.File | undefined,
+    key?: string,
   ) {
-    if (!file) {
-      throw new BadRequestException('Receipt upload is required.');
-    }
-
-    let stagedReceipt: StagedReceipt | undefined;
-    let expenseId: string | undefined;
+    if (!file) throw new BadRequestException('Receipt upload is required.');
+    if (key !== undefined && !/^[A-Za-z0-9_-]{1,100}$/.test(key))
+      throw new BadRequestException('Invalid idempotency-key.');
+    const fingerprint = createHash('sha256')
+      .update(
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(dto).sort(([a], [b]) => a.localeCompare(b)),
+          ),
+        ),
+      )
+      .update(file.buffer)
+      .digest('hex');
+    const receipt = await this.receiptUploadService.stage(file);
+    let attached = false;
     try {
-      stagedReceipt = await this.receiptUploadService.stage(file);
-      const expense = await this.create(actor, {
-        ...dto,
-        receiptFileName: stagedReceipt.originalName,
+      const result = await this.workflow(actor, async () => {
+        if (key) {
+          const existing = await this.db.expense.findFirst({
+            where: {
+              organizationId: actor.organizationId,
+              employeeId: actor.user.employeeId,
+              submissionKey: key,
+            },
+          });
+          if (existing) {
+            if (
+              existing.submissionFingerprint !== fingerprint ||
+              existing.deletedAt
+            )
+              throw new ConflictException(
+                'Idempotency key was already used for another submission.',
+              );
+            return (
+              await this.mapExpenses(actor.organizationId, [
+                (await this.expensesRepository.findById(
+                  existing.id,
+                  actor.organizationId,
+                ))!,
+              ])
+            )[0];
+          }
+        }
+        const expense = await this.performCreate(actor, {
+          ...dto,
+          receiptFileName: receipt.originalName,
+        });
+        await this.attachReceipt(actor, expense.id, receipt);
+        attached = true;
+        if (key)
+          await this.db.expense.update({
+            where: { id: expense.id },
+            data: { submissionKey: key, submissionFingerprint: fingerprint },
+          });
+        return expense;
       });
-      expenseId = expense.id;
-      this.receiptUploadService.associate(expense.id, stagedReceipt);
-      return expense;
+      if (!attached)
+        await this.receiptUploadService.rollback(undefined, receipt);
+      return result;
     } catch (error) {
-      if (stagedReceipt) {
-        await this.receiptUploadService.rollback(expenseId, stagedReceipt);
-      }
+      await this.receiptUploadService.rollback(undefined, receipt);
+      throw error;
+    }
+  }
+
+  private attachReceipt(
+    actor: TenantAuthContext,
+    expenseId: string,
+    receipt: StagedReceipt,
+  ) {
+    return this.db.receipt.create({
+      data: {
+        organizationId: actor.organizationId,
+        expenseId,
+        originalName: receipt.originalName,
+        storageName: receipt.storageName,
+        mimeType: receipt.mimeType,
+        size: receipt.size,
+      },
+    });
+  }
+
+  createDraft(actor: TenantAuthContext, dto: CreateTenantExpenseDto) {
+    return this.workflow(actor, () =>
+      this.performCreate(actor, { ...dto, receiptFileName: '' }, true),
+    );
+  }
+
+  async submitDraft(
+    actor: TenantAuthContext,
+    expenseId: string,
+    file: Express.Multer.File | undefined,
+  ) {
+    if (!file) throw new BadRequestException('Receipt upload is required.');
+    const receipt = await this.receiptUploadService.stage(file);
+    try {
+      return await this.workflow(actor, async () => {
+        const expense = await this.requireOwnedExpense(actor, expenseId);
+        if (expense.workflowStatus !== 'draft')
+          throw new BadRequestException('Only drafts can be submitted.');
+        const employee = await this.db.tenantUser.findUniqueOrThrow({
+          where: { id: actor.user.id },
+          include: { manager: true },
+        });
+        const manager = employee.manager;
+        if (
+          !manager ||
+          manager.organizationId !== actor.organizationId ||
+          manager.role !== TenantRole.MANAGER ||
+          manager.status !== TenantUserStatus.ACTIVE
+        )
+          throw new BadRequestException({
+            code: 'TENANT_EXPENSE_MANAGER_REQUIRED',
+            message: 'An active reporting manager is required.',
+          });
+        const category = await this.requireCategory(
+          actor.organizationId,
+          expense.categoryId,
+        );
+        if (category.status !== 'Active')
+          throw new BadRequestException(
+            'Select an active category before submitting.',
+          );
+        await this.attachReceipt(actor, expenseId, receipt);
+        const updated = await this.transition(
+          expense,
+          {
+            managerEmployeeId: manager.employeeId,
+            receiptFileName: receipt.originalName,
+            workflowStatus: 'manager_review',
+          },
+          'submitted',
+          'Submitted',
+          'Expense submitted for manager review.',
+        );
+        await this.notify(
+          actor.organizationId,
+          manager.employeeId,
+          'manager',
+          'New Expense Submitted',
+          `${expenseId} is awaiting manager review.`,
+          'warning',
+          expenseId,
+          'expense_submitted_manager',
+        );
+        await this.notifySubmitter(
+          expense,
+          'Expense Submitted',
+          `${expenseId} is awaiting manager review.`,
+          'info',
+          'expense_submitted_submitter',
+        );
+        return updated;
+      });
+    } catch (error) {
+      await this.receiptUploadService.rollback(undefined, receipt);
       throw error;
     }
   }
@@ -532,23 +725,48 @@ export class TenantExpensesService {
     actor: TenantAuthContext,
     expenseId: string,
   ): Promise<ReceiptDownload> {
-    const expense = this.expensesRepository.findById(expenseId);
+    const expense = await this.expensesRepository.findById(
+      expenseId,
+      actor.organizationId,
+    );
     if (!expense || expense.organizationId !== actor.organizationId) {
       throw new NotFoundException('Expense not found.');
     }
-    return this.receiptUploadService.getForExpense(expenseId);
+    const permitted =
+      actor.user.role === TenantRole.CONFIGURATION_MANAGER ||
+      (actor.user.role === TenantRole.EXPENSE_SUBMITTER &&
+        expense.employeeId === actor.user.employeeId) ||
+      (actor.user.role === TenantRole.MANAGER &&
+        expense.managerEmployeeId === actor.user.employeeId) ||
+      (actor.user.role === TenantRole.FINANCE_OFFICER &&
+        expense.assignedFinanceOfficerId === actor.user.id) ||
+      (actor.user.role === TenantRole.COMPLIANCE_OFFICER &&
+        (expense.workflowStatus === 'compliance_review' ||
+          !!expense.complianceDecision));
+    if (!permitted) throw new ForbiddenException('Receipt access denied.');
+    const receipt = await this.db.receipt.findFirst({
+      where: { organizationId: actor.organizationId, expenseId },
+    });
+    if (!receipt) throw new NotFoundException('Receipt not found.');
+    try {
+      return {
+        buffer: await this.storage.read(receipt.storageName),
+        mimeType: receipt.mimeType,
+        fileName: receipt.originalName,
+      };
+    } catch {
+      throw new NotFoundException('Receipt file unavailable.');
+    }
   }
 
   async listOwnExpenses(actor: TenantAuthContext) {
     return this.mapExpenses(
       actor.organizationId,
-      this.expensesRepository
-        .findAll()
-        .filter(
-          (expense) =>
-            expense.organizationId === actor.organizationId &&
-            expense.employeeId === actor.user.employeeId,
-        ),
+      (await this.expensesRepository.findAll(actor.organizationId)).filter(
+        (expense) =>
+          expense.organizationId === actor.organizationId &&
+          expense.employeeId === actor.user.employeeId,
+      ),
     );
   }
 
@@ -557,8 +775,20 @@ export class TenantExpensesService {
     expenseId: string,
     dto: UpdateTenantExpenseDto,
   ) {
-    const expense = this.requireOwnedExpense(actor, expenseId);
-    if (!['manager_review', 'returned'].includes(expense.workflowStatus)) {
+    return this.workflow(actor, () =>
+      this.performUpdateOwnExpense(actor, expenseId, dto),
+    );
+  }
+
+  private async performUpdateOwnExpense(
+    actor: TenantAuthContext,
+    expenseId: string,
+    dto: UpdateTenantExpenseDto,
+  ) {
+    const expense = await this.requireOwnedExpense(actor, expenseId);
+    if (
+      !['draft', 'manager_review', 'returned'].includes(expense.workflowStatus)
+    ) {
       throw new BadRequestException({
         code: 'TENANT_EXPENSE_NOT_EDITABLE',
         message: 'Only submitted or returned expenses can be edited.',
@@ -577,7 +807,7 @@ export class TenantExpensesService {
       }
     }
     const wasReturned = expense.workflowStatus === 'returned';
-    const updated = this.expensesRepository.update(expenseId, {
+    const updated = await this.expensesRepository.update(expenseId, {
       ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
       ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
       ...(dto.merchant !== undefined ? { merchant: dto.merchant.trim() } : {}),
@@ -629,20 +859,31 @@ export class TenantExpensesService {
     return (await this.mapExpenses(actor.organizationId, [updated]))[0];
   }
 
-  deleteOwnExpense(actor: TenantAuthContext, expenseId: string) {
-    const expense = this.requireOwnedExpense(actor, expenseId);
-    if (!['manager_review', 'returned'].includes(expense.workflowStatus)) {
+  async deleteOwnExpense(actor: TenantAuthContext, expenseId: string) {
+    return this.workflow(actor, () =>
+      this.performDeleteOwnExpense(actor, expenseId),
+    );
+  }
+
+  private async performDeleteOwnExpense(
+    actor: TenantAuthContext,
+    expenseId: string,
+  ) {
+    const expense = await this.requireOwnedExpense(actor, expenseId);
+    if (
+      !['draft', 'manager_review', 'returned'].includes(expense.workflowStatus)
+    ) {
       throw new BadRequestException({
         code: 'TENANT_EXPENSE_NOT_DELETABLE',
         message: 'Only submitted or returned expenses can be deleted.',
       });
     }
-    this.expensesRepository.delete(expenseId);
+    await this.expensesRepository.delete(expenseId);
     return { id: expenseId, deleted: true };
   }
 
   async listManagerQueue(actor: TenantAuthContext) {
-    const directReports = await this.prisma.tenantUser.findMany({
+    const directReports = await this.db.tenantUser.findMany({
       where: {
         organizationId: actor.organizationId,
         managerId: actor.user.id,
@@ -652,15 +893,15 @@ export class TenantExpensesService {
     const directReportIds = new Set(
       directReports.map((report) => report.employeeId),
     );
-    const expenses = this.expensesRepository
-      .findAll()
-      .filter(
-        (expense) =>
-          expense.organizationId === actor.organizationId &&
-          expense.managerEmployeeId === actor.user.employeeId &&
-          expense.workflowStatus === 'manager_review' &&
-          directReportIds.has(expense.employeeId),
-      );
+    const expenses = (
+      await this.expensesRepository.findAll(actor.organizationId)
+    ).filter(
+      (expense) =>
+        expense.organizationId === actor.organizationId &&
+        expense.managerEmployeeId === actor.user.employeeId &&
+        expense.workflowStatus === 'manager_review' &&
+        directReportIds.has(expense.employeeId),
+    );
     const displayNames = new Map(
       directReports.map((report) => [
         report.employeeId,
@@ -682,7 +923,7 @@ export class TenantExpensesService {
   }
 
   async listFinanceOfficers(organizationId: string) {
-    const officers = await this.prisma.tenantUser.findMany({
+    const officers = await this.db.tenantUser.findMany({
       where: {
         organizationId,
         role: TenantRole.FINANCE_OFFICER,
@@ -703,8 +944,18 @@ export class TenantExpensesService {
     expenseId: string,
     dto: ManagerApproveExpenseDto,
   ) {
+    return this.workflow(actor, () =>
+      this.performManagerApprove(actor, expenseId, dto),
+    );
+  }
+
+  private async performManagerApprove(
+    actor: TenantAuthContext,
+    expenseId: string,
+    dto: ManagerApproveExpenseDto,
+  ) {
     const expense = await this.requireManagerExpense(actor, expenseId);
-    const officer = await this.prisma.tenantUser.findFirst({
+    const officer = await this.db.tenantUser.findFirst({
       where: {
         id: dto.financeOfficerId,
         organizationId: actor.organizationId,
@@ -719,7 +970,7 @@ export class TenantExpensesService {
         message: 'Select an active Finance Officer in your organization.',
       });
     }
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         managerDecision: 'Approved',
@@ -733,7 +984,7 @@ export class TenantExpensesService {
       'Manager Approved',
       dto.note?.trim() || 'Approved by manager.',
     );
-    const financeEmployee = await this.prisma.tenantUser.findUnique({
+    const financeEmployee = await this.db.tenantUser.findUnique({
       where: { id: officer.id },
       select: { employeeId: true },
     });
@@ -764,9 +1015,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
+    return this.workflow(actor, () =>
+      this.performManagerReturn(actor, expenseId, note),
+    );
+  }
+
+  private async performManagerReturn(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = await this.requireManagerExpense(actor, expenseId);
     const message = note?.trim() || 'Returned for clarification.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         managerDecision: 'Returned',
@@ -794,9 +1055,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
+    return this.workflow(actor, () =>
+      this.performManagerReject(actor, expenseId, note),
+    );
+  }
+
+  private async performManagerReject(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = await this.requireManagerExpense(actor, expenseId);
     const message = note?.trim() || 'Rejected by manager.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         managerDecision: 'Rejected',
@@ -824,10 +1095,20 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
+    return this.workflow(actor, () =>
+      this.performManagerEscalate(actor, expenseId, note),
+    );
+  }
+
+  private async performManagerEscalate(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
     const expense = await this.requireManagerExpense(actor, expenseId);
     const message =
       note?.trim() || 'Escalated to compliance officer for review.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         managerDecision: 'Escalated',
@@ -857,47 +1138,48 @@ export class TenantExpensesService {
   async listManagerHistory(actor: TenantAuthContext) {
     return this.mapExpenses(
       actor.organizationId,
-      this.expensesRepository
-        .findAll()
-        .filter(
-          (expense) =>
-            expense.organizationId === actor.organizationId &&
-            expense.managerEmployeeId === actor.user.employeeId &&
-            expense.workflowStatus !== 'manager_review',
-        ),
+      (await this.expensesRepository.findAll(actor.organizationId)).filter(
+        (expense) =>
+          expense.organizationId === actor.organizationId &&
+          expense.managerEmployeeId === actor.user.employeeId &&
+          !['draft', 'manager_review'].includes(expense.workflowStatus),
+      ),
     );
   }
 
   async listFinanceQueue(actor: TenantAuthContext) {
     return this.mapExpenses(
       actor.organizationId,
-      this.expensesRepository
-        .findAll()
-        .filter(
-          (expense) =>
-            expense.organizationId === actor.organizationId &&
-            expense.workflowStatus === 'finance_review' &&
-            expense.assignedFinanceOfficerId === actor.user.id,
-        ),
+      (await this.expensesRepository.findAll(actor.organizationId)).filter(
+        (expense) =>
+          expense.organizationId === actor.organizationId &&
+          expense.workflowStatus === 'finance_review' &&
+          expense.assignedFinanceOfficerId === actor.user.id,
+      ),
     );
   }
 
   async listFinanceWorkspace(actor: TenantAuthContext) {
-    const expenses = this.expensesRepository
-      .findAll()
-      .filter(
-        (expense) =>
-          expense.organizationId === actor.organizationId &&
-          expense.assignedFinanceOfficerId === actor.user.id,
-      );
+    const expenses = (
+      await this.expensesRepository.findAll(actor.organizationId)
+    ).filter(
+      (expense) =>
+        expense.organizationId === actor.organizationId &&
+        expense.assignedFinanceOfficerId === actor.user.id,
+    );
     const expenseIds = new Set(expenses.map((expense) => expense.id));
-    const transactions = this.transactionsRepository
-      .findAll()
-      .filter(
-        (transaction) =>
-          transaction.organizationId === actor.organizationId &&
-          expenseIds.has(transaction.expenseId),
-      );
+    const payments = await this.db.expensePayment.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        expenseId: { in: [...expenseIds] },
+      },
+    });
+    const transactions = payments.map((payment) =>
+      this.paymentDto(
+        payment,
+        expenses.find((expense) => expense.id === payment.expenseId)!,
+      ),
+    );
     return {
       expenses: await this.mapExpenses(actor.organizationId, expenses),
       transactions,
@@ -909,9 +1191,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireFinanceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performFinanceApprove(actor, expenseId, note),
+    );
+  }
+
+  private async performFinanceApprove(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Approved for payment.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         financeDecision: 'Approved',
@@ -939,9 +1231,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireFinanceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performFinanceReject(actor, expenseId, note),
+    );
+  }
+
+  private async performFinanceReject(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Rejected during finance review.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         financeDecision: 'Rejected',
@@ -969,9 +1271,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireFinanceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performFinanceRequestInfo(actor, expenseId, note),
+    );
+  }
+
+  private async performFinanceRequestInfo(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Additional information requested.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         financeDecision: 'Requested Info',
@@ -999,9 +1311,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireFinanceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performFinanceFlag(actor, expenseId, note),
+    );
+  }
+
+  private async performFinanceFlag(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireFinanceExpense(actor, expenseId);
     const message = note?.trim() || 'Flagged for compliance review.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         financeDecision: 'Flagged',
@@ -1036,13 +1358,11 @@ export class TenantExpensesService {
   async listComplianceQueue(organizationId: string) {
     return this.mapExpenses(
       organizationId,
-      this.expensesRepository
-        .findAll()
-        .filter(
-          (expense) =>
-            expense.organizationId === organizationId &&
-            expense.workflowStatus === 'compliance_review',
-        ),
+      (await this.expensesRepository.findAll(organizationId)).filter(
+        (expense) =>
+          expense.organizationId === organizationId &&
+          expense.workflowStatus === 'compliance_review',
+      ),
     );
   }
 
@@ -1051,9 +1371,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireComplianceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performComplianceApprove(actor, expenseId, note),
+    );
+  }
+
+  private async performComplianceApprove(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireComplianceExpense(actor, expenseId);
     let financeOfficer = expense.assignedFinanceOfficerId
-      ? await this.prisma.tenantUser.findFirst({
+      ? await this.db.tenantUser.findFirst({
           where: {
             id: expense.assignedFinanceOfficerId,
             organizationId: actor.organizationId,
@@ -1063,7 +1393,7 @@ export class TenantExpensesService {
           select: { id: true, employeeId: true },
         })
       : null;
-    financeOfficer ??= await this.prisma.tenantUser.findFirst({
+    financeOfficer ??= await this.db.tenantUser.findFirst({
       where: {
         organizationId: actor.organizationId,
         role: TenantRole.FINANCE_OFFICER,
@@ -1080,7 +1410,7 @@ export class TenantExpensesService {
     }
     const message =
       note?.trim() || 'Approved by compliance and returned to Finance.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         complianceDecision: 'Approved',
@@ -1119,9 +1449,19 @@ export class TenantExpensesService {
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireComplianceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performComplianceReject(actor, expenseId, note),
+    );
+  }
+
+  private async performComplianceReject(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireComplianceExpense(actor, expenseId);
     const message = note?.trim() || 'Rejected during compliance review.';
-    const updated = this.transition(
+    const updated = await this.transition(
       expense,
       {
         complianceDecision: 'Rejected',
@@ -1144,13 +1484,28 @@ export class TenantExpensesService {
     return updated;
   }
 
-  complianceCorrectiveAction(
+  async complianceCorrectiveAction(
     actor: TenantAuthContext,
     expenseId: string,
     note?: string,
   ) {
-    const expense = this.requireComplianceExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performComplianceCorrectiveAction(actor, expenseId, note),
+    );
+  }
+
+  private async performComplianceCorrectiveAction(
+    actor: TenantAuthContext,
+    expenseId: string,
+    note?: string,
+  ) {
+    const expense = await this.requireComplianceExpense(actor, expenseId);
     const message = note?.trim() || 'Corrective action initiated.';
+    if (
+      expense.complianceDecision === 'Corrective Action' &&
+      expense.complianceDecisionNote === message
+    )
+      return this.toExpenseDto(expense);
     return this.transition(
       expense,
       {
@@ -1165,73 +1520,189 @@ export class TenantExpensesService {
   }
 
   async releasePayment(actor: TenantAuthContext, expenseIds: string[]) {
-    expenseIds.forEach((expenseId) => {
-      const expense = this.requireFinanceOwnedExpense(actor, expenseId);
+    return this.workflow(actor, () =>
+      this.performReleasePayment(actor, expenseIds),
+    );
+  }
+
+  private async performReleasePayment(
+    actor: TenantAuthContext,
+    expenseIds: string[],
+  ) {
+    const batchId = `PB-${randomUUID()}`;
+    let existingBatchId: string | undefined;
+    let created = false;
+    const expenses: ExpenseRecord[] = [];
+    const transactions: TransactionRecord[] = [];
+    for (const expenseId of [...new Set(expenseIds)].sort()) {
+      const expense = await this.requireFinanceOwnedExpense(actor, expenseId);
       if (
         !['approved_for_payment', 'payment_processing'].includes(
           expense.workflowStatus,
         )
-      ) {
+      )
         throw new BadRequestException({
           code: 'TENANT_EXPENSE_PAYMENT_RELEASE_NOT_ALLOWED',
           message: `${expense.id} is not approved for payment release.`,
         });
+      const existing = await this.db.expensePayment.findUnique({
+        where: { expenseId },
+      });
+      if (existing) {
+        existingBatchId ??= existing.batchId;
+        expenses.push(expense);
+        transactions.push(this.paymentDto(existing, expense));
+        continue;
       }
+      await this.transition(
+        expense,
+        { workflowStatus: 'payment_processing', status: 'approved' },
+        'payment_released',
+        'Payment Processing Requested',
+        'Internal payment processing request recorded; no bank settlement confirmed.',
+      );
+      const payment = await this.db.expensePayment.create({
+        data: {
+          organizationId: actor.organizationId,
+          expenseId,
+          batchId,
+          amount: new Prisma.Decimal(expense.amountExact ?? expense.amount),
+          currency: expense.currency,
+          requestedById: actor.user.id,
+        },
+      });
+      created = true;
+      const updated = (await this.expensesRepository.findById(
+        expenseId,
+        actor.organizationId,
+      ))!;
+      expenses.push(updated);
+      transactions.push(this.paymentDto(payment, updated));
+      await this.notifySubmitter(
+        updated,
+        'Payment Processing Requested',
+        `${expenseId} is awaiting verified bank processing.`,
+        'info',
+        'payment_released_submitter',
+      );
+    }
+    return {
+      batchId: created ? batchId : (existingBatchId ?? batchId),
+      expenses,
+      transactions,
+    };
+  }
+
+  private paymentDto(
+    payment: {
+      id: string;
+      organizationId: string;
+      amount: Prisma.Decimal;
+      currency: string;
+      status: string;
+      transactionDate: Date;
+      processedAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    expense: ExpenseRecord,
+  ): TransactionRecord {
+    return {
+      id: payment.id,
+      organizationId: payment.organizationId,
+      expenseId: expense.id,
+      employeeId: expense.employeeId,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      merchant: expense.merchant,
+      categoryId: expense.categoryId,
+      paymentMethod: expense.paymentMethod,
+      status: payment.status as TransactionRecord['status'],
+      transactionDate: payment.transactionDate.toISOString(),
+      processedAt: payment.processedAt?.toISOString(),
+      createdAt: payment.createdAt.toISOString(),
+      updatedAt: payment.updatedAt.toISOString(),
+    };
+  }
+
+  async markBankProcessed(actor: TenantAuthContext, transactionId: string) {
+    return this.workflow(actor, () =>
+      this.performMarkBankProcessed(actor, transactionId),
+    );
+  }
+
+  private async performMarkBankProcessed(
+    actor: TenantAuthContext,
+    transactionId: string,
+  ) {
+    await this.requireFinanceTransaction(actor, transactionId);
+    throw new ConflictException({
+      code: 'TENANT_BANK_EVIDENCE_REQUIRED',
+      message:
+        'Verified bank processing evidence is required. This endpoint cannot simulate settlement.',
     });
-    const batchId = `PB-${Date.now()}`;
-    const result = this.transactionsService.releasePaymentBatch(
-      batchId,
-      expenseIds,
-    );
-    await Promise.all(
-      result.expenses.map((expense) =>
-        this.notifySubmitter(
-          expense,
-          'Payment Released',
-          `${expense.id} was released to the bank sandbox.`,
-          'info',
-          'payment_released_submitter',
-        ),
-      ),
-    );
-    return result;
   }
-
-  markBankProcessed(actor: TenantAuthContext, transactionId: string) {
-    const transaction = this.requireFinanceTransaction(actor, transactionId);
-    return this.transactionsService.markProcessed(transaction.id);
-  }
-
   async markBankFailed(actor: TenantAuthContext, transactionId: string) {
-    const transaction = this.requireFinanceTransaction(actor, transactionId);
-    const failed = this.transactionsService.markFailed(transaction.id);
-    const expense = this.expensesRepository.findById(transaction.expenseId);
-    if (expense) {
-      await this.notifySubmitter(
-        expense,
-        'Payment Processing Failed',
-        `${expense.id} could not be processed by the bank sandbox.`,
-        'danger',
-        'payment_failed_submitter',
-      );
-    }
-    return failed;
+    return this.workflow(actor, () =>
+      this.performMarkBankFailed(actor, transactionId),
+    );
   }
 
-  async reconcileTransaction(actor: TenantAuthContext, transactionId: string) {
-    const transaction = this.requireFinanceTransaction(actor, transactionId);
-    const reconciled = this.transactionsService.reconcile(transaction.id);
-    const expense = this.expensesRepository.findById(transaction.expenseId);
-    if (expense) {
-      await this.notifySubmitter(
-        expense,
-        'Expense Paid',
-        `${expense.id} has been reconciled and marked paid.`,
-        'success',
-        'expense_paid_submitter',
+  private async performMarkBankFailed(
+    actor: TenantAuthContext,
+    transactionId: string,
+  ) {
+    const transaction = await this.requireFinanceTransaction(
+      actor,
+      transactionId,
+    );
+    if (transaction.status === 'failed') return transaction;
+    if (transaction.status !== 'pending')
+      throw new BadRequestException(
+        'Only pending transactions can be marked failed.',
       );
-    }
-    return reconciled;
+    await this.db.expensePayment.update({
+      where: { id: transactionId },
+      data: { status: 'failed', processedAt: new Date() },
+    });
+    await appendAudit(
+      this.db,
+      actor.organizationId,
+      'expense.payment_failed',
+      'expense_payment',
+      transactionId,
+      { status: 'failed' },
+      auditActor(actor),
+    );
+    const expense = (await this.expensesRepository.findById(
+      transaction.expenseId,
+      actor.organizationId,
+    ))!;
+    await this.notifySubmitter(
+      expense,
+      'Payment Processing Failed',
+      `${expense.id} payment processing was reported failed.`,
+      'danger',
+      'payment_failed_submitter',
+    );
+    return this.requireFinanceTransaction(actor, transactionId);
+  }
+  async reconcileTransaction(actor: TenantAuthContext, transactionId: string) {
+    return this.workflow(actor, () =>
+      this.performReconcileTransaction(actor, transactionId),
+    );
+  }
+
+  private async performReconcileTransaction(
+    actor: TenantAuthContext,
+    transactionId: string,
+  ) {
+    await this.requireFinanceTransaction(actor, transactionId);
+    throw new ConflictException({
+      code: 'TENANT_BANK_EVIDENCE_REQUIRED',
+      message:
+        'Verified bank settlement and reconciliation evidence are required before marking an expense paid.',
+    });
   }
 
   listNotifications(actor: TenantAuthContext) {
@@ -1251,7 +1722,10 @@ export class TenantExpensesService {
     actor: TenantAuthContext,
     expenseId: string,
   ): Promise<ExpenseRecord> {
-    const expense = this.expensesRepository.findById(expenseId);
+    const expense = await this.expensesRepository.findById(
+      expenseId,
+      actor.organizationId,
+    );
     if (!expense) {
       throw new NotFoundException({
         code: 'TENANT_EXPENSE_NOT_FOUND',
@@ -1273,7 +1747,7 @@ export class TenantExpensesService {
         message: 'This expense is no longer awaiting manager review.',
       });
     }
-    const employee = await this.prisma.tenantUser.findUnique({
+    const employee = await this.db.tenantUser.findUnique({
       where: {
         organizationId_employeeId: {
           organizationId: actor.organizationId,
@@ -1292,11 +1766,14 @@ export class TenantExpensesService {
     return expense;
   }
 
-  private requireOwnedExpense(
+  private async requireOwnedExpense(
     actor: TenantAuthContext,
     expenseId: string,
-  ): ExpenseRecord {
-    const expense = this.expensesRepository.findById(expenseId);
+  ): Promise<ExpenseRecord> {
+    const expense = await this.expensesRepository.findById(
+      expenseId,
+      actor.organizationId,
+    );
     if (!expense) throw new NotFoundException('Expense not found.');
     if (
       expense.organizationId !== actor.organizationId ||
@@ -1310,11 +1787,14 @@ export class TenantExpensesService {
     return expense;
   }
 
-  private requireFinanceOwnedExpense(
+  private async requireFinanceOwnedExpense(
     actor: TenantAuthContext,
     expenseId: string,
-  ): ExpenseRecord {
-    const expense = this.expensesRepository.findById(expenseId);
+  ): Promise<ExpenseRecord> {
+    const expense = await this.expensesRepository.findById(
+      expenseId,
+      actor.organizationId,
+    );
     if (!expense) throw new NotFoundException('Expense not found.');
     if (
       expense.organizationId !== actor.organizationId ||
@@ -1328,11 +1808,11 @@ export class TenantExpensesService {
     return expense;
   }
 
-  private requireFinanceExpense(
+  private async requireFinanceExpense(
     actor: TenantAuthContext,
     expenseId: string,
-  ): ExpenseRecord {
-    const expense = this.requireFinanceOwnedExpense(actor, expenseId);
+  ): Promise<ExpenseRecord> {
+    const expense = await this.requireFinanceOwnedExpense(actor, expenseId);
     if (expense.workflowStatus !== 'finance_review') {
       throw new BadRequestException({
         code: 'TENANT_EXPENSE_FINANCE_REVIEW_REQUIRED',
@@ -1342,11 +1822,14 @@ export class TenantExpensesService {
     return expense;
   }
 
-  private requireComplianceExpense(
+  private async requireComplianceExpense(
     actor: TenantAuthContext,
     expenseId: string,
-  ): ExpenseRecord {
-    const expense = this.expensesRepository.findById(expenseId);
+  ): Promise<ExpenseRecord> {
+    const expense = await this.expensesRepository.findById(
+      expenseId,
+      actor.organizationId,
+    );
     if (!expense) throw new NotFoundException('Expense not found.');
     if (expense.organizationId !== actor.organizationId) {
       throw new ForbiddenException({
@@ -1363,26 +1846,26 @@ export class TenantExpensesService {
     return expense;
   }
 
-  private requireFinanceTransaction(
+  private async requireFinanceTransaction(
     actor: TenantAuthContext,
     transactionId: string,
-  ): TransactionRecord {
-    const transaction = this.transactionsRepository.findById(transactionId);
-    if (!transaction) throw new NotFoundException('Transaction not found.');
-    if (transaction.organizationId !== actor.organizationId) {
-      throw new ForbiddenException({
-        code: 'TENANT_TRANSACTION_ACCESS_DENIED',
-        message: 'You can only access transactions in your organization.',
-      });
-    }
-    this.requireFinanceOwnedExpense(actor, transaction.expenseId);
+  ): Promise<TransactionRecord> {
+    const payment = await this.db.expensePayment.findFirst({
+      where: { id: transactionId, organizationId: actor.organizationId },
+    });
+    if (!payment) throw new NotFoundException('Transaction not found.');
+    const expense = await this.requireFinanceOwnedExpense(
+      actor,
+      payment.expenseId,
+    );
+    const transaction = this.paymentDto(payment, expense);
     return transaction;
   }
 
   private async requireCategory(
     organizationId: string,
     categoryId: string,
-    db: Prisma.TransactionClient = this.prisma,
+    db: Prisma.TransactionClient = this.db,
   ) {
     const category = await db.expenseCategory.findFirst({
       where: { id: categoryId, organizationId },
@@ -1398,7 +1881,7 @@ export class TenantExpensesService {
   private async requirePolicy(
     organizationId: string,
     policyId: string,
-    db: Prisma.TransactionClient = this.prisma,
+    db: Prisma.TransactionClient = this.db,
   ) {
     const policy = await db.expensePolicy.findFirst({
       where: { id: policyId, organizationId },
@@ -1414,7 +1897,7 @@ export class TenantExpensesService {
   private async mapExpenses(organizationId: string, expenses: ExpenseRecord[]) {
     const employeeIds = [...new Set(expenses.map((item) => item.employeeId))];
     const users = employeeIds.length
-      ? await this.prisma.tenantUser.findMany({
+      ? await this.db.tenantUser.findMany({
           where: { organizationId, employeeId: { in: employeeIds } },
           select: { employeeId: true, firstName: true, lastName: true },
         })
@@ -1435,12 +1918,14 @@ export class TenantExpensesService {
     );
   }
 
-  private notificationEventKey(expenseId: string, eventCode: string) {
-    const history = this.expensesRepository.findById(expenseId)?.history || [];
-    return `${eventCode}:${expenseId}:${history.length}:${history[history.length - 1]?.at || 'initial'}`;
+  private async notificationEventKey(expenseId: string, eventCode: string) {
+    const actor = expenseWorkflowContext.getStore()!.actor;
+    const history =
+      (await this.expensesRepository.findById(expenseId, actor.organizationId))
+        ?.history || [];
+    return `${eventCode}:${expenseId}:${history.length}`;
   }
-
-  private notify(
+  private async notify(
     organizationId: string,
     recipientEmployeeId: string,
     recipientRole: RoleId,
@@ -1451,16 +1936,22 @@ export class TenantExpensesService {
     actionType: string,
   ) {
     void recipientRole;
-    return this.notifications.notifyEmployee(
+    const user = await this.db.tenantUser.findFirst({
+      where: { organizationId, employeeId: recipientEmployeeId },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('Notification recipient not found.');
+    return enqueueNotification(this.db, {
       organizationId,
-      recipientEmployeeId,
-      title,
-      message,
+      recipientUserId: user.id,
+      title: title.slice(0, 200),
+      message: message.slice(0, 2000),
       type,
-      expenseId,
-      actionType,
-      this.notificationEventKey(expenseId, actionType),
-    );
+      sourceId: expenseId,
+      sourceType: 'expense',
+      eventCode: actionType,
+      eventKey: await this.notificationEventKey(expenseId, actionType),
+    });
   }
 
   private async notifySubmitter(
@@ -1493,7 +1984,7 @@ export class TenantExpensesService {
   ) {
     let cursor: string | undefined;
     for (;;) {
-      const users = await this.prisma.tenantUser.findMany({
+      const users = await this.db.tenantUser.findMany({
         where: { organizationId, role, status: TenantUserStatus.ACTIVE },
         select: { id: true },
         orderBy: { id: 'asc' },
@@ -1501,9 +1992,10 @@ export class TenantExpensesService {
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       });
       if (!users.length) break;
-      await this.notifications.notifyRecipients(
-        users.map((user) => user.id),
-        {
+      const eventKey = await this.notificationEventKey(expenseId, actionType);
+      await this.db.tenantNotification.createMany({
+        data: users.map((user) => ({
+          recipientUserId: user.id,
           organizationId,
           title,
           message,
@@ -1511,22 +2003,23 @@ export class TenantExpensesService {
           sourceId: expenseId,
           sourceType: 'expense',
           eventCode: actionType,
-          eventKey: this.notificationEventKey(expenseId, actionType),
-        },
-      );
+          eventKey,
+        })),
+        skipDuplicates: true,
+      });
       cursor = users[users.length - 1].id;
       if (users.length < 200) break;
     }
   }
 
-  private transition(
+  private async transition(
     expense: ExpenseRecord,
     updates: Partial<ExpenseRecord>,
     code: string,
     label: string,
     note: string,
   ) {
-    const updated = this.expensesRepository.update(expense.id, {
+    const updated = await this.expensesRepository.update(expense.id, {
       ...updates,
       history: [...expense.history, { code, label, at: nowIso(), note }],
     });
@@ -1552,6 +2045,8 @@ export class TenantExpensesService {
       managerEmployeeId: expense.managerEmployeeId,
       assignedFinanceOfficerId: expense.assignedFinanceOfficerId,
       amount: expense.amount,
+      amountExact:
+        expense.amountExact ?? new Prisma.Decimal(expense.amount).toFixed(2),
       currency: expense.currency,
       categoryId: expense.categoryId,
       category: categoryName || expense.categoryId,

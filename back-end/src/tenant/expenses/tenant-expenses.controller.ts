@@ -9,6 +9,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -206,8 +207,9 @@ export class TenantExpensesController {
     @Req() request: TenantRequest,
     @Body() dto: CreateTenantExpenseDto,
     @UploadedFile() file: Express.Multer.File | undefined,
+    @Headers('idempotency-key') key?: string,
   ) {
-    return this.expenses.createWithReceipt(request.tenantAuth!, dto, file);
+    return this.expenses.createWithReceipt(request.tenantAuth!, dto, file, key);
   }
 
   @Get(':id/receipt')
@@ -238,6 +240,27 @@ export class TenantExpensesController {
   @TenantRoles(TenantRole.EXPENSE_SUBMITTER)
   ownExpenses(@Req() request: TenantRequest) {
     return this.expenses.listOwnExpenses(request.tenantAuth!);
+  }
+
+  @Post('drafts')
+  @TenantRoles(TenantRole.EXPENSE_SUBMITTER)
+  createDraft(
+    @Req() request: TenantRequest,
+    @Body() dto: CreateTenantExpenseDto,
+  ) {
+    return this.expenses.createDraft(request.tenantAuth!, dto);
+  }
+
+  @Post(':id/submit')
+  @TenantRoles(TenantRole.EXPENSE_SUBMITTER)
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('receipt'))
+  submitDraft(
+    @Req() request: TenantRequest,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    return this.expenses.submitDraft(request.tenantAuth!, id, file);
   }
 
   @Patch(':id')

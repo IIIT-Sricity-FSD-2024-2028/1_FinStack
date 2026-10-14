@@ -12,7 +12,7 @@ import {
 export class CreateTenantExpenseDto {
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   amount: number;
 
