@@ -42,4 +42,6 @@ export const legacyPaths: Record<string, string> = {
   "/views/finance/reconciliation.html": "/finance/transactions",
   "/views/finance/flagged-expenses.html": "/finance/queue",
   "/views/finance/reports.html": "/finance/dashboard",
+  "/views/finance/profile-settings.html": "/finance/settings",
+  "/views/finance/preferences.html": "/finance/settings",
 };

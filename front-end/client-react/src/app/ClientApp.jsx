@@ -36,6 +36,7 @@ import { FinanceReviewQueue } from "../features/finance/FinanceReviewQueue";
 import { PaymentReleaseView } from "../features/finance/PaymentReleaseView";
 import { TransactionsView } from "../features/finance/TransactionsView";
 import { FinanceNotifications } from "../features/finance/FinanceNotifications";
+import { FinanceSettings } from "../features/finance/FinanceSettings";
 const Subscription = lazy(() =>
   import("../features/config-manager/SubscriptionPage").then((module) => ({
     default: module.SubscriptionPage,
@@ -174,6 +175,7 @@ export function ClientApp() {
                     path="notifications"
                     element={<FinanceNotifications />}
                   />
+                  <Route path="settings" element={<FinanceSettings />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>

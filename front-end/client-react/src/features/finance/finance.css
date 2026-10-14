@@ -1,17 +1,14 @@
 /* Scoped styling for Finance Officer workspace */
 .finance-workspace {
-  display: flex;
-  min-height: 100vh;
   background: var(--bg-deepest);
   color: var(--text-primary);
 }
 
-.finance-workspace .finance-main {
-  flex: 1;
+.finance-workspace .spa-workspace-body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-y: auto;
+  min-height: 100vh;
 }
 
 .finance-workspace .finance-content {
@@ -403,4 +400,12 @@
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 10px;
+}
+
+.finance-workspace.nav-collapsed .finance-badge-count {
+  display: none !important;
+}
+
+.finance-workspace.nav-collapsed .spa-sidebar nav a {
+  justify-content: center;
 }

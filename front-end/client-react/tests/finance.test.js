@@ -160,4 +160,6 @@ test('legacyPaths correctly maps legacy finance views to React routes', () => {
   assert.equal(legacyPaths['/views/finance/reconciliation.html'], '/finance/transactions')
   assert.equal(legacyPaths['/views/finance/flagged-expenses.html'], '/finance/queue')
   assert.equal(legacyPaths['/views/finance/reports.html'], '/finance/dashboard')
+  assert.equal(legacyPaths['/views/finance/profile-settings.html'], '/finance/settings')
+  assert.equal(legacyPaths['/views/finance/preferences.html'], '/finance/settings')
 })

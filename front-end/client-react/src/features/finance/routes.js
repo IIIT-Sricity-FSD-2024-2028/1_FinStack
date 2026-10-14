@@ -3,6 +3,7 @@ import { FinanceReviewQueue } from './FinanceReviewQueue'
 import { PaymentReleaseView } from './PaymentReleaseView'
 import { TransactionsView } from './TransactionsView'
 import { FinanceNotifications } from './FinanceNotifications'
+import { FinanceSettings } from './FinanceSettings'
 
 export const financeRoutes = [
   {
@@ -39,5 +40,12 @@ export const financeRoutes = [
     breadcrumb: 'Notifications',
     path: '/finance/notifications',
     component: FinanceNotifications,
+  },
+  {
+    id: 'finance-settings',
+    workspace: 'finance_officer',
+    breadcrumb: 'Profile & Settings',
+    path: '/finance/settings',
+    component: FinanceSettings,
   },
 ]
