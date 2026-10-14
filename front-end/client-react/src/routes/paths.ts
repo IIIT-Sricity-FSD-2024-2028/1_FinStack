@@ -42,4 +42,14 @@ export const legacyPaths: Record<string, string> = {
   '/views/compliance/audit.html': '/compliance/audit',
   '/views/compliance/communications.html': '/compliance/notifications',
   '/views/compliance/profile-settings.html': '/compliance/settings',
+  '/views/finance/dashboard.html': '/finance/dashboard',
+  '/views/finance/finance-review.html': '/finance/queue',
+  '/views/finance/payments.html': '/finance/payments',
+  '/views/finance/transactions.html': '/finance/transactions',
+  '/views/finance/reconciliation.html': '/finance/transactions',
+  '/views/finance/flagged-expenses.html': '/finance/queue',
+  '/views/finance/reports.html': '/finance/dashboard',
+  '/views/finance/profile-settings.html': '/finance/settings',
+  '/views/finance/preferences.html': '/finance/settings',
 };
+
