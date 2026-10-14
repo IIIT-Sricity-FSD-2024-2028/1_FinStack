@@ -36,6 +36,7 @@ import { ComplianceReviewQueue } from "../features/compliance/ComplianceReviewQu
 import { PoliciesViolationsView } from "../features/compliance/PoliciesViolationsView";
 import { ComplianceAuditView } from "../features/compliance/ComplianceAuditView";
 import { ComplianceNotifications } from "../features/compliance/ComplianceNotifications";
+import { ComplianceSettings } from "../features/compliance/ComplianceSettings";
 const Subscription = lazy(() =>
   import("../features/config-manager/SubscriptionPage").then((module) => ({
     default: module.SubscriptionPage,
@@ -171,6 +172,7 @@ export function ClientApp() {
                     path="notifications"
                     element={<ComplianceNotifications />}
                   />
+                  <Route path="settings" element={<ComplianceSettings />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>

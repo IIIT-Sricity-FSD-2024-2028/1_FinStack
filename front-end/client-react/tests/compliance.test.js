@@ -186,5 +186,5 @@ test('legacyPaths correctly maps legacy compliance views to React routes', () =>
   assert.equal(legacyPaths['/views/compliance/policies.html'], '/compliance/policies')
   assert.equal(legacyPaths['/views/compliance/audit.html'], '/compliance/audit')
   assert.equal(legacyPaths['/views/compliance/communications.html'], '/compliance/notifications')
-  assert.equal(legacyPaths['/views/compliance/profile-settings.html'], '/compliance/dashboard')
+  assert.equal(legacyPaths['/views/compliance/profile-settings.html'], '/compliance/settings')
 })

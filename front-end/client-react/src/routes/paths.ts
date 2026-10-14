@@ -41,5 +41,5 @@ export const legacyPaths: Record<string, string> = {
   '/views/compliance/policies.html': '/compliance/policies',
   '/views/compliance/audit.html': '/compliance/audit',
   '/views/compliance/communications.html': '/compliance/notifications',
-  '/views/compliance/profile-settings.html': '/compliance/dashboard',
+  '/views/compliance/profile-settings.html': '/compliance/settings',
 };

@@ -557,3 +557,153 @@
     display: inline-flex !important;
   }
 }
+
+/* --- Collapsed Sidebar State --- */
+.compliance-workspace.nav-collapsed .spa-sidebar {
+  width: 72px !important;
+}
+
+.compliance-workspace.nav-collapsed .compliance-brand-text,
+.compliance-workspace.nav-collapsed .compliance-nav-text,
+.compliance-workspace.nav-collapsed .compliance-badge-count,
+.compliance-workspace.nav-collapsed .compliance-footer-details,
+.compliance-workspace.nav-collapsed .compliance-nav-section-title,
+.compliance-workspace.nav-collapsed .compliance-logout-text {
+  display: none !important;
+}
+
+.compliance-workspace.nav-collapsed .compliance-nav-item {
+  justify-content: center;
+  padding: 12px;
+}
+
+.compliance-workspace.nav-collapsed .compliance-sidebar-heading {
+  justify-content: center;
+  padding: 16px 8px;
+}
+
+.compliance-workspace.nav-collapsed .compliance-sidebar-footer {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+/* --- Sidebar Collapse Toggle Button --- */
+.compliance-collapse-btn {
+  background: transparent;
+  border: 1px solid var(--border-default, #1f2937);
+  border-radius: 6px;
+  color: var(--text-muted, #9ca3af);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compliance-collapse-btn:hover {
+  background: rgba(124, 58, 237, 0.15);
+  color: #c4b5fd;
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+/* --- Sidebar Logout Button --- */
+.compliance-sidebar-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compliance-sidebar-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+}
+
+/* --- Header Profile Menu Dropdown --- */
+.compliance-header-profile-wrap {
+  position: relative;
+}
+
+.compliance-header-profile-btn {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compliance-header-profile-btn:hover {
+  border-color: #7c3aed;
+  background: #374151;
+}
+
+.compliance-profile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 220px;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 8px 0;
+  z-index: 100;
+}
+
+.compliance-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  color: #e5e7eb;
+  text-decoration: none;
+  font-size: 0.875rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.compliance-dropdown-item:hover {
+  background: rgba(124, 58, 237, 0.12);
+  color: #c4b5fd;
+}
+
+.compliance-dropdown-divider {
+  height: 1px;
+  background: #1f2937;
+  margin: 6px 0;
+}
+
+.compliance-dropdown-item.is-logout {
+  color: #f87171;
+}
+
+.compliance-dropdown-item.is-logout:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
