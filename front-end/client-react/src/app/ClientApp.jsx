@@ -166,7 +166,6 @@ export function ClientApp() {
               </Route>
               <Route
                 element={
-<<<<<<< HEAD
                   <ProtectedRoute allowedRoles={["COMPLIANCE_OFFICER"]} />
                 }
               >
