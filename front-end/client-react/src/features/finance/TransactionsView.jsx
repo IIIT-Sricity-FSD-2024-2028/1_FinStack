@@ -4,6 +4,7 @@ import { LoadingState, ErrorState, EmptyState } from '../../components/Operation
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
+import { submitTransactionAction, transactionErrorMessage } from './paymentWorkflow'
 
 export function TransactionsView() {
   const [transactions, setTransactions] = useState([])
@@ -20,6 +21,13 @@ export function TransactionsView() {
   })
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [actionResult, setActionResult] = useState('')
+
+  function openAction(transaction, action) {
+    setActionError('')
+    setActionResult('')
+    setActionConfirm({ open: true, transaction, action })
+  }
 
   async function loadData() {
     setLoading(true)
@@ -60,20 +68,13 @@ export function TransactionsView() {
     setProcessing(true)
     setActionError('')
     try {
-      if (action === 'process') {
-        await financeApi.processTransaction(transaction.id)
-        notify(`Transaction ${transaction.id} marked processed.`, 'success')
-      } else if (action === 'fail') {
-        await financeApi.failTransaction(transaction.id)
-        notify(`Transaction ${transaction.id} marked failed. Submitter notified.`, 'warning')
-      } else if (action === 'reconcile') {
-        await financeApi.reconcileTransaction(transaction.id)
-        notify(`Transaction ${transaction.id} reconciled! Associated claim marked paid.`, 'success')
-      }
+      const result = await submitTransactionAction(action, transaction.id)
+      setActionResult(result.message)
+      notify(result.message, action === 'fail' ? 'warning' : 'info')
       setActionConfirm({ open: false, transaction: null, action: null })
       await loadData()
     } catch (err) {
-      setActionError(err.message || 'Operation failed. Verify transaction lifecycle rules.')
+      setActionError(transactionErrorMessage(err))
     } finally {
       setProcessing(false)
     }
@@ -85,12 +86,13 @@ export function TransactionsView() {
 
   return (
     <div className="transactions-page">
+      {actionResult && <p role="status">{actionResult}</p>}
       <div className="finance-notice-banner">
         <Icon name="shieldCheck" size={20} />
         <div>
           <strong>Transaction Lifecycle:</strong> Transactions are internal records created upon payment release.
-          Follow the server lifecycle transitions: <em>Pending &rarr; Processed &rarr; Reconciled</em>. Reconciling
-          settles the associated expense and updates it to <strong>Paid</strong>.
+          Processing and reconciliation actions submit workflow requests. Statuses shown here are server
+          workflow records; <strong>bank settlement remains unverified</strong> until bank evidence is available.
         </div>
       </div>
 
@@ -169,6 +171,9 @@ export function TransactionsView() {
                         <span className={`finance-badge ${tx.status}`}>
                           {tx.status?.toUpperCase()}
                         </span>
+                        {['processed', 'reconciled'].includes(tx.status) && (
+                          <small style={{ display: 'block' }}>Bank settlement unverified</small>
+                        )}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px' }}>
                         {tx.transactionDate || (tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : '—')}
@@ -182,17 +187,17 @@ export function TransactionsView() {
                                 className="btn btn-primary btn-xs"
                                 style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
                                 onClick={() =>
-                                  setActionConfirm({ open: true, transaction: tx, action: 'process' })
+                                  openAction(tx, 'process')
                                 }
                               >
-                                Process
+                                Request Processing
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
                                 style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.4)' }}
                                 onClick={() =>
-                                  setActionConfirm({ open: true, transaction: tx, action: 'fail' })
+                                  openAction(tx, 'fail')
                                 }
                               >
                                 Mark Failed
@@ -206,16 +211,16 @@ export function TransactionsView() {
                                 className="btn btn-primary btn-xs"
                                 style={{ background: '#10b981', borderColor: '#10b981' }}
                                 onClick={() =>
-                                  setActionConfirm({ open: true, transaction: tx, action: 'reconcile' })
+                                  openAction(tx, 'reconcile')
                                 }
                               >
-                                Reconcile & Mark Paid
+                                Request Reconciliation
                               </button>
                             </>
                           )}
                           {!isPending && !isProcessed && (
                             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                              Finalized
+                              {tx.status === 'failed' ? 'Failed request' : 'Workflow record'}
                             </span>
                           )}
                         </div>
@@ -232,25 +237,26 @@ export function TransactionsView() {
       {/* Confirmation Dialog */}
       <Modal
         open={actionConfirm.open}
-        onClose={() => setActionConfirm({ open: false, transaction: null, action: null })}
+        onClose={processing ? undefined : () => setActionConfirm({ open: false, transaction: null, action: null })}
         label="Confirm Transaction Action"
       >
+        <div className="modal-content finance-modal-content">
         <div className="modal-header">
           <h2 style={{ margin: 0, fontSize: '18px' }}>
-            {actionConfirm.action === 'process' && 'Process Transaction'}
+            {actionConfirm.action === 'process' && 'Request Transaction Processing'}
             {actionConfirm.action === 'fail' && 'Mark Transaction Failed'}
-            {actionConfirm.action === 'reconcile' && 'Reconcile Transaction'}
+            {actionConfirm.action === 'reconcile' && 'Request Transaction Reconciliation'}
           </h2>
         </div>
 
         <div className="modal-body" style={{ padding: '16px' }}>
           <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             {actionConfirm.action === 'process' &&
-              'Confirm that this transaction has been sent to and acknowledged by the bank sandbox.'}
+              'Submit a processing request for this internal transaction. This does not confirm a bank transfer or settlement.'}
             {actionConfirm.action === 'fail' &&
               'Mark this transaction as failed. The submitter will receive a failure notification.'}
             {actionConfirm.action === 'reconcile' &&
-              'Reconciling this transaction confirms full settlement. The associated expense claim will permanently transition to PAID.'}
+              'Submit a reconciliation request. The backend requires verified bank evidence before confirming settlement; this screen cannot confirm payment completion.'}
           </p>
 
           {actionConfirm.transaction && (
@@ -329,6 +335,7 @@ export function TransactionsView() {
           >
             {processing ? 'Processing…' : 'Confirm'}
           </button>
+        </div>
         </div>
       </Modal>
     </div>

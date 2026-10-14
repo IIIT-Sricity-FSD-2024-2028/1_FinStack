@@ -87,6 +87,7 @@ export const complianceApi = {
     })
 
     if (!res.ok) {
+      if (res.status === 401) tenantSession.logout()
       const err = await res.json().catch(() => null)
       const message = err?.error?.message || err?.message
       throw new ApiError(
@@ -96,6 +97,7 @@ export const complianceApi = {
             ? 'Access denied to this receipt.'
             : message || 'Failed to download receipt.',
         res.status,
+        err?.error?.code,
       )
     }
 
@@ -148,6 +150,7 @@ export const complianceApi = {
     })
 
     if (!res.ok) {
+      if (res.status === 401) tenantSession.logout()
       throw new ApiError('Failed to export audit logs.', res.status)
     }
 

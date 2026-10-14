@@ -27,7 +27,7 @@ export function ComplianceSettings() {
           Profile & Settings
         </h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #9ca3af)', marginTop: '4px' }}>
-          Manage your Compliance Officer profile, workspace preferences, and session security.
+          View your Compliance Officer profile and sign out. Alert preference saving is unavailable for this role.
         </p>
       </div>
 
@@ -48,11 +48,11 @@ export function ComplianceSettings() {
           }}
         >
           <Icon name="check" size={16} />
-          <span>Workspace preferences updated successfully.</span>
+          <span>Saving alert preferences is unavailable for this role.</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px' }}>
         {/* Left Column: Profile Card & Identity */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="compliance-card" style={{ margin: 0 }}>
@@ -212,6 +212,7 @@ export function ComplianceSettings() {
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
+                          disabled
                           checked={notifyHighRisk}
                           onChange={(e) => setNotifyHighRisk(e.target.checked)}
                           style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -229,6 +230,7 @@ export function ComplianceSettings() {
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
+                          disabled
                           checked={notifyDailyDigest}
                           onChange={(e) => setNotifyDailyDigest(e.target.checked)}
                           style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -246,6 +248,7 @@ export function ComplianceSettings() {
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
+                          disabled
                           checked={notifyAuditActions}
                           onChange={(e) => setNotifyAuditActions(e.target.checked)}
                           style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -263,7 +266,7 @@ export function ComplianceSettings() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                    <button type="submit" className="compliance-btn compliance-btn-primary">
+                    <button type="submit" className="compliance-btn compliance-btn-primary" disabled>
                       Save Preferences
                     </button>
                   </div>

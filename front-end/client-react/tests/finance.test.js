@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { afterEach, beforeEach, test } from 'node:test'
+import { afterEach, test } from 'node:test'
 import { financeApi } from '../src/features/finance/financeApi.js'
 import { legacyPaths } from '../src/routes/paths.ts'
 
@@ -130,6 +130,17 @@ test('financeApi downloadReceipt retrieves binary blob with bearer auth', async 
   assert.equal(capturedHeaders.Authorization, 'Bearer test-token-123')
   assert.equal(blob, fakeBlob)
   assert.equal(contentType, 'image/png')
+})
+
+test('finance receipt 401 clears authentication while 403 preserves it', async () => {
+  let cleared = 0
+  setupMockRuntime()
+  window.FinStackTenantSession.clearTenantSession = () => { cleared++ }
+  for (const status of [403, 401]) {
+    globalThis.fetch = async () => ({ ok: false, status, json: async () => ({ error: { code: 'RECEIPT_DENIED', message: 'Denied' } }) })
+    await assert.rejects(financeApi.downloadReceipt('EXP-QA'), error => error.status === status && error.code === 'RECEIPT_DENIED')
+    assert.equal(cleared, status === 401 ? 1 : 0)
+  }
 })
 
 test('financeApi notification endpoints query page, unread, and mark read', async () => {

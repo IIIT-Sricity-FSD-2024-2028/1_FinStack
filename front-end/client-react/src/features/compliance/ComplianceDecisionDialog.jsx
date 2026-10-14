@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { complianceApi } from './complianceApi'
 
@@ -6,6 +6,11 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setNote('')
+    setError('')
+  }, [open, expense?.id, type])
 
   if (!open || !expense) return null
 
@@ -138,6 +143,7 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
 
         {error && (
           <div
+            role="alert"
             style={{
               padding: '12px 14px',
               borderRadius: '8px',
@@ -163,6 +169,7 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
             <textarea
               id="compliance-decision-note"
               rows={4}
+              disabled={submitting}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={

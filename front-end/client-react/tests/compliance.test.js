@@ -6,6 +6,16 @@ import { legacyPaths } from '../src/routes/paths.ts'
 const originalWindow = globalThis.window
 const originalFetch = globalThis.fetch
 
+test('compliance receipt and audit export clear authentication on 401', async () => {
+  let cleared = 0
+  setupMockRuntime()
+  window.FinStackTenantSession.clearTenantSession = () => { cleared++ }
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { code: 'EXPIRED', message: 'Sign in again' } }) })
+  await assert.rejects(complianceApi.downloadReceipt('EXP-QA'), error => error.status === 401 && error.code === 'EXPIRED')
+  await assert.rejects(complianceApi.exportAuditLogs(), error => error.status === 401)
+  assert.equal(cleared, 2)
+})
+
 function setupMockRuntime(requestFn) {
   const session = {
     accessToken: 'compliance-token-xyz',

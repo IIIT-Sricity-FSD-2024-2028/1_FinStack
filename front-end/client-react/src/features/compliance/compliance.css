@@ -247,7 +247,7 @@
 }
 
 /* --- Badges & Pills --- */
-.badge {
+.compliance-workspace .badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -259,37 +259,37 @@
   white-space: nowrap;
 }
 
-.badge-green {
+.compliance-workspace .badge-green {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.badge-yellow {
+.compliance-workspace .badge-yellow {
   background: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-.badge-rose {
+.compliance-workspace .badge-rose {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.badge-purple {
+.compliance-workspace .badge-purple {
   background: rgba(124, 58, 237, 0.15);
   color: #c4b5fd;
   border: 1px solid rgba(124, 58, 237, 0.3);
 }
 
-.badge-cyan {
+.compliance-workspace .badge-cyan {
   background: rgba(34, 211, 238, 0.15);
   color: #67e8f9;
   border: 1px solid rgba(34, 211, 238, 0.3);
 }
 
-.badge-slate {
+.compliance-workspace .badge-slate {
   background: rgba(100, 116, 139, 0.15);
   color: #cbd5e1;
   border: 1px solid rgba(100, 116, 139, 0.3);

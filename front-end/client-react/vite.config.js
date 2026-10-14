@@ -16,7 +16,7 @@ const localApi = (html) =>
   );
 const isSpa = (path) =>
   path === "/" ||
-  /^\/(?:configuration(?:\/[^.]*)?|login|register|registration\/receipt|activate-account|help|contact|support|account-request|forgot-password|reset-password|forbidden)\/?$/.test(
+  /^\/(?:configuration(?:\/[^.]*)?|finance(?:\/[^.]*)?|compliance(?:\/[^.]*)?|login|register|registration\/receipt|activate-account|help|contact|support|account-request|forgot-password|reset-password|forbidden)\/?$/.test(
     path,
   );
 function clientHosting() {
@@ -27,7 +27,7 @@ function clientHosting() {
         const pathname = new URL(req.url, "http://localhost").pathname;
         if (
           !isSpa(pathname) &&
-          !/^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager)\/[^/]+.html)$/.test(
+          !/^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager|finance|compliance)\/[^/]+.html)$/.test(
             pathname,
           )
         )
@@ -58,7 +58,7 @@ function clientHosting() {
           );
           const file = resolve(
             frontend,
-            "." + (isSpa(pathname) ? "/index.html" : pathname),
+            "." + (isSpa(pathname) || /^\/views\/(?:finance|compliance)\/[^/]+\.html$/.test(pathname) ? "/index.html" : pathname),
           );
           if (
             !file.startsWith(frontend + sep) ||

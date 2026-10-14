@@ -209,7 +209,7 @@ export function ComplianceDashboard() {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '24px' }}>
           {/* Priority Queue Section */}
           <div className="compliance-card" style={{ margin: 0 }}>
             <div className="compliance-card-header">

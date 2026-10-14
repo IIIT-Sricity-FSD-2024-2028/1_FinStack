@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
@@ -56,6 +56,11 @@ export function FinanceDecisionDialog({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    setNote('')
+    setError('')
+  }, [open, expense?.id, action])
+
   if (!open || !expense || !action) return null
 
   const config = CONFIG[action] || CONFIG.approve
@@ -93,8 +98,8 @@ export function FinanceDecisionDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose} label={config.title}>
-      <form onSubmit={handleSubmit}>
+    <Modal open={open} onClose={submitting ? undefined : onClose} label={config.title}>
+      <form className="modal-content finance-modal-content" onSubmit={handleSubmit}>
         <div className="modal-header">
           <h2 style={{ margin: 0, fontSize: '18px' }}>{config.title}</h2>
         </div>

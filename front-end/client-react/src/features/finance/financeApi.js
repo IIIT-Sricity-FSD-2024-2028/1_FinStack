@@ -92,7 +92,7 @@ export const financeApi = {
   },
 
   /**
-   * Transitions a pending transaction to processed.
+   * Requests processing; bank evidence may be required by the backend.
    */
   async processTransaction(transactionId) {
     return request(`/api/v1/tenant/expenses/finance/transactions/${transactionId}/process`, {
@@ -110,7 +110,7 @@ export const financeApi = {
   },
 
   /**
-   * Reconciles a processed transaction, marking the expense paid.
+   * Requests reconciliation; does not establish bank settlement in the UI.
    */
   async reconcileTransaction(transactionId) {
     return request(`/api/v1/tenant/expenses/finance/transactions/${transactionId}/reconcile`, {
@@ -147,6 +147,7 @@ export const financeApi = {
     })
 
     if (!res.ok) {
+      if (res.status === 401) tenantSession.logout()
       const err = await res.json().catch(() => null)
       const message = err?.error?.message || err?.message
       throw new ApiError(
@@ -156,6 +157,7 @@ export const financeApi = {
             ? 'Access denied to this receipt.'
             : message || 'Failed to download receipt.',
         res.status,
+        err?.error?.code,
       )
     }
 

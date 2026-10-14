@@ -12,7 +12,7 @@ export function FinanceSettings() {
 
   const handleSavePreferences = (e) => {
     e.preventDefault()
-    setStatusMessage('Preferences saved successfully.')
+    setStatusMessage('Saving alert preferences is unavailable for this role.')
     setTimeout(() => setStatusMessage(null), 3000)
   }
 
@@ -31,7 +31,7 @@ export function FinanceSettings() {
           Finance Officer Profile &amp; Settings
         </h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #94a3b8)', margin: '4px 0 0 0' }}>
-          Manage your account profile, disbursement alert preferences, and security settings.
+          View your account profile and sign out. Alert preference saving is unavailable for this role.
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export function FinanceSettings() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) minmax(0, 1fr)', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px' }}>
         {/* Left Column: Profile Card */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="finance-stat-card" style={{ padding: '24px' }}>
@@ -187,6 +187,7 @@ export function FinanceSettings() {
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
+                        disabled
                         checked={notifyPaymentAlerts}
                         onChange={(e) => setNotifyPaymentAlerts(e.target.checked)}
                         style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -204,6 +205,7 @@ export function FinanceSettings() {
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
+                        disabled
                         checked={notifyDailyDisbursements}
                         onChange={(e) => setNotifyDailyDisbursements(e.target.checked)}
                         style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -221,6 +223,7 @@ export function FinanceSettings() {
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
+                        disabled
                         checked={notifyThresholdAlerts}
                         onChange={(e) => setNotifyThresholdAlerts(e.target.checked)}
                         style={{ marginTop: '3px', cursor: 'pointer' }}
@@ -238,7 +241,7 @@ export function FinanceSettings() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                  <button type="submit" className="btn btn-primary">
+                  <button type="submit" className="btn btn-primary" disabled>
                     Save Preferences
                   </button>
                 </div>

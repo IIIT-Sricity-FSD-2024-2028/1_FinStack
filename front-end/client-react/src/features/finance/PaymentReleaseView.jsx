@@ -79,7 +79,7 @@ export function PaymentReleaseView() {
     try {
       const result = await financeApi.releasePayment(Array.from(selectedIds))
       setReleaseResult(result)
-      notify(`Payment batch ${result.batchId} released successfully!`, 'success')
+      notify(`Internal payment batch ${result.batchId} recorded. Bank settlement remains unverified.`, 'info')
       setConfirmModalOpen(false)
       await loadData()
     } catch (err) {
@@ -101,9 +101,9 @@ export function PaymentReleaseView() {
       <div className="finance-notice-banner warning">
         <Icon name="shieldCheck" size={20} />
         <div>
-          <strong>Internal Sandbox Batch Release:</strong> Releasing expenses creates internal
-          payment & transaction records within your organization. This is an internal workflow simulation
-          and does <strong>not</strong> trigger a real bank wire or external funds transfer.
+          <strong>Internal Payment Requests:</strong> Releasing expenses creates internal
+          payment and transaction records within your organization. Bank transfer and settlement
+          require verified bank evidence; creating a batch does not confirm payment completion.
         </div>
       </div>
 
@@ -259,9 +259,10 @@ export function PaymentReleaseView() {
       {/* Confirmation Modal */}
       <Modal
         open={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
+        onClose={releasing ? undefined : () => setConfirmModalOpen(false)}
         label="Confirm Payment Batch Release"
       >
+        <div className="modal-content finance-modal-content">
         <div className="modal-header">
           <h2 style={{ margin: 0, fontSize: '18px' }}>Confirm Internal Payment Release</h2>
         </div>
@@ -346,6 +347,7 @@ export function PaymentReleaseView() {
           >
             {releasing ? 'Releasing Batch…' : `Confirm Release (${selectedIds.size})`}
           </button>
+        </div>
         </div>
       </Modal>
     </div>

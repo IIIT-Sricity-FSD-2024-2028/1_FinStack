@@ -42,13 +42,10 @@ export function FinanceNotifications() {
   async function handleMarkRead(id) {
     try {
       await financeApi.markNotificationRead(id)
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, unread: false, readAt: new Date().toISOString() } : item)),
-      )
-      setUnreadCount((c) => Math.max(0, c - 1))
+      await loadNotifications()
       notify('Notification marked read.', 'info')
     } catch (err) {
-      notify(err.message || 'Failed to mark notification read.', 'danger')
+      setError(err.message || 'Failed to mark notification read.')
     }
   }
 
@@ -60,7 +57,7 @@ export function FinanceNotifications() {
       notify('All notifications marked read.', 'success')
       await loadNotifications()
     } catch (err) {
-      notify(err.message || 'Failed to mark all read.', 'danger')
+      setError(err.message || 'Failed to mark all read.')
     }
   }
 

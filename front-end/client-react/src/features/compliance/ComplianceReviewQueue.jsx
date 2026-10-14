@@ -75,7 +75,7 @@ export function ComplianceReviewQueue() {
 
     const matchesSource =
       sourceFilter === 'all' ||
-      (sourceFilter === 'manager' && item.escalatedByManager) ||
+      (sourceFilter === 'manager' && (item.escalatedByManager || item.managerDecision === 'Escalated')) ||
       (sourceFilter === 'finance' && item.financeDecision === 'Flagged')
 
     const matchesCategory =
@@ -123,8 +123,8 @@ export function ComplianceReviewQueue() {
   }
 
   function renderSourceBadge(exp) {
-    if (exp.escalatedByManager) return <span className="badge badge-purple">Manager</span>
     if (exp.financeDecision === 'Flagged') return <span className="badge badge-cyan">Finance</span>
+    if (exp.escalatedByManager || exp.managerDecision === 'Escalated') return <span className="badge badge-purple">Manager</span>
     return <span className="badge badge-slate">Policy</span>
   }
 
@@ -303,9 +303,9 @@ export function ComplianceReviewQueue() {
         ) : sorted.length === 0 ? (
           <div style={{ padding: '64px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✅</div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 600, color: '#f3f4f6' }}>All Clear</div>
+            <div style={{ fontSize: '1.125rem', fontWeight: 600, color: '#f3f4f6' }}>{queue.length ? 'No Matching Expenses' : 'All Clear'}</div>
             <div style={{ fontSize: '0.875rem', color: 'var(--text-muted, #9ca3af)', marginTop: '4px' }}>
-              No escalated expenses currently require compliance review.
+              {queue.length ? 'Adjust the active filters to see other pending reviews.' : 'No escalated expenses currently require compliance review.'}
             </div>
           </div>
         ) : (

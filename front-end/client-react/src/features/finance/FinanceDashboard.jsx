@@ -124,14 +124,14 @@ export function FinanceDashboard() {
 
         <div className="finance-stat-card">
           <div className="finance-stat-header">
-            <span className="finance-stat-label">Paid / Reconciled</span>
+            <span className="finance-stat-label">Reconciled Workflow Records</span>
             <div className="finance-stat-icon success">
               <Icon name="shieldCheck" size={18} />
             </div>
           </div>
           <div className="finance-stat-value">{paidExpenses.length}</div>
           <div className="finance-stat-subtext">
-            <span>Total settled: {currency} {paidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span>Recorded value: {currency} {paidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}. Bank settlement unverified.</span>
           </div>
         </div>
       </div>

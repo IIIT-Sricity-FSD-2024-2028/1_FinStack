@@ -46,20 +46,18 @@ export function ComplianceNotifications() {
   async function handleMarkRead(id) {
     try {
       await complianceApi.markNotificationRead(id)
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, unread: false, read: true } : n)),
-      )
-    } catch {
-      // Ignore failure on mark read
+      loadNotifications()
+    } catch (err) {
+      setError(err?.message || 'Failed to mark notification read.')
     }
   }
 
   async function handleMarkAllRead() {
     try {
       await complianceApi.markAllNotificationsRead()
-      setNotifications((prev) => prev.map((n) => ({ ...n, unread: false, read: true })))
+      loadNotifications()
     } catch (err) {
-      alert(err?.message || 'Failed to mark all as read.')
+      setError(err?.message || 'Failed to mark all as read.')
     }
   }
 
@@ -170,8 +168,6 @@ export function ComplianceNotifications() {
                 <div
                   key={n.id}
                   className={`compliance-notif-item ${isUnread ? 'is-unread' : ''}`}
-                  onClick={() => isUnread && handleMarkRead(n.id)}
-                  style={{ cursor: isUnread ? 'pointer' : 'default' }}
                 >
                   <div style={{ fontSize: '1.25rem', lineHeight: 1 }}>{renderTypeIcon(n.type)}</div>
                   <div style={{ flex: 1 }}>
@@ -188,6 +184,11 @@ export function ComplianceNotifications() {
                     </div>
                   </div>
                   {isUnread && <div className="compliance-notif-dot" title="Unread" />}
+                  {isUnread && (
+                    <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" onClick={() => handleMarkRead(n.id)}>
+                      Mark Read
+                    </button>
+                  )}
                 </div>
               )
             })}

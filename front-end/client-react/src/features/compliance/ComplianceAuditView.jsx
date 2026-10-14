@@ -49,8 +49,8 @@ export function ComplianceAuditView() {
 
   function handleFilterSubmit(e) {
     e.preventDefault()
-    setPage(1)
-    loadLogs()
+    if (page === 1) loadLogs()
+    else setPage(1)
   }
 
   async function handleExport() {

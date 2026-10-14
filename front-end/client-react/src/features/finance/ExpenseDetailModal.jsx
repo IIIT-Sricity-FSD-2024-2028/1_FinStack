@@ -62,6 +62,7 @@ export function ExpenseDetailModal({
 
   return (
     <Modal open={open} onClose={onClose} label={`Expense Details - ${expense.id}`}>
+      <div className="modal-content finance-modal-content">
       <div className="modal-header">
         <div>
           <h2 style={{ margin: 0, fontSize: '18px' }}>Expense Review Details</h2>
@@ -91,7 +92,7 @@ export function ExpenseDetailModal({
             <span className="label">Workflow Stage</span>
             <span className="value">
               <span className={`finance-badge ${expense.workflowStatus}`}>
-                {expense.workflowStatus?.replace(/_/g, ' ').toUpperCase()}
+                {expense.workflowStatus === 'paid' ? 'RECONCILED RECORD — SETTLEMENT UNVERIFIED' : expense.workflowStatus?.replace(/_/g, ' ').toUpperCase()}
               </span>
             </span>
           </div>
@@ -287,6 +288,7 @@ export function ExpenseDetailModal({
             </button>
           </div>
         )}
+      </div>
       </div>
     </Modal>
   )

@@ -22,7 +22,7 @@ export function PoliciesViolationsView() {
     Promise.all([
       complianceApi.getPolicies(),
       complianceApi.getCategories().catch(() => []),
-      complianceApi.getComplianceQueue().catch(() => []),
+      complianceApi.getComplianceQueue(),
     ])
       .then(([pData, cData, qData]) => {
         setPolicies(Array.isArray(pData) ? pData : [])
@@ -125,7 +125,6 @@ export function PoliciesViolationsView() {
               <div className="compliance-table-container">
                 <table className="compliance-table">
                   <thead>
-                    <thead>
                       <tr>
                         <th>Policy Name</th>
                         <th>Category</th>
@@ -134,7 +133,6 @@ export function PoliciesViolationsView() {
                         <th>Receipt Required</th>
                         <th>Status</th>
                       </tr>
-                    </thead>
                   </thead>
                   <tbody>
                     {policies.map((p) => {

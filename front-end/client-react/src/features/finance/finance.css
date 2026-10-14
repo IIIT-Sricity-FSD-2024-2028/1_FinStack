@@ -4,6 +4,10 @@
   color: var(--text-primary);
 }
 
+.finance-workspace .finance-modal-content {
+  max-width: 720px;
+}
+
 .finance-workspace .spa-workspace-body {
   display: flex;
   flex-direction: column;
@@ -348,7 +352,7 @@
   gap: 6px;
 }
 
-.btn-xs {
+.finance-workspace .btn-xs {
   min-height: 28px !important;
   padding: 0 10px;
   font-size: 12px !important;

@@ -118,7 +118,7 @@ export function FinanceReviewQueue() {
             <option value="payment_processing">Payment Processing</option>
             <option value="returned">Returned / Info Requested</option>
             <option value="compliance_review">Flagged / Compliance</option>
-            <option value="paid">Paid & Reconciled</option>
+            <option value="paid">Reconciled Records (settlement unverified)</option>
             <option value="rejected">Rejected</option>
             <option value="all">All Stages ({expenses.length})</option>
           </select>
@@ -201,7 +201,7 @@ export function FinanceReviewQueue() {
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <span className={`finance-badge ${item.workflowStatus}`}>
-                          {item.workflowStatus?.replace(/_/g, ' ').toUpperCase()}
+                          {item.workflowStatus === 'paid' ? 'RECONCILED RECORD — SETTLEMENT UNVERIFIED' : item.workflowStatus?.replace(/_/g, ' ').toUpperCase()}
                         </span>
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
