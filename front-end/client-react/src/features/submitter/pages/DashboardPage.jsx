@@ -4,6 +4,7 @@ import { useSubmitter } from "../SubmitterContext";
 import { currency, date, workflowClass, workflowLabel } from "../utils";
 import { Icon } from "../components/Icons";
 import ResourceState from "../components/ResourceState";
+import { buildExpenseTrend } from "../dashboardAnalytics";
 
 const CATEGORY_COLORS = [
   "#7c3aed",
@@ -41,7 +42,7 @@ function ExpenseTrend({ items }) {
 
   return (
     <div className="legacy-trend">
-      <svg viewBox="0 0 520 220" aria-label="Monthly expense trend">
+      <svg viewBox="0 0 520 220" aria-label="Expense submission trend">
         <path d="M0 190 H520" />
         <path d="M0 118 H520" />
         <path d="M0 45 H520" />
@@ -49,7 +50,7 @@ function ExpenseTrend({ items }) {
           points={points.map((point) => `${point.x},${point.y}`).join(" ")}
         />
         {points.map((point) => (
-          <g key={point.label}>
+          <g key={point.id}>
             <circle cx={point.x} cy={point.y} r="5" fill="#7c3aed" />
             <text
               x={point.x}
@@ -65,7 +66,7 @@ function ExpenseTrend({ items }) {
       </svg>
       <div>
         {items.map((item) => (
-          <span key={item.label}>{item.label}</span>
+          <span key={item.id}>{item.label}</span>
         ))}
       </div>
     </div>
@@ -137,29 +138,9 @@ export default function DashboardPage() {
       }, {}),
     );
 
-    const months = Object.values(
-      expenses.reduce((result, expense) => {
-        const expenseDate = new Date(expense.date);
-        const label = Number.isNaN(expenseDate.valueOf())
-          ? "Unknown"
-          : expenseDate.toLocaleDateString("en-IN", {
-              month: "short",
-              year: "2-digit",
-            });
+    const trend = buildExpenseTrend(expenses);
 
-        result[label] ||= {
-          label,
-          value: 0,
-          stamp: expenseDate.valueOf() || 0,
-        };
-        result[label].value += Number(expense.amount || 0);
-        return result;
-      }, {}),
-    )
-      .sort((first, second) => first.stamp - second.stamp)
-      .slice(-7);
-
-    return { total, pending, approved, categories, months };
+    return { total, pending, approved, categories, trend };
   }, [expenses]);
 
   return (
@@ -220,7 +201,7 @@ export default function DashboardPage() {
                   <span className="card-title">Expense Trends</span>
                 </div>
                 <div className="card-content">
-                  <ExpenseTrend items={analytics.months} />
+                  <ExpenseTrend items={analytics.trend} />
                 </div>
               </div>
 

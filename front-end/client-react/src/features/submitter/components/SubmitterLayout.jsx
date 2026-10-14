@@ -4,6 +4,7 @@ import { useAuth } from "../../../auth/AuthContext";
 import { submitterApi } from "../api/submitterApi";
 import { useSubmitter } from "../SubmitterContext";
 import { initials, timeAgo } from "../utils";
+import { logoutSubmitter } from "../submitterNavigation";
 import { Icon } from "./Icons";
 import "../submitter.css";
 
@@ -68,8 +69,7 @@ export default function SubmitterLayout() {
     navigate(path);
   };
   const handleLogout = () => {
-    endSession();
-    navigate("/login", { replace: true });
+    logoutSubmitter(navigate, endSession);
   };
   const runNotificationAction = async (action) => {
     setActionError("");
