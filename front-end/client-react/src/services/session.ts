@@ -131,6 +131,38 @@ export async function request<T = any>(
   }
   return payload?.data ?? payload;
 }
+export async function requestBlob(
+  path: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<Blob> {
+  const session = currentSession();
+  if (!session) {
+    clearSession();
+    throw new ApiError("Sign in again to continue.", 401);
+  }
+  const response = await fetch(apiBase() + path, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+    signal: options.signal,
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    if (response.status === 401) clearSession();
+    const message = payload?.error?.message || payload?.message;
+    throw new ApiError(
+      response.status >= 500
+        ? "The service is temporarily unavailable. Please retry."
+        : typeof message === "string"
+          ? message
+          : response.status === 403
+            ? "You do not have permission to perform this action."
+            : "The requested file could not be loaded.",
+      response.status,
+      payload?.error?.code,
+    );
+  }
+  return response.blob();
+}
 // Existing feature adapters keep their contracts, using this JWT-only transport.
 const runtime = {
   getTenantSession: currentSession,

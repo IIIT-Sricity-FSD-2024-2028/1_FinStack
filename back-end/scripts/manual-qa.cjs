@@ -9,6 +9,7 @@ const folder = path.join(backend, '.tmp', 'manual-qa');
 const statePath = path.join(folder, 'environment.json');
 const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
+const { isClientSpaPath } = require('../../front-end/client-routing.cjs');
 const { manualQaSettings, verifyManualQaDatabase } = require('../dist/src/common/config/manual-qa');
 const ordinary = dotenv.parse(fs.readFileSync(path.join(backend, '.env')));
 function config() {
@@ -99,7 +100,8 @@ async function init() {
         if (!['GET','HEAD'].includes(req.method)) { res.writeHead(405).end(); return; }
         const pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1:5581').pathname);
         // History fallback is restricted to this client SPA. Other actors and Admin stay static.
-        const spaPath = pathname === '/' || /^\/(?:configuration(?:\/[^.]*)?|login|register|registration\/receipt|activate-account|help|contact|support|account-request|forgot-password|reset-password|forbidden)\/?$/.test(pathname);
+        // Keep history fallback behavior aligned with Vite without rewriting API/assets.
+        const spaPath = isClientSpaPath(pathname);
         const file = path.resolve(frontend, '.' + (spaPath ? '/index.html' : pathname));
         if (!file.startsWith(frontend + path.sep) || path.relative(frontend, file).split(path.sep).some(part => part.startsWith('.') || part === 'node_modules' || part === 'admin')) { res.writeHead(403).end(); return; }
         let content = fs.readFileSync(file);

@@ -101,6 +101,27 @@ test("SPA authentication errors clear all session keys; permission errors preser
   );
   assert.equal(runtime.currentSession(), null);
 });
+test("binary API requests use the bearer session, preserve aborts, clear 401, and retain 403", async () => {
+  const calls = setup();
+  runtime.saveSession(session);
+  const controller = new AbortController();
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 200, blob: async () => new Blob(["receipt"]) };
+  };
+  const receipt = await runtime.requestBlob("/receipt", { signal: controller.signal });
+  assert.equal(await receipt.text(), "receipt");
+  assert.equal(calls[0].url, "https://api.company.org/receipt");
+  assert.deepEqual(calls[0].options.headers, { Authorization: "Bearer server-issued-token" });
+  assert.equal(calls[0].options.signal, controller.signal);
+
+  globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => ({ error: { message: "Forbidden" } }) });
+  await assert.rejects(runtime.requestBlob("/receipt"), (error) => error.status === 403);
+  assert(runtime.currentSession());
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: "Expired" } }) });
+  await assert.rejects(runtime.requestBlob("/receipt"), (error) => error.status === 401);
+  assert.equal(runtime.currentSession(), null);
+});
 test("invalid public login sends no bearer token and does not clear another saved session", async () => {
   const calls = setup(401, {
     message: "Employee ID or password is incorrect.",

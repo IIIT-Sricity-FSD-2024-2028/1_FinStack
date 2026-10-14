@@ -54,6 +54,11 @@ export class TenantPreferencesDto {
   @IsIn(['dashboard', 'notifications', 'audit-logs']) defaultView!: string;
   @IsInt() @IsIn([10, 25, 50, 100]) pageSize!: number;
   @IsBoolean() autoRefresh!: boolean;
+  @IsOptional() @IsIn(['INR', 'USD']) managerCurrency?: string;
+  @IsOptional() @IsIn(['dashboard', 'expenses', 'history', 'notifications'])
+  managerDefaultPage?: string;
+  @IsOptional() @IsBoolean() emailAlerts?: boolean;
+  @IsOptional() @IsBoolean() weeklyDigest?: boolean;
 }
 export class ChangeOwnPasswordDto {
   @IsString() @Length(1, 200) currentPassword!: string;

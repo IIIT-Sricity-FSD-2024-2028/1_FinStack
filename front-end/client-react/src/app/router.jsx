@@ -1,13 +1,6 @@
 import { lazy, Suspense } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
-import { AuthProvider, ProtectedRoute } from "../auth/AuthContext";
-import { ErrorBoundary } from "../components/ErrorBoundary";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { ProtectedRoute } from "../auth/AuthContext";
 import { ConfigurationManagerLayout } from "../layouts/ConfigurationManagerLayout";
 import { PublicLayout } from "../layouts/PublicLayout";
 import { legacyPaths } from "../routes/paths";
@@ -23,6 +16,13 @@ import {
   RegistrationReceiptPage,
 } from "../features/shared/RegistrationPage";
 import { ConfigManagerDashboard } from "../features/config-manager/ConfigManagerDashboard";
+import { ManagerLayout } from "../features/manager/ManagerLayout";
+import { ManagerDashboard } from "../features/manager/ManagerDashboard";
+import { ManagerExpenseQueue } from "../features/manager/ManagerExpenseQueue";
+import { ManagerExpenseDetails } from "../features/manager/ManagerExpenseDetails";
+import { ManagerHistory } from "../features/manager/ManagerHistory";
+import { ManagerNotifications } from "../features/manager/ManagerNotifications";
+import { ManagerProfileSettings, managerLandingPath } from "../features/manager/ManagerProfileSettings";
 import { NotificationsPage } from "../features/config-manager/WorkspacePages";
 import {
   OrganizationSettingsPage,
@@ -70,19 +70,10 @@ function LegacyRedirect() {
     />
   );
 }
-export function ClientApp() {
+export function AppRouter() {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <Suspense
-            fallback={
-              <p role="status" className="standalone-state">
-                Loading page…
-              </p>
-            }
-          >
-            <Routes>
+    <Suspense fallback={<p role="status" className="standalone-state">Loading page...</p>}>
+      <Routes>
               {Object.keys(legacyPaths).map((path) => (
                 <Route key={path} path={path} element={<LegacyRedirect />} />
               ))}
@@ -150,10 +141,19 @@ export function ClientApp() {
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>
+              <Route element={<ProtectedRoute allowedRoles={["MANAGER"]} />}>
+                <Route path="manager" element={<ManagerLayout />}>
+                  <Route index element={<Navigate to={managerLandingPath()} replace />} />
+                  <Route path="dashboard" element={<ManagerDashboard />} />
+                  <Route path="expenses" element={<ManagerExpenseQueue />} />
+                  <Route path="expenses/:expenseId" element={<ManagerExpenseDetails />} />
+                  <Route path="history" element={<ManagerHistory />} />
+                  <Route path="notifications" element={<ManagerNotifications />} />
+                  <Route path="profile-settings" element={<ManagerProfileSettings />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Route>
             </Routes>
           </Suspense>
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
   );
 }

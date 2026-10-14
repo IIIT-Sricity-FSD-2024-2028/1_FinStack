@@ -600,6 +600,60 @@ describe('TenantExpensesService', () => {
     );
   });
 
+  it.each([
+    ['return', 'managerReturn', 'Returned', 'returned'],
+    ['reject', 'managerReject', 'Rejected', 'rejected'],
+    ['escalate', 'managerEscalate', 'Escalated', 'compliance_review'],
+  ] as const)(
+    'records the Manager %s decision and notification',
+    async (_label, action, decision, workflowStatus) => {
+      const { tenantUserMocks, expenseMocks, notificationMocks, service } =
+        setup();
+      expenseMocks.findById.mockReturnValue(expense());
+      expenseMocks.update.mockImplementation((_id, changes) =>
+        expense(changes),
+      );
+      tenantUserMocks.findUnique.mockResolvedValue({
+        managerId: managerActor.user.id,
+      });
+
+      const result = await service[action](
+        managerActor,
+        'expense-1',
+        'Please review this decision.',
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({ managerDecision: decision, workflowStatus }),
+      );
+      expect(expenseMocks.update).toHaveBeenCalledWith(
+        'expense-1',
+        expect.objectContaining({
+          managerDecision: decision,
+          workflowStatus,
+          managerDecisionNote: 'Please review this decision.',
+        }),
+      );
+      if (action !== 'managerEscalate')
+        expect(notificationMocks.notifyEmployee).toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a stale Manager decision without mutating the expense', async () => {
+    const { tenantUserMocks, expenseMocks, service } = setup();
+    expenseMocks.findById.mockReturnValue(
+      expense({ workflowStatus: 'returned' }),
+    );
+    tenantUserMocks.findUnique.mockResolvedValue({
+      managerId: managerActor.user.id,
+    });
+
+    await expect(
+      service.managerReject(managerActor, 'expense-1', 'No longer valid.'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(expenseMocks.update).not.toHaveBeenCalled();
+  });
+
   it('limits the finance queue to the authenticated officer and tenant', async () => {
     const { expenseMocks, service } = setup();
     expenseMocks.findAll.mockReturnValue([
@@ -654,5 +708,26 @@ describe('TenantExpensesService', () => {
     await expect(
       service.getReceipt(submitterActor, 'expense-1'),
     ).resolves.toEqual(expect.objectContaining({ fileName: 'receipt.pdf' }));
+  });
+
+  it('limits Manager receipt downloads to assigned direct reports', async () => {
+    const { tenantUserMocks, expenseMocks, receiptUploadMocks, service } =
+      setup();
+    expenseMocks.findById.mockReturnValue(expense());
+    tenantUserMocks.findFirst.mockResolvedValue({ id: 'report-user-1' });
+    receiptUploadMocks.getForExpense.mockResolvedValue({
+      buffer: Buffer.from('%PDF-test'),
+      mimeType: 'application/pdf',
+      fileName: 'receipt.pdf',
+    });
+
+    await expect(
+      service.getReceipt(managerActor, 'expense-1'),
+    ).resolves.toEqual(expect.objectContaining({ fileName: 'receipt.pdf' }));
+
+    tenantUserMocks.findFirst.mockResolvedValue(null);
+    await expect(
+      service.getReceipt(managerActor, 'expense-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

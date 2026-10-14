@@ -536,6 +536,31 @@ export class TenantExpensesService {
     if (!expense || expense.organizationId !== actor.organizationId) {
       throw new NotFoundException('Expense not found.');
     }
+    let permitted = actor.user.role === TenantRole.CONFIGURATION_MANAGER;
+    if (actor.user.role === TenantRole.EXPENSE_SUBMITTER) {
+      permitted = expense.employeeId === actor.user.employeeId;
+    } else if (actor.user.role === TenantRole.MANAGER) {
+      const report = await this.prisma.tenantUser.findFirst({
+        where: {
+          organizationId: actor.organizationId,
+          employeeId: expense.employeeId,
+          managerId: actor.user.id,
+        },
+        select: { id: true },
+      });
+      permitted =
+        expense.managerEmployeeId === actor.user.employeeId && Boolean(report);
+    } else if (actor.user.role === TenantRole.FINANCE_OFFICER) {
+      permitted = expense.assignedFinanceOfficerId === actor.user.id;
+    } else if (actor.user.role === TenantRole.COMPLIANCE_OFFICER) {
+      permitted = expense.workflowStatus === 'compliance_review';
+    }
+    if (!permitted) {
+      throw new ForbiddenException({
+        code: 'TENANT_EXPENSE_RECEIPT_ACCESS_DENIED',
+        message: 'You do not have access to this expense receipt.',
+      });
+    }
     return this.receiptUploadService.getForExpense(expenseId);
   }
 

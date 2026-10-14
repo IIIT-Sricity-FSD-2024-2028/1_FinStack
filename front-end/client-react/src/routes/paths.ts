@@ -35,4 +35,9 @@ export const legacyPaths: Record<string, string> = {
       `/configuration/${name}`,
     ]),
   ),
+  "/views/manager/dashboard.html": "/manager/dashboard",
+  "/views/manager/expense-review.html": "/manager/expenses",
+  "/views/manager/approval-history.html": "/manager/history",
+  "/views/manager/notifications.html": "/manager/notifications",
+  "/views/manager/team-overview.html": "/manager/dashboard",
 };

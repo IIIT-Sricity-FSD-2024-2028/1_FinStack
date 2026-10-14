@@ -23,6 +23,10 @@ const defaultPreferences: TenantPreferencesDto = {
   defaultView: 'dashboard',
   pageSize: 25,
   autoRefresh: false,
+  managerCurrency: 'INR',
+  managerDefaultPage: 'dashboard',
+  emailAlerts: true,
+  weeklyDigest: true,
 };
 const profileSelect = {
   id: true,

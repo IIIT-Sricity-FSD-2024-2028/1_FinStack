@@ -201,6 +201,14 @@ export function LoginPage() {
                       replace: true,
                     },
                   );
+                else if (result.user.role === "MANAGER")
+                  navigate(
+                    typeof location.state?.from === "string" &&
+                      location.state.from.startsWith("/manager/")
+                      ? location.state.from
+                      : "/manager/dashboard",
+                    { replace: true },
+                  );
                 else {
                   const allowed = [
                     "/views/submitter/dashboard.html",

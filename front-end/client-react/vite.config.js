@@ -2,6 +2,7 @@ import { resolve, extname, relative, sep } from "node:path";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { isClientSpaPath } from "../client-routing.cjs";
 const frontend = resolve(import.meta.dirname, "..");
 const apiProxy = {
   "/api": {
@@ -14,11 +15,7 @@ const localApi = (html) =>
     "<head>",
     "<head><script>window.FINSTACK_API_BASE_URL=window.location.origin;</script>",
   );
-const isSpa = (path) =>
-  path === "/" ||
-  /^\/(?:configuration(?:\/[^.]*)?|login|register|registration\/receipt|activate-account|help|contact|support|account-request|forgot-password|reset-password|forbidden)\/?$/.test(
-    path,
-  );
+const isSpa = isClientSpaPath;
 function clientHosting() {
   return {
     name: "finstack-client-hosting",
@@ -27,7 +24,7 @@ function clientHosting() {
         const pathname = new URL(req.url, "http://localhost").pathname;
         if (
           !isSpa(pathname) &&
-          !/^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager)\/[^/]+.html)$/.test(
+          !/^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager|manager)\/[^/]+.html)$/.test(
             pathname,
           )
         )

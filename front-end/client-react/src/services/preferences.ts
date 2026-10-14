@@ -12,6 +12,10 @@ export interface Preferences {
   defaultView: string;
   pageSize: number;
   autoRefresh: boolean;
+  managerCurrency: "INR" | "USD";
+  managerDefaultPage: "dashboard" | "expenses" | "history" | "notifications";
+  emailAlerts: boolean;
+  weeklyDigest: boolean;
 }
 const defaults: Preferences = {
   theme: "dark",
@@ -25,6 +29,10 @@ const defaults: Preferences = {
   defaultView: "dashboard",
   pageSize: 25,
   autoRefresh: false,
+  managerCurrency: "INR",
+  managerDefaultPage: "dashboard",
+  emailAlerts: true,
+  weeklyDigest: true,
 };
 function key() {
   const session = currentSession();
@@ -56,10 +64,14 @@ export function readPreferences(): Preferences {
       "animations",
       "desktopNotifications",
       "autoRefresh",
+      "emailAlerts",
+      "weeklyDigest",
     ] as const)
       if (typeof values[name] !== "boolean") values[name] = defaults[name];
 
     if (![10, 25, 50, 100].includes(values.pageSize)) values.pageSize = 25;
+    if (!["INR", "USD"].includes(values.managerCurrency)) values.managerCurrency = defaults.managerCurrency;
+    if (!["dashboard", "expenses", "history", "notifications"].includes(values.managerDefaultPage)) values.managerDefaultPage = defaults.managerDefaultPage;
     if (
       !["dashboard", "notifications", "audit-logs"].includes(values.defaultView)
     )
@@ -71,7 +83,7 @@ export function readPreferences(): Preferences {
 }
 export async function savePreferences(values: Preferences) {
   const saved = await request<Preferences>(
-    "/api/v1/tenant/configuration/settings/preferences",
+    "/api/v1/tenant/me/settings/preferences",
     { method: "PATCH", body: values },
   );
   localStorage.setItem(key(), JSON.stringify(saved));
@@ -167,7 +179,7 @@ export function useWorkspacePreferences() {
     };
     apply();
     if (currentSession()) {
-      request<Preferences>("/api/v1/tenant/configuration/settings/preferences")
+      request<Preferences>("/api/v1/tenant/me/settings/preferences")
         .then((prefs) => {
           if (!active) return;
           localStorage.setItem(key(), JSON.stringify(prefs));
