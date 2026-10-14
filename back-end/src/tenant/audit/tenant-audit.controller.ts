@@ -99,7 +99,7 @@ export function auditCsvCell(value: unknown): string {
 }
 @Controller('configuration/audit-logs')
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
-@TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+@TenantRoles(TenantRole.CONFIGURATION_MANAGER, TenantRole.COMPLIANCE_OFFICER)
 export class TenantAuditController {
   constructor(private readonly prisma: PrismaService) {}
   @Get() async list(@Req() req: TenantRequest, @Query() query: AuditQuery) {
