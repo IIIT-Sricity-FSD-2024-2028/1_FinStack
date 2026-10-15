@@ -38,10 +38,16 @@ export class TenantConfigurationController {
     private readonly hierarchy: TenantHierarchyService,
   ) {}
 
-  @Get('dashboard') dashboard(@Req() request: TenantRequest) {
+  @Get('dashboard')
+  @UseGuards(TenantRoleGuard)
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  dashboard(@Req() request: TenantRequest) {
     return this.configuration.dashboard(request.tenantAuth!.organizationId);
   }
-  @Get('users') users(@Req() request: TenantRequest) {
+  @Get('users')
+  @UseGuards(TenantRoleGuard)
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  users(@Req() request: TenantRequest) {
     return this.configuration.listUsers(request.tenantAuth!.organizationId);
   }
   @Get('employees')
@@ -75,7 +81,10 @@ export class TenantConfigurationController {
     return this.hierarchy.employee(request.tenantAuth!.organizationId, id);
   }
 
-  @Get('roles') roles(@Req() request: TenantRequest) {
+  @Get('roles')
+  @UseGuards(TenantRoleGuard)
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  roles(@Req() request: TenantRequest) {
     return this.configuration.listRoles(request.tenantAuth!.organizationId);
   }
 
