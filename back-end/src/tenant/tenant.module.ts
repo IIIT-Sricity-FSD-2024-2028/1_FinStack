@@ -1,4 +1,5 @@
 import { TenantSettingsController } from './settings/tenant-settings.controller';
+import { TenantSelfSettingsController } from './settings/tenant-self-settings.controller';
 import { TenantSettingsService } from './settings/tenant-settings.service';
 import { TenantAuditController } from './audit/tenant-audit.controller';
 import { TenantHierarchyService } from './configuration/tenant-hierarchy.service';
@@ -37,6 +38,7 @@ import { TenantOnboardingService } from './onboarding/tenant-onboarding.service'
   ],
   controllers: [
     TenantSettingsController,
+    TenantSelfSettingsController,
     TenantAuditController,
     TenantAuthController,
     TenantOnboardingController,
