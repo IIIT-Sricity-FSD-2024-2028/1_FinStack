@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ApiError,
   clearSession,
@@ -27,12 +27,18 @@ type Auth = {
 };
 const AuthContext = createContext<Auth | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState<TenantUser | null>(null);
   const [status, setStatus] = useState<Auth["status"]>("loading");
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   useEffect(() => {
-    const changed = () => setRevision((v) => v + 1);
+    const changed = () => {
+      // Block stale workspace content immediately when identity changes.
+      setUser(null);
+      setStatus(currentSession() ? "loading" : "anonymous");
+      setRevision((v) => v + 1);
+    };
     window.addEventListener(SESSION_EVENT, changed);
     return () => window.removeEventListener(SESSION_EVENT, changed);
   }, []);
@@ -127,7 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         status,
         error,
         login,
-        logout: clearSession,
+        logout: () => {
+          clearSession();
+          navigate("/login", { replace: true, state: null });
+        },
         retry: () => setRevision((v) => v + 1),
       }}
     >
@@ -140,7 +149,7 @@ export function useAuth() {
   if (!value) throw Error("AuthProvider is required.");
   return value;
 }
-export function ProtectedRoute() {
+export function ProtectedRoute({ allowedRoles = ["CONFIGURATION_MANAGER"] }: { allowedRoles?: string[] }) {
   const auth = useAuth();
   const location = useLocation();
   if (auth.status === "loading")
@@ -159,8 +168,8 @@ export function ProtectedRoute() {
       </div>
     );
   if (!auth.user)
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (auth.user.role !== "CONFIGURATION_MANAGER")
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
+  if (!allowedRoles.includes(auth.user.role))
     return <Navigate to="/forbidden" replace />;
   return <Outlet />;
 }

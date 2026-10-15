@@ -35,4 +35,22 @@ export const legacyPaths: Record<string, string> = {
       `/configuration/${name}`,
     ]),
   ),
+  ...Object.fromEntries(
+    ['dashboard', 'submit', 'expenses', 'status', 'reports', 'notifications', 'profile-settings'].map(name => [
+      `/views/submitter/${name}.html`, `/${name}`,
+    ]),
+  ),
+  ...Object.fromEntries(Object.entries({
+    dashboard: 'dashboard', 'expense-review': 'expenses', 'approval-history': 'history',
+    'team-overview': 'dashboard', notifications: 'notifications', 'profile-settings': 'profile-settings',
+  }).map(([old, page]) => [`/views/manager/${old}.html`, `/manager/${page}`])),
+  ...Object.fromEntries(Object.entries({
+    dashboard: 'dashboard', 'finance-review': 'queue', payments: 'payments',
+    transactions: 'transactions', reconciliation: 'transactions', 'flagged-expenses': 'queue',
+    reports: 'dashboard', 'profile-settings': 'settings', preferences: 'settings',
+  }).map(([old, page]) => [`/views/finance/${old}.html`, `/finance/${page}`])),
+  ...Object.fromEntries(Object.entries({
+    dashboard: 'dashboard', 'escalated-expenses': 'queue', compliance: 'queue',
+    policies: 'policies', audit: 'audit', communications: 'notifications', 'profile-settings': 'settings',
+  }).map(([old, page]) => [`/views/compliance/${old}.html`, `/compliance/${page}`])),
 };

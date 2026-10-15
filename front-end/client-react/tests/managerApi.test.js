@@ -71,8 +71,11 @@ test("workspace loader discards results after its request is aborted", async () 
 });
 
 test("React router wires every Manager page under the Manager role guard", async () => {
-  const router = await readFile(new URL("../src/app/router.jsx", import.meta.url), "utf8");
-  assert.match(router, /<ProtectedRoute allowedRoles=\{\["MANAGER"\]\}/);
+  const app = await readFile(new URL("../src/app/ClientApp.jsx", import.meta.url), "utf8");
+  // Inspect the real Manager guard subtree, not routes belonging to other actors.
+  const router = app.match(/<Route element=\{<ProtectedRoute allowedRoles=\{\["MANAGER"\]\} \/>\}>[\s\S]*?(?=<Route element=\{<ProtectedRoute allowedRoles=)/)?.[0];
+  assert.ok(router, 'Manager role guard must be registered in ClientApp');
+  assert.match(router, /path="manager" element=\{<ManagerLayout/);
   for (const path of [
     'path="dashboard"',
     'path="expenses"',

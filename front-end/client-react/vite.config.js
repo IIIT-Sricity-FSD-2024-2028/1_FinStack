@@ -2,6 +2,7 @@ import { resolve, extname, relative, sep } from "node:path";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { isClientSpaPath } from "../client-routing.cjs";
 const frontend = resolve(import.meta.dirname, "..");
 const apiProxy = {
   "/api": {
@@ -14,24 +15,16 @@ const localApi = (html) =>
     "<head>",
     "<head><script>window.FINSTACK_API_BASE_URL=window.location.origin;</script>",
   );
-const isSpa = (path) =>
-  path === "/" ||
-  /^\/(?:configuration(?:\/[^.]*)?|login|register|registration\/receipt|activate-account|help|contact|support|account-request|forgot-password|reset-password|forbidden)\/?$/.test(
-    path,
-  );
+const isSpa = isClientSpaPath;
+const isClientEntry = (path) => isSpa(path) ||
+  /^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager|submitter|manager|finance|compliance)\/[^/]+\.html)$/.test(path);
 function clientHosting() {
   return {
     name: "finstack-client-hosting",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const pathname = new URL(req.url, "http://localhost").pathname;
-        if (
-          !isSpa(pathname) &&
-          !/^(?:\/index.html|\/login.html|\/activate-account.html|\/views\/(?:shared|config-manager)\/[^/]+.html)$/.test(
-            pathname,
-          )
-        )
-          return next();
+        if (!isClientEntry(pathname)) return next();
         try {
           let html = readFileSync(resolve(frontend, "index.html"), "utf8")
             .replace(
@@ -58,7 +51,7 @@ function clientHosting() {
           );
           const file = resolve(
             frontend,
-            "." + (isSpa(pathname) ? "/index.html" : pathname),
+            "." + (isClientEntry(pathname) ? "/index.html" : pathname),
           );
           if (
             !file.startsWith(frontend + sep) ||
@@ -95,6 +88,9 @@ function clientHosting() {
 }
 export default defineConfig(({ command }) => ({
   root: frontend,
+  // The middleware above owns client history fallback. Do not let Vite's
+  // generic fallback rewrite excluded Admin, API or asset URLs to ClientApp.
+  appType: "mpa",
   resolve: {
     alias: {
       react: resolve(import.meta.dirname, "node_modules/react"),

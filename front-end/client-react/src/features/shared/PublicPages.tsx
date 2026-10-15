@@ -1,5 +1,6 @@
 import { BaselineHome } from "./BaselineHome";
 import { readPreferences } from "../../services/preferences";
+import { loginDestination } from "../../routes/workspaces";
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
@@ -191,32 +192,7 @@ export function LoginPage() {
               try {
                 const result = await auth.login(employeeId.trim(), password);
                 setPassword("");
-                if (result.user.role === "CONFIGURATION_MANAGER")
-                  navigate(
-                    typeof location.state?.from === "string" &&
-                      location.state.from.startsWith("/configuration/")
-                      ? location.state.from
-                      : "/configuration/" + readPreferences().defaultView,
-                    {
-                      replace: true,
-                    },
-                  );
-                else {
-                  const allowed = [
-                    "/views/submitter/dashboard.html",
-                    "/views/manager/dashboard.html",
-                    "/views/finance/dashboard.html",
-                    "/views/compliance/dashboard.html",
-                  ];
-                  const target =
-                    "/" +
-                    String(result.workspace?.path || "").replace(/^\//, "");
-                  if (!allowed.includes(target))
-                    throw Error(
-                      "Your workspace is unavailable. Contact your Configuration Manager.",
-                    );
-                  window.location.assign(target);
-                }
+                navigate(loginDestination(result.user.role, location.state?.from, readPreferences().defaultView), { replace: true });
               } catch (caught) {
                 setError(
                   caught instanceof Error
@@ -419,7 +395,7 @@ export function NotFoundPage({ forbidden = false }: { forbidden?: boolean }) {
       <h1>{forbidden ? "Access denied" : "Page not found"}</h1>
       <p>
         {forbidden
-          ? "This workspace requires an active Configuration Manager account."
+          ? "Your account does not have access to this workspace."
           : "This address does not match a client page."}
       </p>
       <Link to="/login">Return to sign in</Link>

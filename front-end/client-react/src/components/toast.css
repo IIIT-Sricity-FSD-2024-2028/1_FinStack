@@ -1,0 +1,6 @@
+#finstack-client-root .client-toast-host { position: fixed; z-index: 2000; right: 20px; bottom: 20px; display: grid; gap: 10px; width: min(400px, calc(100vw - 40px)); }
+#finstack-client-root .client-toast { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid #475569; border-radius: 10px; background: #172033; color: #f8fafc; box-shadow: 0 10px 30px #0005; }
+#finstack-client-root .client-toast.is-error { border-color: #f87171; }
+#finstack-client-root .client-toast.is-success { border-color: #34d399; }
+#finstack-client-root .client-toast span { flex: 1; overflow-wrap: anywhere; }
+#finstack-client-root .client-toast button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 20px; }

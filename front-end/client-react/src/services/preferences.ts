@@ -70,6 +70,8 @@ export function readPreferences(): Preferences {
   }
 }
 export async function savePreferences(values: Preferences) {
+  if (currentSession()?.user.role !== "CONFIGURATION_MANAGER")
+    throw new Error("Saving preferences is unavailable for this role.");
   const saved = await request<Preferences>(
     "/api/v1/tenant/configuration/settings/preferences",
     { method: "PATCH", body: values },
@@ -166,7 +168,7 @@ export function useWorkspacePreferences() {
       }, 60000);
     };
     apply();
-    if (currentSession()) {
+    if (currentSession()?.user.role === "CONFIGURATION_MANAGER") {
       request<Preferences>("/api/v1/tenant/configuration/settings/preferences")
         .then((prefs) => {
           if (!active) return;

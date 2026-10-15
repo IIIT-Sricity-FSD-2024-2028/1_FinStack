@@ -101,6 +101,68 @@ test("SPA authentication errors clear all session keys; permission errors preser
   );
   assert.equal(runtime.currentSession(), null);
 });
+
+test("receipt transport sends bearer identity, abort signal and no-cache without following redirects", async () => {
+  setup();
+  runtime.saveSession(session);
+  const signal = new AbortController().signal;
+  const bytes = new Blob(['receipt'], { type: 'application/pdf' });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://api.company.org/api/v1/tenant/expenses/expense-1/receipt');
+    assert.deepEqual(options.headers, { Authorization: 'Bearer server-issued-token' });
+    assert.equal(options.signal, signal);
+    assert.equal(options.cache, 'no-store');
+    assert.equal(options.redirect, 'error');
+    return { ok: true, headers: new Headers({ 'content-type': 'application/pdf' }), blob: async () => bytes };
+  };
+  assert.equal(await runtime.requestBlob('/api/v1/tenant/expenses/expense-1/receipt', { signal }), bytes);
+});
+
+test("receipt failures keep private backend details hidden, clear only 401 and reject unsafe formats", async () => {
+  for (const status of [403, 404, 500, 401]) {
+    setup(status, { message: 'C:/private/receipts/secret.pdf' });
+    runtime.saveSession(session);
+    await assert.rejects(runtime.requestBlob('/api/receipt'), error => {
+      assert.equal(error.status, status);
+      assert.doesNotMatch(error.message, /private|secret|C:/);
+      return true;
+    });
+    assert.equal(Boolean(runtime.currentSession()), status !== 401);
+  }
+  setup();
+  runtime.saveSession(session);
+  for (const contentType of ['text/html', 'image/svg+xml', '']) {
+    globalThis.fetch = async () => ({ ok: true, headers: new Headers({ 'content-type': contentType }), blob: () => assert.fail('Unsafe response body read') });
+    await assert.rejects(runtime.requestBlob('/api/receipt'), error => error.status === 415);
+  }
+});
+
+test("receipt transport refuses missing sessions and invalid addresses; aborts remain aborts", async () => {
+  const calls = setup();
+  await assert.rejects(runtime.requestBlob('/api/receipt'), error => error.status === 401);
+  assert.equal(calls.length, 0);
+  runtime.saveSession(session);
+  for (const path of ['https://foreign.test/receipt', '//foreign.test/receipt', '/api/\\foreign']) {
+    await assert.rejects(runtime.requestBlob(path), error => error.status === 400);
+  }
+  assert.equal(calls.length, 0);
+  const aborted = new DOMException('Aborted', 'AbortError');
+  globalThis.fetch = async () => { throw aborted; };
+  await assert.rejects(runtime.requestBlob('/api/receipt'), error => error === aborted);
+  assert(runtime.currentSession());
+});
+
+test("Submitter multipart upload preserves receipt bytes and lets the browser set its boundary", async () => {
+  const calls = setup();
+  runtime.saveSession(session);
+  const form = new FormData();
+  form.append('amount', '123.45');
+  form.append('receipt', new Blob(['receipt bytes'], { type: 'image/png' }), 'receipt.png');
+  await runtime.request('/api/v1/tenant/expenses', { method: 'POST', body: form });
+  assert.equal(calls[0].options.body, form);
+  assert.equal(await calls[0].options.body.get('receipt').text(), 'receipt bytes');
+  assert.deepEqual(calls[0].options.headers, { Authorization: 'Bearer server-issued-token' });
+});
 test("invalid public login sends no bearer token and does not clear another saved session", async () => {
   const calls = setup(401, {
     message: "Employee ID or password is incorrect.",
