@@ -1,11 +1,10 @@
+import { profileField, managerProfileField } from "../../shared/expensePresentation.js";
 import { useSubmitter } from "../SubmitterContext";
 import { initials } from "../utils";
 
 export default function ProfileSettingsPage() {
   const { user } = useSubmitter();
-  const manager = user?.manager
-    ? `${user.manager.firstName} ${user.manager.lastName} (${user.manager.employeeId})`
-    : "Not assigned";
+  const manager = managerProfileField(user?.manager);
   const details = [
     ["Name", user?.fullName],
     ["Email", user?.email],
@@ -13,7 +12,7 @@ export default function ProfileSettingsPage() {
     ["Department", user?.department],
     ["Manager", manager],
     ["Role", "Expense Submitter"],
-    ["Organization", user?.organizationName || "Not available"],
+    ["Organization", user?.organizationName],
     ["Account status", user?.status],
   ];
   return (
@@ -22,7 +21,7 @@ export default function ProfileSettingsPage() {
         <div>
           <h1>Profile &amp; Settings</h1>
           <p className="text-text-muted mt-1">
-            Your server-verified account details
+            Available account details from your authenticated profile
           </p>
         </div>
       </div>
@@ -52,7 +51,7 @@ export default function ProfileSettingsPage() {
                 {details.map(([label, value]) => (
                   <div key={label}>
                     <dt>{label}</dt>
-                    <dd>{value || "Not provided"}</dd>
+                    <dd>{profileField(value)}</dd>
                   </div>
                 ))}
               </dl>

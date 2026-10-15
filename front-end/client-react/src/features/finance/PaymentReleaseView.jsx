@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
+import { formatCurrencyTotals } from '../shared/expensePresentation.js'
+import { MAX_PAYMENT_BATCH, batchLimitMessage, validatePaymentBatch, togglePaymentSelection, selectAllPayments } from './paymentBatch.js'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Modal } from '../../components/Modal'
@@ -14,6 +16,7 @@ export function PaymentReleaseView() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [releasing, setReleasing] = useState(false)
   const [releaseResult, setReleaseResult] = useState(null)
+  const [selectionError, setSelectionError] = useState('')
 
   async function loadData() {
     setLoading(true)
@@ -26,6 +29,7 @@ export function PaymentReleaseView() {
       setExpenses(workspace?.expenses || [])
       setCategories(cats || [])
       setSelectedIds(new Set())
+      setSelectionError('')
     } catch (err) {
       setError(err.message || 'Failed to load payment release data.')
     } finally {
@@ -54,26 +58,27 @@ export function PaymentReleaseView() {
   }, [eligibleExpenses, selectedIds])
 
   const selectedTotal = useMemo(() => {
-    return selectedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0)
+    return formatCurrencyTotals(selectedExpenses)
   }, [selectedExpenses])
 
   function toggleSelectAll() {
-    if (selectedIds.size === readyToRelease.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(readyToRelease.map((e) => e.id)))
-    }
+    try {
+      setSelectedIds(selectAllPayments(selectedIds, readyToRelease.map((e) => e.id)))
+      setSelectionError('')
+    } catch (err) { setSelectionError(err.message) }
   }
 
   function toggleSelectOne(id) {
-    const next = new Set(selectedIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelectedIds(next)
+    try {
+      setSelectedIds(togglePaymentSelection(selectedIds, id))
+      setSelectionError('')
+    } catch (err) { setSelectionError(err.message) }
   }
 
   async function handleConfirmRelease() {
     if (selectedIds.size === 0) return
+    try { validatePaymentBatch(Array.from(selectedIds)) }
+    catch (err) { setSelectionError(err.message); return }
     setReleasing(true)
     setError('')
     try {
@@ -93,7 +98,6 @@ export function PaymentReleaseView() {
   if (error && !confirmModalOpen)
     return <ErrorState title="Error Loading Release Queue" description={error} onRetry={loadData} />
 
-  const currency = eligibleExpenses[0]?.currency || 'INR'
 
   return (
     <div className="payment-release-page">
@@ -154,20 +158,21 @@ export function PaymentReleaseView() {
           {selectedIds.size > 0 && (
             <div style={{ fontSize: '13px', fontWeight: 500 }}>
               Selected: <strong>{selectedIds.size}</strong> claim(s) (
-              {currency}{' '}
-              {selectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+              {selectedTotal})
             </div>
           )}
           <button
             type="button"
             className="btn btn-primary btn-xs"
-            disabled={selectedIds.size === 0}
+            disabled={selectedIds.size === 0 || selectedIds.size > MAX_PAYMENT_BATCH}
             onClick={() => setConfirmModalOpen(true)}
           >
             Release Batch ({selectedIds.size})
           </button>
         </div>
       </div>
+
+      <p role={selectionError ? 'alert' : 'status'}>{selectionError || (selectedIds.size === MAX_PAYMENT_BATCH ? batchLimitMessage : 'Maximum 100 claims per batch. No automatic splitting.')}</p>
 
       {readyToRelease.length === 0 ? (
         <EmptyState
@@ -287,8 +292,7 @@ export function PaymentReleaseView() {
               <strong>Claims Selected:</strong> {selectedIds.size}
             </div>
             <div>
-              <strong>Total Release Amount:</strong> {currency}{' '}
-              {selectedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <strong>Total Release Amount by Currency:</strong> {selectedTotal}
             </div>
           </div>
 

@@ -58,7 +58,7 @@ async function fixtureRoute(route) {
   if (endpoint === failure) return json({ code: 'UNAVAILABLE', message: 'Fictional service error' }, 500);
   if (endpoint.endsWith('/receipt')) return receiptStatus === 200 ? route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL2kAAAAASUVORK5CYII=', 'base64') }) : json({ code: 'RECEIPT_DENIED', message: 'Receipt unavailable' }, receiptStatus);
   if (endpoint.endsWith('/categories')) return json(empty ? [] : [{ id: 'category-qa', name: 'Travel' }]);
-  if (endpoint.endsWith('/policies')) return json(empty ? [] : [{ id: 'policy-qa', name: 'QA travel policy', categoryId: 'category-qa', maxAmount: '2000.50', currency: 'INR', receiptRequired: true }]);
+  if (endpoint.endsWith('/policies')) return json(empty ? [] : [{ id: 'policy-qa', name: 'QA travel policy', status: 'Active', categoryId: 'category-qa', maxAmount: '2000.50', currency: 'INR', receiptRequired: true }, { id: 'inactive-policy', name: 'Inactive QA policy', status: 'Inactive', currency: 'USD', maxAmount: '5.00' }]);
   if (endpoint.endsWith('/finance/workspace')) return json({ expenses: empty ? [] : expenses, transactions: empty ? [] : transactions });
   if (endpoint.endsWith('/finance/queue')) return json(empty ? [] : expenses.filter(e => e.workflowStatus === 'finance_review'));
   if (endpoint.endsWith('/compliance/queue')) return json(empty ? [] : expenses.filter(e => e.workflowStatus === 'compliance_review'));
@@ -250,6 +250,7 @@ async function statesAndMobile() {
     reset(); failure = `/api/v1/tenant/expenses/${actor === 'finance' ? 'finance/workspace' : 'compliance/queue'}`;
     await goto(`/${actor}/queue`); await textIncludes('temporarily unavailable');
     failure = ''; await page.getByRole('button', { name: actor === 'finance' ? 'Try Again' : 'Retry', exact: true }).click(); await idle();
+    await page.locator('tbody tr').first().waitFor();
     assert(await page.locator('tbody tr').count() > 0);
     check(`${actor}: queue error and retry`);
     reset(); receiptStatus = 404; await goto(`/${actor}/queue`);
@@ -276,6 +277,39 @@ async function statesAndMobile() {
   assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
   check('shared auth: 401 clears actor session and redirects');
 }
+async function accuracyChecks() {
+  actor = 'finance'; reset();
+  expenses = [expense('USD-REVIEW', 'finance_review', { currency: 'USD', amount: '12.50' }), expense('EUR-REVIEW', 'finance_review', { currency: 'EUR', amount: '2.00' })];
+  await goto('/finance/dashboard');
+  await textIncludes('Volume: EUR 2.00 · USD 12.50');
+  check('finance: mixed-currency dashboard totals remain separate');
+  expenses = Array.from({ length: 101 }, (_, i) => expense(`BATCH-${i}`, 'approved_for_payment', { currency: i % 2 ? 'USD' : 'EUR', amount: '1.00' }));
+  await goto('/finance/payments');
+  await page.getByLabel('Select all eligible expenses', { exact: true }).click();
+  await textIncludes('A batch can contain at most 100 claims.');
+  assert.equal(await page.locator('tbody input:checked').count(), 0);
+  for (let i = 0; i < 100; i++) await page.getByLabel(`Select BATCH-${i}`, { exact: true }).check();
+  await page.getByLabel('Select BATCH-100', { exact: true }).click();
+  assert.equal(await page.locator('tbody input:checked').count(), 100);
+  await textIncludes('EUR 50.00 · USD 50.00');
+  await page.getByRole('button', { name: 'Release Batch (100)', exact: true }).click();
+  await dialogSubmit('Confirm Release (100)');
+  assert.equal(apiCalls.filter(call => call.endpoint.endsWith('/finance/payment-releases')).at(-1).body.expenseIds.length, 100);
+  check('finance: 101-ID selection refused, 100-ID mixed-currency batch submitted intact');
+  actor = 'compliance'; reset();
+  expenses = [expense('USD-CASE', 'compliance_review', { currency: 'USD', amount: '12.50' }), expense('EUR-CASE', 'compliance_review', { currency: 'EUR', amount: '2.00' })];
+  for (const route of ['dashboard', 'queue']) {
+    await goto(`/compliance/${route}`);
+    await textIncludes('EUR 2.00 · USD 12.50');
+  }
+  await goto('/compliance/policies');
+  await textIncludes('QA travel policy');
+  assert.equal(await page.getByText('Inactive QA policy', { exact: true }).count(), 0);
+  await goto('/compliance/audit');
+  await textIncludes('Authorized expense-workflow and payment-request audit history');
+  check('compliance: currency grouping, active-only definitions and restricted audit wording');
+}
+
 (async () => {
   fs.mkdirSync(output, { recursive: true });
   browser = await chromium.launch({ headless: true, ...(process.env.FINSTACK_CHROMIUM_PATH ? { executablePath: process.env.FINSTACK_CHROMIUM_PATH } : {}) });
@@ -291,7 +325,7 @@ async function statesAndMobile() {
     sessionStorage.setItem('finstackTenantUser', JSON.stringify({ id: `${actor}-qa`, organizationId: 'org-qa', employeeId: `${actor.toUpperCase()}-QA`, role, status: 'ACTIVE' }));
   });
   // Fixture identity follows the test actor, including cross-role route denial.
-  await actorRoutes(); await reviewActions(); await paymentActions(); await notificationsAndAudit(); await statesAndMobile();
+  await actorRoutes(); await reviewActions(); await paymentActions(); await notificationsAndAudit(); await accuracyChecks(); await statesAndMobile();
   assert.deepEqual(errors, []);
   assert(apiCalls.every(call => call.origin === base), 'Actor API transport must use injected same-origin base');
   assert(apiCalls.filter(call => !call.endpoint.endsWith('/auth/login')).every(call => call.headers.authorization === 'Bearer fictional-fixture-token'));

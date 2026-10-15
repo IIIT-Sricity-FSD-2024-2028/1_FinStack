@@ -1,3 +1,4 @@
+import { formatExpenseAmount } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { Icon } from '../../components/Icon'
@@ -126,8 +127,7 @@ export function ComplianceCaseModal({ open, expense, onClose, onAction }) {
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #9ca3af)', textTransform: 'uppercase' }}>Amount</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f9fafb', marginTop: '2px' }}>
-                ₹{Number(expense.amount || 0).toLocaleString('en-IN')}{' '}
-                <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#9ca3af' }}>{expense.currency || 'INR'}</span>
+                {formatExpenseAmount(expense)}
               </div>
             </div>
 

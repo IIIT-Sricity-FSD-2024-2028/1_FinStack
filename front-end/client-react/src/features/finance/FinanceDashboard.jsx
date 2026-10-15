@@ -1,3 +1,4 @@
+import { formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
@@ -50,15 +51,13 @@ export function FinanceDashboard() {
   const flaggedExpenses = expenses.filter((e) => e.workflowStatus === 'compliance_review')
   const rejectedExpenses = expenses.filter((e) => e.workflowStatus === 'rejected')
 
-  const queueTotal = queueExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0)
-  const approvedTotal = approvedForPayment.reduce((acc, e) => acc + Number(e.amount || 0), 0)
-  const paidTotal = paidExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0)
+
 
   const pendingTx = transactions.filter((t) => t.status === 'pending')
   const processedTx = transactions.filter((t) => t.status === 'processed')
   const failedTx = transactions.filter((t) => t.status === 'failed')
 
-  const currency = expenses[0]?.currency || 'INR'
+
 
   return (
     <div className="finance-dashboard-page">
@@ -83,7 +82,7 @@ export function FinanceDashboard() {
           </div>
           <div className="finance-stat-value">{queueExpenses.length}</div>
           <div className="finance-stat-subtext">
-            <span>Volume: {currency} {queueTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span>Volume: {formatCurrencyTotals(queueExpenses)}</span>
             <Link to="/finance/queue" style={{ fontSize: '12px', color: '#22d3ee' }}>
               Open Queue &rarr;
             </Link>
@@ -99,7 +98,7 @@ export function FinanceDashboard() {
           </div>
           <div className="finance-stat-value">{approvedForPayment.length}</div>
           <div className="finance-stat-subtext">
-            <span>Approved: {currency} {approvedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span>Approved: {formatCurrencyTotals(approvedForPayment)}</span>
             <Link to="/finance/payments" style={{ fontSize: '12px', color: '#34d399' }}>
               Release &rarr;
             </Link>
@@ -131,7 +130,7 @@ export function FinanceDashboard() {
           </div>
           <div className="finance-stat-value">{paidExpenses.length}</div>
           <div className="finance-stat-subtext">
-            <span>Recorded value: {currency} {paidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}. Bank settlement unverified.</span>
+            <span>Recorded value: {formatCurrencyTotals(paidExpenses)}. Bank settlement unverified.</span>
           </div>
         </div>
       </div>

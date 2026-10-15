@@ -1,3 +1,4 @@
+import { formatExpenseAmount, formatCurrencyTotals, activePolicies } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
@@ -27,7 +28,7 @@ export function ComplianceDashboard() {
     ])
       .then(([qData, pData, cData]) => {
         setQueue(Array.isArray(qData) ? qData : [])
-        setPolicies(Array.isArray(pData) ? pData : [])
+        setPolicies(activePolicies(pData))
         setCategories(Array.isArray(cData) ? cData : [])
       })
       .catch((err) => {
@@ -55,7 +56,7 @@ export function ComplianceDashboard() {
     return s >= 40 && s < 70
   }).length
   const lowRiskCount = queue.filter((e) => Number(e.riskScore ?? e.risk_score ?? 0) < 40).length
-  const totalAmount = queue.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+
 
   function openDecision(type, exp) {
     setInspectExpense(null)
@@ -116,7 +117,7 @@ export function ComplianceDashboard() {
             Compliance Overview
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #9ca3af)', marginTop: '4px' }}>
-            Monitor policy violations, review escalated claims, and enforce organization expense policies.
+            Review escalated claims and organization policy definitions. Decisions require manual review.
           </p>
         </div>
 
@@ -155,7 +156,7 @@ export function ComplianceDashboard() {
           <div>
             <div className="compliance-stat-label">Value Under Review</div>
             <div className="compliance-stat-value">
-              {loading ? '…' : `₹${totalAmount.toLocaleString('en-IN')}`}
+              {loading ? '…' : formatCurrencyTotals(queue)}
             </div>
             <div className="compliance-stat-sub">Total amount in review queue</div>
           </div>
@@ -265,7 +266,7 @@ export function ComplianceDashboard() {
                               </div>
                             </td>
                             <td style={{ fontWeight: 700 }}>
-                              ₹{Number(item.amount || 0).toLocaleString('en-IN')}
+                              {formatExpenseAmount(item)}
                             </td>
                             <td>{riskBadge}</td>
                             <td style={{ textAlign: 'right' }}>
@@ -364,7 +365,7 @@ export function ComplianceDashboard() {
 
               <div className="compliance-card-body" style={{ padding: '12px 20px' }}>
                 {policies.length === 0 ? (
-                  <div style={{ color: 'var(--text-muted, #9ca3af)', fontSize: '0.875rem' }}>No policies configured yet.</div>
+                  <div style={{ color: 'var(--text-muted, #9ca3af)', fontSize: '0.875rem' }}>No active policies configured yet.</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {policies.slice(0, 4).map((p) => (
@@ -381,7 +382,7 @@ export function ComplianceDashboard() {
                         <div>
                           <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f3f4f6' }}>{p.name}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #9ca3af)' }}>
-                            Limit: ₹{Number(p.maxAmount || p.limit || 0).toLocaleString('en-IN')}
+                            Limit: {formatExpenseAmount({ amount: p.maxAmount ?? p.limit, currency: p.currency })}
                           </div>
                         </div>
                         <span className="badge badge-green">Active</span>

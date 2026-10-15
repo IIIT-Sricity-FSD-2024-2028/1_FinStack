@@ -1,3 +1,4 @@
+import { formatExpenseAmount, activePolicies } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
@@ -25,7 +26,7 @@ export function PoliciesViolationsView() {
       complianceApi.getComplianceQueue(),
     ])
       .then(([pData, cData, qData]) => {
-        setPolicies(Array.isArray(pData) ? pData : [])
+        setPolicies(activePolicies(pData))
         setCategories(Array.isArray(cData) ? cData : [])
         setQueue(Array.isArray(qData) ? qData : [])
       })
@@ -91,7 +92,7 @@ export function PoliciesViolationsView() {
           Policy & Violation Monitoring
         </h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #9ca3af)', marginTop: '4px' }}>
-          Active organization expense policies, enforcement limits, and compliance triggers.
+          Active policy definitions and claims referred for manual compliance review. Definitions do not imply automatic enforcement.
         </p>
       </div>
 
@@ -149,7 +150,7 @@ export function PoliciesViolationsView() {
                           </td>
                           <td>{matchedCat?.name || p.categoryId || 'General'}</td>
                           <td style={{ fontWeight: 700, color: '#c4b5fd' }}>
-                            ₹{Number(p.maxAmount || p.limit || 0).toLocaleString('en-IN')}
+                            {formatExpenseAmount({ amount: p.maxAmount ?? p.limit, currency: p.currency })}
                           </td>
                           <td>
                             <span className="badge badge-purple">{p.approval || 'Standard'}</span>
@@ -187,7 +188,7 @@ export function PoliciesViolationsView() {
                 <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✓</div>
                 <div style={{ fontWeight: 600, color: '#f3f4f6' }}>Zero Open Policy Exceptions</div>
                 <div style={{ fontSize: '0.8125rem', marginTop: '4px' }}>
-                  No active claims have breached policy thresholds.
+                  No claims are currently referred for compliance review.
                 </div>
               </div>
             ) : (
@@ -221,7 +222,7 @@ export function PoliciesViolationsView() {
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #9ca3af)' }}>{item.employeeId}</div>
                           </td>
                           <td style={{ fontWeight: 700 }}>
-                            ₹{Number(item.amount || 0).toLocaleString('en-IN')}
+                            {formatExpenseAmount(item)}
                           </td>
                           <td>{item.category || item.categoryId}</td>
                           <td style={{ color: '#f87171', fontSize: '0.8125rem', fontWeight: 500 }}>{trigger}</td>

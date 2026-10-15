@@ -95,7 +95,7 @@ export function ComplianceAuditView() {
             Compliance Audit Trail
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #9ca3af)', marginTop: '4px' }}>
-            Authoritative, immutable event history of all organizational actions and policy enforcement.
+            Authorized expense-workflow and payment-request audit history for your organization.
           </p>
         </div>
 

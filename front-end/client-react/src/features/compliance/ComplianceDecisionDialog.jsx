@@ -1,3 +1,4 @@
+import { formatExpenseAmount } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { complianceApi } from './complianceApi'
@@ -129,7 +130,7 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
           </div>
           <div>
             <span style={{ color: 'var(--text-muted, #9ca3af)' }}>Amount: </span>
-            <span style={{ fontWeight: 600, color: '#f9fafb' }}>₹{Number(expense.amount || 0).toLocaleString('en-IN')}</span>
+            <span style={{ fontWeight: 600, color: '#f9fafb' }}>{formatExpenseAmount(expense)}</span>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted, #9ca3af)' }}>Submitter: </span>

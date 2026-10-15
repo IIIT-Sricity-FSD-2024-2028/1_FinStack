@@ -1,3 +1,4 @@
+import { formatExpenseAmount, formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
@@ -87,7 +88,7 @@ export function ComplianceReviewQueue() {
   const sorted = [...filtered].sort((a, b) => {
     if (sortOption === 'newest') return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
     if (sortOption === 'oldest') return new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date)
-    if (sortOption === 'amount-desc') return Number(b.amount || 0) - Number(a.amount || 0)
+    if (sortOption === 'amount-desc') return String(a.currency || '').localeCompare(String(b.currency || '')) || Number(b.amount || 0) - Number(a.amount || 0)
     if (sortOption === 'risk-desc') {
       const sa = Number(a.riskScore ?? a.risk_score ?? 0)
       const sb = Number(b.riskScore ?? b.risk_score ?? 0)
@@ -186,7 +187,7 @@ export function ComplianceReviewQueue() {
           <div>
             <div className="compliance-stat-label">Flagged Amount</div>
             <div className="compliance-stat-value">
-              ₹{queue.reduce((acc, curr) => acc + Number(curr.amount || 0), 0).toLocaleString('en-IN')}
+              {formatCurrencyTotals(queue)}
             </div>
             <div className="compliance-stat-sub">Total value in queue</div>
           </div>
@@ -283,7 +284,7 @@ export function ComplianceReviewQueue() {
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
-            <option value="amount-desc">Highest Amount</option>
+            <option value="amount-desc">Currency, then Highest Amount</option>
             <option value="risk-desc">Highest Risk</option>
           </select>
         </div>
@@ -342,7 +343,7 @@ export function ComplianceReviewQueue() {
                         </td>
                         <td>{item.category || item.categoryId}</td>
                         <td style={{ fontWeight: 700 }}>
-                          ₹{Number(item.amount || 0).toLocaleString('en-IN')}
+                          {formatExpenseAmount(item)}
                         </td>
                         <td>{renderSourceBadge(item)}</td>
                         <td>{renderRiskBadge(score)}</td>

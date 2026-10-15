@@ -1,5 +1,6 @@
 import { clientApi } from '../../adapters/clientApi.js'
 import { tenantSession } from '../../adapters/tenantSession.js'
+import { validatePaymentBatch } from './paymentBatch.js'
 
 export class ApiError extends Error {
   constructor(message, status, code) {
@@ -82,9 +83,7 @@ export const financeApi = {
    * Note: Creates internal transaction records; does NOT perform a live bank wire.
    */
   async releasePayment(expenseIds) {
-    if (!Array.isArray(expenseIds) || expenseIds.length === 0) {
-      throw new ApiError('Select at least one expense to release.', 400)
-    }
+    validatePaymentBatch(expenseIds)
     return request('/api/v1/tenant/expenses/finance/payment-releases', {
       method: 'POST',
       body: { expenseIds },
