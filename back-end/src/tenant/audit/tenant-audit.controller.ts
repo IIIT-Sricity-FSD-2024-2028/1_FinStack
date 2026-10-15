@@ -28,6 +28,71 @@ import { TenantAuthenticationGuard } from '../auth/guards/tenant-authentication.
 import { TenantRoleGuard } from '../auth/guards/tenant-role.guard';
 import { TenantRoles } from '../auth/decorators/tenant-roles.decorator';
 import { TenantRequest } from '../auth/tenant-auth.types';
+// Exact events emitted by the persistent expense repository/service. Do not
+// replace with a prefix match: future expense events require explicit review.
+const complianceExpenseEvents = [
+  'expense.submitted',
+  'expense.resubmitted',
+  'expense.updated',
+  'expense.deleted',
+  'expense.manager_approved',
+  'expense.manager_returned',
+  'expense.manager_rejected',
+  'expense.manager_escalated',
+  'expense.finance_approved',
+  'expense.finance_rejected',
+  'expense.finance_requested_info',
+  'expense.finance_flagged',
+  'expense.compliance_approved',
+  'expense.compliance_rejected',
+  'expense.compliance_corrective_action',
+  'expense.payment_released',
+];
+const complianceFields = [
+  'id',
+  'occurredAt',
+  'actorKind',
+  'actorName',
+  'actorRole',
+  'eventCode',
+  'targetType',
+  'targetId',
+  'outcome',
+] as const;
+const complianceSelect = {
+  id: true,
+  occurredAt: true,
+  actorKind: true,
+  actorName: true,
+  actorRole: true,
+  eventCode: true,
+  targetType: true,
+  targetId: true,
+  outcome: true,
+} satisfies Prisma.TenantAuditLogSelect;
+
+function scopedAuditWhere(req: TenantRequest, query: AuditQuery) {
+  const where = auditWhere(req.tenantAuth!.organizationId, query);
+  return req.tenantAuth!.user.role === TenantRole.COMPLIANCE_OFFICER
+    ? {
+        AND: [
+          where,
+          {
+            OR: [
+              {
+                targetType: 'expense',
+                eventCode: { in: complianceExpenseEvents },
+              },
+              {
+                targetType: 'expense_payment',
+                eventCode: 'expense.payment_failed',
+              },
+            ],
+          },
+        ],
+      }
+    : where;
+}
 export class AuditQuery {
   @Type(() => Number) @IsInt() @Min(1) @Max(100000) page = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize = 25;
@@ -43,6 +108,8 @@ export class AuditQuery {
     'policy_batch',
     'import',
     'credential',
+    'expense',
+    'expense_payment',
   ])
   targetType?: string;
   @IsOptional() @IsUUID() actorUserId?: string;
@@ -102,31 +169,36 @@ export function auditCsvCell(value: unknown): string {
 @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
 export class TenantAuditController {
   constructor(private readonly prisma: PrismaService) {}
-  @Get() async list(@Req() req: TenantRequest, @Query() query: AuditQuery) {
+  @Get()
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER, TenantRole.COMPLIANCE_OFFICER)
+  async list(@Req() req: TenantRequest, @Query() query: AuditQuery) {
     if ((query.page - 1) * query.pageSize > 100000)
       throw new BadRequestException(
         'Narrow filters to page within the first 100,000 matching events.',
       );
-    const where = auditWhere(req.tenantAuth!.organizationId, query);
+    const where = scopedAuditWhere(req, query);
     const [total, items] = await this.prisma.$transaction(
       [
         this.prisma.tenantAuditLog.count({ where }),
         this.prisma.tenantAuditLog.findMany({
           where,
-          select: {
-            id: true,
-            organizationId: true,
-            actorUserId: true,
-            actorKind: true,
-            actorName: true,
-            actorRole: true,
-            initiatedByUserId: true,
-            eventCode: true,
-            targetType: true,
-            targetId: true,
-            outcome: true,
-            occurredAt: true,
-          },
+          select:
+            req.tenantAuth!.user.role === TenantRole.COMPLIANCE_OFFICER
+              ? complianceSelect
+              : {
+                  id: true,
+                  organizationId: true,
+                  actorUserId: true,
+                  actorKind: true,
+                  actorName: true,
+                  actorRole: true,
+                  initiatedByUserId: true,
+                  eventCode: true,
+                  targetType: true,
+                  targetId: true,
+                  outcome: true,
+                  occurredAt: true,
+                },
           orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
@@ -142,25 +214,28 @@ export class TenantAuditController {
       totalPages: Math.ceil(total / query.pageSize),
     };
   }
-  @Get('export') async export(
-    @Req() req: TenantRequest,
-    @Query() query: AuditQuery,
-  ) {
-    const keys = [
-      'id',
-      'occurredAt',
-      'actorKind',
-      'actorUserId',
-      'actorName',
-      'actorRole',
-      'initiatedByUserId',
-      'eventCode',
-      'targetType',
-      'targetId',
-      'outcome',
-      'changes',
-    ] as const;
-    const where = auditWhere(req.tenantAuth!.organizationId, query);
+  @Get('export')
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER, TenantRole.COMPLIANCE_OFFICER)
+  async export(@Req() req: TenantRequest, @Query() query: AuditQuery) {
+    const isCompliance =
+      req.tenantAuth!.user.role === TenantRole.COMPLIANCE_OFFICER;
+    const keys = isCompliance
+      ? complianceFields
+      : ([
+          'id',
+          'occurredAt',
+          'actorKind',
+          'actorUserId',
+          'actorName',
+          'actorRole',
+          'initiatedByUserId',
+          'eventCode',
+          'targetType',
+          'targetId',
+          'outcome',
+          'changes',
+        ] as const);
+    const where = scopedAuditWhere(req, query);
     const csv = await this.prisma.$transaction(
       async (tx) => {
         const lines = [keys.join(',')];
@@ -170,6 +245,7 @@ export class TenantAuditController {
         while (true) {
           const items = await tx.tenantAuditLog.findMany({
             where,
+            ...(isCompliance ? { select: complianceSelect } : {}),
             orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
             take: Math.min(250, 10001 - count),
             ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -181,7 +257,7 @@ export class TenantAuditController {
                 'Export exceeds 10,000 events. Narrow the filters.',
               );
             const line = keys
-              .map((key) =>
+              .map((key: (typeof keys)[number]) =>
                 auditCsvCell(
                   key === 'occurredAt'
                     ? row.occurredAt.toISOString()
@@ -210,7 +286,9 @@ export class TenantAuditController {
       disposition: 'attachment; filename="finstack-audit-logs.csv"',
     });
   }
-  @Get(':id') async detail(
+  @Get(':id')
+  @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+  async detail(
     @Req() req: TenantRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
