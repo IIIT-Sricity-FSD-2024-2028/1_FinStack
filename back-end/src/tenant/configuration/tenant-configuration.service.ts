@@ -4,6 +4,7 @@ import {
   auditedMutation,
 } from '../audit/tenant-audit-write';
 import { lockReporting } from './reporting-lock';
+import { createWithGeneratedLoginId } from '../identity/tenant-login-id';
 import { ListEmployeesDto } from './dto/list-employees.dto';
 import {
   ConflictException,
@@ -128,33 +129,43 @@ export class TenantConfigurationService {
       type: argon2.argon2id,
     });
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        await lockReporting(tx, organizationId);
-        await this.assertManager(tx, organizationId, dto.managerId, null);
-        const user = await tx.tenantUser.create({
-          data: {
+      const create = (employeeId: string) =>
+        this.prisma.$transaction(async (tx) => {
+          await lockReporting(tx, organizationId);
+          await this.assertManager(tx, organizationId, dto.managerId, null);
+          const user = await tx.tenantUser.create({
+            data: {
+              organizationId,
+              employeeId,
+              firstName: dto.firstName.trim(),
+              lastName: dto.lastName.trim(),
+              email: dto.email.trim().toLowerCase(),
+              passwordHash,
+              role: dto.role,
+              department: dto.department?.trim() || 'General',
+              managerId: dto.managerId || null,
+            },
+            select: safeUserSelect,
+          });
+          await appendAudit(
+            tx,
             organizationId,
-            employeeId: dto.employeeId.trim(),
-            firstName: dto.firstName.trim(),
-            lastName: dto.lastName.trim(),
-            email: dto.email.trim().toLowerCase(),
-            passwordHash,
-            role: dto.role,
-            department: dto.department?.trim() || 'General',
-            managerId: dto.managerId || null,
-          },
-          select: safeUserSelect,
+            'employee.created',
+            'employee',
+            user.id,
+            { before: null, after: auditSnapshot('employee', user) },
+          );
+          return this.toUserDto(user);
         });
-        await appendAudit(
-          tx,
-          organizationId,
-          'employee.created',
-          'employee',
-          user.id,
-          { before: null, after: auditSnapshot('employee', user) },
-        );
-        return this.toUserDto(user);
+      // Retain explicit legacy IDs for published clients; the new form omits it.
+      if (dto.employeeId !== undefined)
+        return await create(dto.employeeId.trim());
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { id: true, name: true },
       });
+      if (!organization) throw new NotFoundException('Organization not found.');
+      return await createWithGeneratedLoginId(organization, create);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

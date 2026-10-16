@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { TenantRole, TenantUserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { TenantAuthService } from './tenant-auth.service';
+import { generateTenantLoginId } from '../identity/tenant-login-id';
 import { TENANT_WORKSPACES } from './tenant-workspace';
 
 jest.mock('argon2');
@@ -63,6 +64,44 @@ describe('TenantAuthService', () => {
     }
   });
 
+  it('authenticates generated IDs for two same-name tenants using stored UUIDs, never the display hint', async () => {
+    for (const organizationId of [
+      '10000000-0000-4000-8000-000000000001',
+      '20000000-0000-4000-8000-000000000001',
+    ]) {
+      const employeeId = generateTenantLoginId({
+        id: organizationId,
+        name: 'Acme',
+      });
+      const candidate = {
+        ...user,
+        id: 'user-' + organizationId,
+        organizationId,
+        employeeId,
+        credentialVersion: 3,
+      };
+      prisma.tenantUser.findUnique.mockResolvedValueOnce(candidate);
+      const result = await service.login({
+        employeeId,
+        password: 'fixture-password',
+      });
+      expect(prisma.tenantUser.findUnique).toHaveBeenLastCalledWith({
+        where: { employeeId },
+        include: { organization: true },
+      });
+      expect(result).toMatchObject({
+        organizationId,
+        user: { id: candidate.id, employeeId },
+      });
+      expect(tokens.sign).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: candidate.id,
+          organizationId,
+          credentialVersion: 3,
+        }),
+      );
+    }
+  });
   it('blocks pending, rejected and suspended organizations before issuing access', async () => {
     for (const organization of [
       { registrationStatus: 'PENDING_ORGANIZATION_REVIEW', status: 'ACTIVE' },

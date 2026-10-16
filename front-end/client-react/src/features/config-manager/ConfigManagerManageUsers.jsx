@@ -110,15 +110,17 @@ function AddUserFields({ form, setForm, enabledRoles, errors }) {
           required: true,
           maxLength: 320,
         })}
-        {field("employeeId", "Employee ID", "employee-id", {
-          required: true,
-          maxLength: 80,
-          disabled: Boolean(form.id),
-        })}
-        <small>
-          Unique across FinStack. Use letters, digits, periods, underscores or
-          hyphens.
-        </small>
+        {form.id ? (
+          field("employeeId", "FinStack login ID", "employee-id", {
+            readOnly: true,
+            maxLength: 80,
+          })
+        ) : (
+          <p>
+            A unique FinStack login ID is generated automatically after
+            creation.
+          </p>
+        )}
         {field("department", "Department", "department", {
           maxLength: 120,
           placeholder: "General",
@@ -219,6 +221,7 @@ export function ConfigManagerManageUsers() {
   const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [createdLoginId, setCreatedLoginId] = useState("");
   const { notice, showSuccess } = useCategoryToast();
   const [mutation, setMutation] = useState(null);
   const [mutationError, setMutationError] = useState("");
@@ -297,13 +300,13 @@ export function ConfigManagerManageUsers() {
             ? configManagerResources.users.update(form.id, payload)
             : configManagerResources.users.create({
                 ...payload,
-                employeeId: form.employeeId.trim(),
                 managerId: form.managerId,
                 password: form.password,
               }),
         refresh,
       );
       if (!result) throw Error("Save failed.");
+      if (!form.id) setCreatedLoginId(result.employeeId);
       setForm(null);
       showSuccess(
         form.id
@@ -346,6 +349,18 @@ export function ConfigManagerManageUsers() {
     <div className="employee-management">
       <CategorySuccessToast notice={form || statusTarget ? null : notice} />
       <TemplateMobileNavigation />
+      {createdLoginId && (
+        <div role="status" className="card">
+          <strong>
+            Account created. FinStack login ID:{" "}
+            <code style={{ overflowWrap: "anywhere" }}>{createdLoginId}</code>
+          </strong>
+          <p>
+            Save this ID and share the initial password through a secure
+            channel.
+          </p>
+        </div>
+      )}
       <div className="page-header">
         <div className="page-header-text">
           <h1>Manage Users</h1>
