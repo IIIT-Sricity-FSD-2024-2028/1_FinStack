@@ -4,6 +4,8 @@ import { LoadingState, ErrorState, EmptyState } from '../../components/Operation
 import { Pagination } from '../../components/Pagination'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 const PAGE_SIZE = 15
 
@@ -16,9 +18,11 @@ export function FinanceNotifications() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function loadNotifications() {
-    setLoading(true)
-    setError('')
+  async function loadNotifications({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const response = await financeApi.getNotifications({
         page,
@@ -29,20 +33,23 @@ export function FinanceNotifications() {
       setTotal(response?.total || 0)
       setUnreadCount(response?.unreadCount || 0)
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load notifications.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadNotifications)
+
   useEffect(() => {
-    loadNotifications()
-  }, [page, stateFilter])
+    if (!loading) refreshNow()
+  }, [page, stateFilter, refreshNow])
 
   async function handleMarkRead(id) {
     try {
       await financeApi.markNotificationRead(id)
-      await loadNotifications()
+      announceLiveRefresh()
       notify('Notification marked read.', 'info')
     } catch (err) {
       setError(err.message || 'Failed to mark notification read.')
@@ -52,10 +59,10 @@ export function FinanceNotifications() {
   async function handleMarkAllRead() {
     try {
       await financeApi.markAllNotificationsRead()
+      announceLiveRefresh()
       setItems((prev) => prev.map((item) => ({ ...item, unread: false, readAt: new Date().toISOString() })))
       setUnreadCount(0)
       notify('All notifications marked read.', 'success')
-      await loadNotifications()
     } catch (err) {
       setError(err.message || 'Failed to mark all read.')
     }
@@ -63,6 +70,7 @@ export function FinanceNotifications() {
 
   return (
     <div className="notifications-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh notifications. Showing the last loaded results.</p>}
       <div className="finance-toolbar">
         <div className="finance-toolbar-group">
           <select
@@ -92,7 +100,7 @@ export function FinanceNotifications() {
           <button
             type="button"
             className="btn btn-secondary btn-xs"
-            onClick={loadNotifications}
+            onClick={refreshNow}
           >
             <Icon name="refresh" size={14} /> Refresh
           </button>
@@ -102,7 +110,7 @@ export function FinanceNotifications() {
       {loading ? (
         <LoadingState message="Loading notifications..." />
       ) : error ? (
-        <ErrorState title="Error" description={error} onRetry={loadNotifications} />
+        <ErrorState title="Error" description={error} onRetry={retryNow} />
       ) : items.length === 0 ? (
         <EmptyState
           title="No Notifications"

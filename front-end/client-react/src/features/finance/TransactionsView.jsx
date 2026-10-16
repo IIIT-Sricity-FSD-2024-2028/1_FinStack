@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
 import { submitTransactionAction, transactionErrorMessage } from './paymentWorkflow'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function TransactionsView() {
   const [transactions, setTransactions] = useState([])
@@ -29,22 +31,23 @@ export function TransactionsView() {
     setActionConfirm({ open: true, transaction, action })
   }
 
-  async function loadData() {
-    setLoading(true)
-    setError('')
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const workspace = await financeApi.getFinanceWorkspace()
       setTransactions(workspace?.transactions || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load transaction records.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -72,7 +75,7 @@ export function TransactionsView() {
       setActionResult(result.message)
       notify(result.message, action === 'fail' ? 'warning' : 'info')
       setActionConfirm({ open: false, transaction: null, action: null })
-      await loadData()
+      announceLiveRefresh()
     } catch (err) {
       setActionError(transactionErrorMessage(err))
     } finally {
@@ -82,10 +85,11 @@ export function TransactionsView() {
 
   if (loading) return <LoadingState message="Loading payment transactions..." />
   if (error && !actionConfirm.open)
-    return <ErrorState title="Error Loading Transactions" description={error} onRetry={loadData} />
+    return <ErrorState title="Error Loading Transactions" description={error} onRetry={retryNow} />
 
   return (
     <div className="transactions-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh transactions. Showing the last loaded results.</p>}
       {actionResult && <p role="status">{actionResult}</p>}
       <div className="finance-notice-banner">
         <Icon name="shieldCheck" size={20} />
@@ -120,7 +124,7 @@ export function TransactionsView() {
         </div>
 
         <div className="finance-toolbar-group">
-          <button type="button" className="btn btn-secondary btn-xs" onClick={loadData}>
+          <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
             <Icon name="refresh" size={14} /> Refresh
           </button>
         </div>

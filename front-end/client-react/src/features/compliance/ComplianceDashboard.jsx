@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceDashboard() {
   const [queue, setQueue] = useState([])
@@ -17,31 +18,29 @@ export function ComplianceDashboard() {
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
 
-  function loadDashboardData() {
-    setLoading(true)
-    setError('')
-
-    Promise.all([
-      complianceApi.getComplianceQueue(),
-      complianceApi.getPolicies().catch(() => []),
-      complianceApi.getCategories().catch(() => []),
-    ])
-      .then(([qData, pData, cData]) => {
-        setQueue(Array.isArray(qData) ? qData : [])
-        setPolicies(activePolicies(pData))
-        setCategories(Array.isArray(cData) ? cData : [])
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load compliance dashboard metrics.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+  async function loadDashboardData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const [qData, pData, cData] = await Promise.all([
+        complianceApi.getComplianceQueue(),
+        complianceApi.getPolicies().catch(() => []),
+        complianceApi.getCategories().catch(() => []),
+      ])
+      setQueue(Array.isArray(qData) ? qData : [])
+      setPolicies(activePolicies(pData))
+      setCategories(Array.isArray(cData) ? cData : [])
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load compliance dashboard metrics.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboardData)
 
   useEffect(() => {
     if (!toastMessage) return
@@ -70,11 +69,11 @@ export function ComplianceDashboard() {
       correctiveAction: 'Corrective action initiated.',
     }
     setToastMessage(labels[type] || 'Action completed successfully.')
-    loadDashboardData()
   }
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh dashboard data. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -125,7 +124,7 @@ export function ComplianceDashboard() {
           <button
             type="button"
             className="compliance-btn compliance-btn-secondary"
-            onClick={loadDashboardData}
+            onClick={refreshNow}
             disabled={loading}
           >
             <Icon name="refresh" size={16} />
@@ -205,7 +204,7 @@ export function ComplianceDashboard() {
           }}
         >
           <div style={{ color: '#f87171', marginBottom: '12px' }}>{error}</div>
-          <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadDashboardData}>
+          <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
             Retry
           </button>
         </div>

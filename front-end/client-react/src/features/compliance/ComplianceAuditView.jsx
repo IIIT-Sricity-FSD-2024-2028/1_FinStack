@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceAuditView() {
   const [logs, setLogs] = useState([])
@@ -16,13 +17,15 @@ export function ComplianceAuditView() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
 
-  function loadLogs() {
-    setLoading(true)
-    setError('')
-
-    complianceApi
-      .getAuditLogs({
+  async function loadLogs({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const data = await complianceApi.getAuditLogs({
         page,
         pageSize,
         search: search.trim() || undefined,
@@ -30,32 +33,33 @@ export function ComplianceAuditView() {
         from: from || undefined,
         to: to || undefined,
       })
-      .then((data) => {
-        setLogs(Array.isArray(data?.items) ? data.items : [])
-        setTotal(data?.total || 0)
-        setTotalPages(data?.totalPages || 1)
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load audit logs.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      setLogs(Array.isArray(data?.items) ? data.items : [])
+      setTotal(data?.total || 0)
+      setTotalPages(data?.totalPages || 1)
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load audit logs.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadLogs, { pollIntervalMs: 30_000 })
+
   useEffect(() => {
-    loadLogs()
-  }, [page, outcome])
+    if (!loading) refreshNow()
+  }, [page, outcome, refreshNow])
 
   function handleFilterSubmit(e) {
     e.preventDefault()
-    if (page === 1) loadLogs()
+    if (page === 1) refreshNow()
     else setPage(1)
   }
 
   async function handleExport() {
     try {
       setExporting(true)
+      setExportError('')
       const blob = await complianceApi.exportAuditLogs({
         search: search.trim() || undefined,
         outcome: outcome || undefined,
@@ -71,7 +75,7 @@ export function ComplianceAuditView() {
       a.remove()
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert(err?.message || 'Failed to export audit logs.')
+      setExportError(err?.message || 'Failed to export audit logs.')
     } finally {
       setExporting(false)
     }
@@ -79,6 +83,8 @@ export function ComplianceAuditView() {
 
   return (
     <div>
+      {exportError && <p role="alert" className="compliance-error-banner">{exportError}</p>}
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh audit history. Showing the last loaded results.</p>}
       {/* Header Info */}
       <div
         style={{
@@ -163,7 +169,7 @@ export function ComplianceAuditView() {
         ) : error ? (
           <div style={{ padding: '32px', textAlign: 'center' }}>
             <div style={{ color: '#f87171', marginBottom: '12px' }}>{error}</div>
-            <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadLogs}>
+            <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
               Retry
             </button>
           </div>

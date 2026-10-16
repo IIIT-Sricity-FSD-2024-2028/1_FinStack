@@ -1,11 +1,12 @@
 import { formatCurrencyTotals } from '../shared/expensePresentation.js'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState } from '../../components/OperationalStates'
 import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function FinanceDashboard() {
   const [data, setData] = useState({ expenses: [], transactions: [] })
@@ -15,9 +16,11 @@ export function FinanceDashboard() {
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
 
-  async function loadDashboard() {
-    setLoading(true)
-    setError('')
+  async function loadDashboard({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [workspace, cats] = await Promise.all([
         financeApi.getFinanceWorkspace(),
@@ -26,18 +29,17 @@ export function FinanceDashboard() {
       setData(workspace || { expenses: [], transactions: [] })
       setCategories(cats || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load finance dashboard metrics.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadDashboard()
-  }, [])
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboard)
 
   if (loading) return <LoadingState message="Loading finance metrics and workspace data…" />
-  if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={loadDashboard} />
+  if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={retryNow} />
 
   const expenses = data.expenses || []
   const transactions = data.transactions || []
@@ -61,12 +63,13 @@ export function FinanceDashboard() {
 
   return (
     <div className="finance-dashboard-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh live data. Showing the last loaded results.</p>}
       <div className="finance-toolbar" style={{ marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Financial Overview</h2>
           <small className="text-muted">Live metrics from your organization's finance workspace</small>
         </div>
-        <button type="button" className="btn btn-secondary btn-xs" onClick={loadDashboard}>
+        <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
           <Icon name="refresh" size={14} /> Refresh Data
         </button>
       </div>
@@ -275,9 +278,6 @@ export function FinanceDashboard() {
         expense={decisionModal.expense}
         action={decisionModal.action}
         onClose={() => setDecisionModal({ open: false, expense: null, action: null })}
-        onSuccess={() => {
-          loadDashboard()
-        }}
       />
     </div>
   )

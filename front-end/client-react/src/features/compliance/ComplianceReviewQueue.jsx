@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceReviewQueue() {
   const [queue, setQueue] = useState([])
@@ -27,26 +28,27 @@ export function ComplianceReviewQueue() {
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
 
-  function loadData() {
-    setLoading(true)
-    setError('')
-
-    Promise.all([complianceApi.getComplianceQueue(), complianceApi.getCategories().catch(() => [])])
-      .then(([qData, cData]) => {
-        setQueue(Array.isArray(qData) ? qData : [])
-        setCategories(Array.isArray(cData) ? cData : [])
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load compliance review queue.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const [qData, cData] = await Promise.all([
+        complianceApi.getComplianceQueue(),
+        complianceApi.getCategories().catch(() => []),
+      ])
+      setQueue(Array.isArray(qData) ? qData : [])
+      setCategories(Array.isArray(cData) ? cData : [])
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load compliance review queue.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -113,7 +115,6 @@ export function ComplianceReviewQueue() {
       correctiveAction: 'Corrective action initiated.',
     }
     setToastMessage(labels[type] || 'Action completed successfully.')
-    loadData()
   }
 
   function renderRiskBadge(score) {
@@ -131,6 +132,7 @@ export function ComplianceReviewQueue() {
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh the review queue. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -211,7 +213,7 @@ export function ComplianceReviewQueue() {
           <button
             type="button"
             className="compliance-btn compliance-btn-secondary compliance-btn-sm"
-            onClick={loadData}
+            onClick={refreshNow}
             disabled={loading}
           >
             <Icon name="refresh" size={14} />
@@ -297,7 +299,7 @@ export function ComplianceReviewQueue() {
         ) : error ? (
           <div style={{ padding: '32px 24px', textAlign: 'center' }}>
             <div style={{ color: '#f87171', marginBottom: '12px', fontSize: '0.9375rem' }}>{error}</div>
-            <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadData}>
+            <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
               Retry
             </button>
           </div>

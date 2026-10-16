@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceNotifications() {
   const [notifications, setNotifications] = useState([])
@@ -11,42 +13,42 @@ export function ComplianceNotifications() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  function loadNotifications() {
-    setLoading(true)
-    setError('')
-
-    complianceApi
-      .getNotifications({
+  async function loadNotifications({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const data = await complianceApi.getNotifications({
         page,
         pageSize,
         state: filterState === 'unread' ? 'unread' : undefined,
       })
-      .then((data) => {
-        // Handle both paginated response object and flat array
-        if (Array.isArray(data)) {
-          setNotifications(data)
-          setTotal(data.length)
-        } else {
-          setNotifications(Array.isArray(data?.items) ? data.items : [])
-          setTotal(data?.total || 0)
-        }
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load notifications.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      if (Array.isArray(data)) {
+        setNotifications(data)
+        setTotal(data.length)
+      } else {
+        setNotifications(Array.isArray(data?.items) ? data.items : [])
+        setTotal(data?.total || 0)
+      }
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load notifications.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadNotifications)
+
   useEffect(() => {
-    loadNotifications()
-  }, [page, filterState])
+    if (!loading) refreshNow()
+  }, [page, filterState, refreshNow])
 
   async function handleMarkRead(id) {
     try {
       await complianceApi.markNotificationRead(id)
-      loadNotifications()
+      announceLiveRefresh()
     } catch (err) {
       setError(err?.message || 'Failed to mark notification read.')
     }
@@ -55,7 +57,7 @@ export function ComplianceNotifications() {
   async function handleMarkAllRead() {
     try {
       await complianceApi.markAllNotificationsRead()
-      loadNotifications()
+      announceLiveRefresh()
     } catch (err) {
       setError(err?.message || 'Failed to mark all as read.')
     }
@@ -72,6 +74,7 @@ export function ComplianceNotifications() {
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh notifications. Showing the last loaded results.</p>}
       {/* Header Info */}
       <div
         style={{
@@ -148,7 +151,7 @@ export function ComplianceNotifications() {
         ) : error ? (
           <div style={{ padding: '32px', textAlign: 'center' }}>
             <div style={{ color: '#f87171', marginBottom: '12px' }}>{error}</div>
-            <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadNotifications}>
+            <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
               Retry
             </button>
           </div>

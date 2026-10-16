@@ -559,3 +559,11 @@
 .compliance-workspace.nav-collapsed .spa-sidebar nav a {
   justify-content: center;
 }
+.compliance-error-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.32);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 0.5rem;
+}

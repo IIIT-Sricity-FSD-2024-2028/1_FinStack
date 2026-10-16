@@ -5,6 +5,7 @@ import { Pagination } from '../../components/Pagination'
 import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 const PAGE_SIZE = 10
 
@@ -22,9 +23,11 @@ export function FinanceReviewQueue() {
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
 
-  async function loadData() {
-    setLoading(true)
-    setError('')
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [workspace, cats] = await Promise.all([
         financeApi.getFinanceWorkspace(),
@@ -33,15 +36,14 @@ export function FinanceReviewQueue() {
       setExpenses(workspace?.expenses || [])
       setCategories(cats || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Unable to load finance queue records.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Filter & Search Logic
   const filtered = useMemo(() => {
@@ -94,10 +96,11 @@ export function FinanceReviewQueue() {
   }, [stageFilter, categoryFilter, search, sortKey])
 
   if (loading) return <LoadingState message="Loading finance expenses..." />
-  if (error) return <ErrorState title="Error Loading Expenses" description={error} onRetry={loadData} />
+  if (error) return <ErrorState title="Error Loading Expenses" description={error} onRetry={retryNow} />
 
   return (
     <div className="finance-queue-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh the queue. Showing the last loaded results.</p>}
       <div className="finance-toolbar">
         <div className="finance-toolbar-group">
           <input
@@ -149,7 +152,7 @@ export function FinanceReviewQueue() {
         </div>
 
         <div className="finance-toolbar-group">
-          <button type="button" className="btn btn-secondary btn-xs" onClick={loadData}>
+          <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
             <Icon name="refresh" size={14} /> Refresh
           </button>
         </div>
@@ -286,9 +289,6 @@ export function FinanceReviewQueue() {
         expense={decisionModal.expense}
         action={decisionModal.action}
         onClose={() => setDecisionModal({ open: false, expense: null, action: null })}
-        onSuccess={() => {
-          loadData()
-        }}
       />
     </div>
   )
