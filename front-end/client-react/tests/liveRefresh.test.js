@@ -147,6 +147,35 @@ test('polling uses background mode so mounted content and dialogs stay visible',
   controller.stop()
 })
 
+test('manual refresh and initial-error retry share serialization without losing retry mode', async () => {
+  const windowTarget = new EventTargetStub()
+  const documentTarget = new EventTargetStub()
+  const contexts = []
+  const resolvers = []
+  const controller = createLiveRefreshController({
+    refresh: (context) => {
+      contexts.push(context)
+      return new Promise((resolve) => resolvers.push(resolve))
+    },
+    windowTarget,
+    documentTarget,
+    pollIntervalMs: 0,
+  })
+
+  controller.start({ refreshImmediately: false })
+  controller.refreshNow()
+  await tick()
+  controller.retryNow()
+  assert.deepEqual(contexts, [{ background: true }])
+
+  resolvers.shift()()
+  await tick()
+  assert.deepEqual(contexts, [{ background: true }, { background: false }])
+  resolvers.shift()()
+  await tick()
+  controller.stop()
+})
+
 test('Compliance live loaders are async and only enter full loading state initially', async () => {
   const files = [
     'ComplianceDashboard.jsx',
@@ -166,6 +195,36 @@ test('Compliance live loaders are async and only enter full loading state initia
 
   const queue = await readFile(new URL('../src/features/compliance/ComplianceReviewQueue.jsx', import.meta.url), 'utf8')
   assert.match(queue, /refreshError[\s\S]*<ComplianceDecisionDialog/)
+})
+
+test('Finance and Compliance reload handlers use the serialized controller', async () => {
+  const files = [
+    '../src/features/finance/FinanceDashboard.jsx',
+    '../src/features/finance/FinanceReviewQueue.jsx',
+    '../src/features/finance/FinanceNotifications.jsx',
+    '../src/features/finance/PaymentReleaseView.jsx',
+    '../src/features/finance/TransactionsView.jsx',
+    '../src/features/compliance/ComplianceDashboard.jsx',
+    '../src/features/compliance/ComplianceReviewQueue.jsx',
+    '../src/features/compliance/ComplianceNotifications.jsx',
+    '../src/features/compliance/PoliciesViolationsView.jsx',
+    '../src/features/compliance/ComplianceAuditView.jsx',
+  ]
+
+  for (const path of files) {
+    const source = await readFile(new URL(path, import.meta.url), 'utf8')
+    assert.doesNotMatch(source, /onClick=\{load(?:DashboardData|Dashboard|Notifications|Data|Logs)\}/)
+    assert.doesNotMatch(source, /onRetry=\{load(?:DashboardData|Dashboard|Notifications|Data|Logs)\}/)
+  }
+
+  for (const path of [
+    '../src/features/finance/FinanceNotifications.jsx',
+    '../src/features/compliance/ComplianceNotifications.jsx',
+    '../src/features/compliance/ComplianceAuditView.jsx',
+  ]) {
+    const source = await readFile(new URL(path, import.meta.url), 'utf8')
+    assert.match(source, /useEffect\(\(\) => \{\s*if \(!loading\) refreshNow\(\)/)
+  }
 })
 
 test('stops polling and removes all listeners on cleanup', async () => {

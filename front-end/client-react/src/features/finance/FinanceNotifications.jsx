@@ -40,7 +40,7 @@ export function FinanceNotifications() {
     }
   }
 
-  const { refreshError, refreshNow } = useLiveRefresh(loadNotifications)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadNotifications)
 
   useEffect(() => {
     if (!loading) refreshNow()
@@ -100,7 +100,7 @@ export function FinanceNotifications() {
           <button
             type="button"
             className="btn btn-secondary btn-xs"
-            onClick={loadNotifications}
+            onClick={refreshNow}
           >
             <Icon name="refresh" size={14} /> Refresh
           </button>
@@ -110,7 +110,7 @@ export function FinanceNotifications() {
       {loading ? (
         <LoadingState message="Loading notifications..." />
       ) : error ? (
-        <ErrorState title="Error" description={error} onRetry={loadNotifications} />
+        <ErrorState title="Error" description={error} onRetry={retryNow} />
       ) : items.length === 0 ? (
         <EmptyState
           title="No Notifications"

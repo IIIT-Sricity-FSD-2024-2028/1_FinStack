@@ -52,7 +52,7 @@ export function PaymentReleaseView() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadData)
+  const { refreshError, retryNow } = useLiveRefresh(loadData)
 
   // Eligible expenses for payment release:
   // Backend accepts: approved_for_payment and payment_processing
@@ -109,7 +109,7 @@ export function PaymentReleaseView() {
 
   if (loading) return <LoadingState message="Loading payment release candidates..." />
   if (error && !confirmModalOpen)
-    return <ErrorState title="Error Loading Release Queue" description={error} onRetry={loadData} />
+    return <ErrorState title="Error Loading Release Queue" description={error} onRetry={retryNow} />
 
 
   return (

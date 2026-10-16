@@ -17,6 +17,7 @@ export function createLiveRefreshController({
   let active = false
   let inFlight = null
   let pending = false
+  let pendingBackground = true
   let lastStartedAt = Number.NEGATIVE_INFINITY
   let timer = null
 
@@ -27,6 +28,7 @@ export function createLiveRefreshController({
 
     if (inFlight) {
       pending = true
+      pendingBackground = pendingBackground && background
       return inFlight
     }
 
@@ -38,8 +40,10 @@ export function createLiveRefreshController({
       .finally(() => {
         inFlight = null
         if (active && pending && isVisible()) {
+          const nextBackground = pendingBackground
           pending = false
-          requestRefresh({ force: true, background: true }).catch(() => undefined)
+          pendingBackground = true
+          requestRefresh({ force: true, background: nextBackground }).catch(() => undefined)
         }
       })
 
@@ -70,6 +74,7 @@ export function createLiveRefreshController({
       if (!active) return
       active = false
       pending = false
+      pendingBackground = true
       windowTarget?.removeEventListener?.('focus', onFocus)
       windowTarget?.removeEventListener?.(LIVE_REFRESH_EVENT, onMutation)
       documentTarget?.removeEventListener?.('visibilitychange', onVisibilityChange)
@@ -78,6 +83,9 @@ export function createLiveRefreshController({
     },
     refreshNow() {
       return requestRefresh({ force: true })
+    },
+    retryNow() {
+      return requestRefresh({ force: true, background: false })
     },
   }
 }

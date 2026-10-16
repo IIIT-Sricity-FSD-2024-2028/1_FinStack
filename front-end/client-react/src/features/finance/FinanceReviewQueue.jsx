@@ -43,7 +43,7 @@ export function FinanceReviewQueue() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadData)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Filter & Search Logic
   const filtered = useMemo(() => {
@@ -96,7 +96,7 @@ export function FinanceReviewQueue() {
   }, [stageFilter, categoryFilter, search, sortKey])
 
   if (loading) return <LoadingState message="Loading finance expenses..." />
-  if (error) return <ErrorState title="Error Loading Expenses" description={error} onRetry={loadData} />
+  if (error) return <ErrorState title="Error Loading Expenses" description={error} onRetry={retryNow} />
 
   return (
     <div className="finance-queue-page">
@@ -152,7 +152,7 @@ export function FinanceReviewQueue() {
         </div>
 
         <div className="finance-toolbar-group">
-          <button type="button" className="btn btn-secondary btn-xs" onClick={loadData}>
+          <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
             <Icon name="refresh" size={14} /> Refresh
           </button>
         </div>

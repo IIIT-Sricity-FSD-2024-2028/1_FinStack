@@ -48,7 +48,7 @@ export function ComplianceReviewQueue() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadData)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -213,7 +213,7 @@ export function ComplianceReviewQueue() {
           <button
             type="button"
             className="compliance-btn compliance-btn-secondary compliance-btn-sm"
-            onClick={loadData}
+            onClick={refreshNow}
             disabled={loading}
           >
             <Icon name="refresh" size={14} />
@@ -299,7 +299,7 @@ export function ComplianceReviewQueue() {
         ) : error ? (
           <div style={{ padding: '32px 24px', textAlign: 'center' }}>
             <div style={{ color: '#f87171', marginBottom: '12px', fontSize: '0.9375rem' }}>{error}</div>
-            <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadData}>
+            <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
               Retry
             </button>
           </div>

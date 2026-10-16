@@ -35,5 +35,6 @@ export function useLiveRefresh(refresh, options = {}) {
   }, [enabled, pollIntervalMs, refreshImmediately])
 
   const refreshNow = useCallback(() => controllerRef.current?.refreshNow(), [])
-  return { refreshNow, refreshError }
+  const retryNow = useCallback(() => controllerRef.current?.retryNow(), [])
+  return { refreshNow, retryNow, refreshError }
 }

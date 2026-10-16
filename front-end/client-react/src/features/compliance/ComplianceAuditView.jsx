@@ -44,7 +44,7 @@ export function ComplianceAuditView() {
     }
   }
 
-  const { refreshError, refreshNow } = useLiveRefresh(loadLogs, { pollIntervalMs: 30_000 })
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadLogs, { pollIntervalMs: 30_000 })
 
   useEffect(() => {
     if (!loading) refreshNow()
@@ -52,7 +52,7 @@ export function ComplianceAuditView() {
 
   function handleFilterSubmit(e) {
     e.preventDefault()
-    if (page === 1) loadLogs()
+    if (page === 1) refreshNow()
     else setPage(1)
   }
 
@@ -169,7 +169,7 @@ export function ComplianceAuditView() {
         ) : error ? (
           <div style={{ padding: '32px', textAlign: 'center' }}>
             <div style={{ color: '#f87171', marginBottom: '12px' }}>{error}</div>
-            <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadLogs}>
+            <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
               Retry
             </button>
           </div>

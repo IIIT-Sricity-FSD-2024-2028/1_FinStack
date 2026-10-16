@@ -36,10 +36,10 @@ export function FinanceDashboard() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadDashboard)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboard)
 
   if (loading) return <LoadingState message="Loading finance metrics and workspace data…" />
-  if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={loadDashboard} />
+  if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={retryNow} />
 
   const expenses = data.expenses || []
   const transactions = data.transactions || []
@@ -69,7 +69,7 @@ export function FinanceDashboard() {
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Financial Overview</h2>
           <small className="text-muted">Live metrics from your organization's finance workspace</small>
         </div>
-        <button type="button" className="btn btn-secondary btn-xs" onClick={loadDashboard}>
+        <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
           <Icon name="refresh" size={14} /> Refresh Data
         </button>
       </div>

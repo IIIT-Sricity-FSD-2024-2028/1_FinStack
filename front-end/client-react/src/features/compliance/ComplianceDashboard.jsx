@@ -40,7 +40,7 @@ export function ComplianceDashboard() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadDashboardData)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboardData)
 
   useEffect(() => {
     if (!toastMessage) return
@@ -124,7 +124,7 @@ export function ComplianceDashboard() {
           <button
             type="button"
             className="compliance-btn compliance-btn-secondary"
-            onClick={loadDashboardData}
+            onClick={refreshNow}
             disabled={loading}
           >
             <Icon name="refresh" size={16} />
@@ -204,7 +204,7 @@ export function ComplianceDashboard() {
           }}
         >
           <div style={{ color: '#f87171', marginBottom: '12px' }}>{error}</div>
-          <button type="button" className="compliance-btn compliance-btn-primary" onClick={loadDashboardData}>
+          <button type="button" className="compliance-btn compliance-btn-primary" onClick={retryNow}>
             Retry
           </button>
         </div>

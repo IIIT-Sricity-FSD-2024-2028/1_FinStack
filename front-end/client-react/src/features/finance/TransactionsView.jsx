@@ -47,7 +47,7 @@ export function TransactionsView() {
     }
   }
 
-  const { refreshError } = useLiveRefresh(loadData)
+  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -85,7 +85,7 @@ export function TransactionsView() {
 
   if (loading) return <LoadingState message="Loading payment transactions..." />
   if (error && !actionConfirm.open)
-    return <ErrorState title="Error Loading Transactions" description={error} onRetry={loadData} />
+    return <ErrorState title="Error Loading Transactions" description={error} onRetry={retryNow} />
 
   return (
     <div className="transactions-page">
@@ -124,7 +124,7 @@ export function TransactionsView() {
         </div>
 
         <div className="finance-toolbar-group">
-          <button type="button" className="btn btn-secondary btn-xs" onClick={loadData}>
+          <button type="button" className="btn btn-secondary btn-xs" onClick={refreshNow}>
             <Icon name="refresh" size={14} /> Refresh
           </button>
         </div>
