@@ -91,6 +91,32 @@ test("shared shell includes responsive drawer, keyboard controls, and common vis
   assert.match(styles, /data-theme="light"/);
 });
 
+test("collapsed mobile shell opens a full drawer and keeps content full width through tablet breakpoint", async () => {
+  const styles = await source("layouts/tenant-app-shell.css");
+  const submitterStyles = await source("features/submitter/submitter.css");
+  assert.match(submitterStyles, /\.submitter-app\.is-collapsed \.submitter-shell/);
+  assert.match(styles, /\.tenant-app-shell\.is-collapsed\.is-mobile-open \.tenant-sidebar\s*\{\s*width:\s*min\(290px,\s*86vw\)/);
+  assert.match(styles, /\.tenant-app-shell\.is-collapsed \.tenant-shell-content\s*\{\s*width:\s*100%;\s*margin-left:\s*0/);
+  assert.match(styles, /\.tenant-app-shell\.is-collapsed \.tenant-main\s*\{\s*width:\s*100%;\s*min-width:\s*0/);
+  assert.match(styles, /max-width:\s*900px/);
+  assert.match(styles, /max-width:\s*560px/);
+});
+
+test("shared shell covers drawer dismissal, long employee IDs, modal stacking, and both themes", async () => {
+  const shell = await source("layouts/TenantAppShell.jsx");
+  const styles = await source("layouts/tenant-app-shell.css");
+  const submitterStyles = await source("features/submitter/submitter.css");
+  const modalStyles = await source("components/confirm-dialog.css");
+  assert.match(shell, /onClick=\{closeMobile\}/);
+  assert.match(shell, /event\.key === "Escape"/);
+  assert.match(shell, /event\.key !== "Tab"/);
+  assert.match(shell, /document\.body\.style\.overflow = "hidden"/);
+  assert.match(styles, /\.tenant-user-button small \{ overflow-wrap: anywhere; \}/);
+  assert.match(styles, /data-theme="light"/);
+  assert.match(modalStyles, /z-index:\s*1100/);
+  assert.match(submitterStyles, /--submitter-bg: #090d17/);
+});
+
 test("Manager decisions confirm before API mutation and retain role-specific routes", async () => {
   const details = await source("features/manager/ManagerExpenseDetails.jsx");
   assert.match(details, /<ConfirmDialog/);

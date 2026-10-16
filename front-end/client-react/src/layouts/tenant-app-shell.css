@@ -89,6 +89,9 @@
   .tenant-app-shell .tenant-topbar-search { display: none; }
   .tenant-app-shell .tenant-user-button > div, .tenant-app-shell .tenant-user-button > svg { display: none; }
   .tenant-app-shell .tenant-user-button { min-width: 44px; padding: 4px; }
+.tenant-app-shell .tenant-user-button { max-width: min(320px, 34vw); }
+.tenant-app-shell .tenant-user-button > div { min-width: 0; }
+.tenant-app-shell .tenant-user-button small { overflow-wrap: anywhere; }
   .tenant-app-shell.is-collapsed .tenant-brand { justify-content: space-between; padding-inline: 18px; }
   .tenant-app-shell.is-collapsed .tenant-brand-link > span:last-child,
   .tenant-app-shell.is-collapsed .tenant-brand-link .submitter-brand-mark,
@@ -98,6 +101,11 @@
   .tenant-app-shell.is-collapsed .tenant-logout > span { display: initial; }
   .tenant-app-shell.is-collapsed .tenant-sidebar nav a,
   .tenant-app-shell.is-collapsed .tenant-logout { justify-content: flex-start; padding-inline: 13px; }
+  /* The shell also carries .submitter-app, whose desktop collapsed selectors
+     otherwise keep the drawer narrow and the content offset at 768–900px. */
+  .tenant-app-shell.is-collapsed.is-mobile-open .tenant-sidebar { width: min(290px, 86vw); }
+  .tenant-app-shell.is-collapsed .tenant-shell-content { width: 100%; margin-left: 0; }
+  .tenant-app-shell.is-collapsed .tenant-main { width: 100%; min-width: 0; }
   .tenant-app-shell .tenant-main { min-height: calc(100vh - 64px); padding: 20px 14px; }
   .tenant-app-shell .manager-main { padding: 20px 14px; }
   .tenant-app-shell .tenant-page-header { align-items: flex-start; flex-direction: column; }
