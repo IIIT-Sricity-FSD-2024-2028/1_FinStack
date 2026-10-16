@@ -2,6 +2,7 @@ import { ConflictException, Injectable, OnModuleInit } from '@nestjs/common';
 import { PlanStatus, TenantRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
+import { createWithGeneratedLoginId } from '../identity/tenant-login-id';
 import { PrismaService } from '../../database/prisma.service';
 import { PlatformSubscriptionsService } from '../../platform/subscriptions/platform-subscriptions.service';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
@@ -79,115 +80,123 @@ export class TenantOnboardingService implements OnModuleInit {
     const { email, primaryEmail } = identity;
     const slug = dto.slug?.trim().toLowerCase() || `org-${randomUUID()}`;
 
+    // Allocate the new tenant UUID on the server; no form input selects a tenant.
+    const organizationId = randomUUID();
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Serialize self-service attempts against historical rows without domain keys.
-        await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtext(${identity.normalizedDomain}))`;
-        const duplicate = await tx.organization.findFirst({
-          where: {
-            OR: [
-              { normalizedDomain: identity.normalizedDomain },
-              ...organizationDomainAliases(identity.normalizedDomain).map(
-                (alias) => ({
-                  primaryEmail: {
-                    endsWith: '@' + alias,
-                    mode: 'insensitive' as const,
-                  },
-                }),
-              ),
-              ...(identity.registrationIdentifierKey
-                ? [
-                    {
-                      registrationCountry: dto.registrationCountry,
-                      registrationIdentifierKey:
-                        identity.registrationIdentifierKey,
-                    },
-                  ]
-                : []),
-            ],
-          },
-          select: { id: true },
-        });
-        if (duplicate)
-          throw new ConflictException({
-            code: 'TENANT_REGISTRATION_CONFLICT',
-            message:
-              'An organization with these identity details already exists. Contact FinStack if you need access or share a company domain.',
-          });
-        const plan = await tx.plan.findUnique({
-          where: { id: dto.planId },
-          select: {
-            id: true,
-            status: true,
-          },
-        });
+      const result = await createWithGeneratedLoginId(
+        { id: organizationId, name: dto.name.trim() },
+        (employeeId) =>
+          this.prisma.$transaction(async (tx) => {
+            // Serialize self-service attempts against historical rows without domain keys.
+            await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtext(${identity.normalizedDomain}))`;
+            const duplicate = await tx.organization.findFirst({
+              where: {
+                OR: [
+                  { normalizedDomain: identity.normalizedDomain },
+                  ...organizationDomainAliases(identity.normalizedDomain).map(
+                    (alias) => ({
+                      primaryEmail: {
+                        endsWith: '@' + alias,
+                        mode: 'insensitive' as const,
+                      },
+                    }),
+                  ),
+                  ...(identity.registrationIdentifierKey
+                    ? [
+                        {
+                          registrationCountry: dto.registrationCountry,
+                          registrationIdentifierKey:
+                            identity.registrationIdentifierKey,
+                        },
+                      ]
+                    : []),
+                ],
+              },
+              select: { id: true },
+            });
+            if (duplicate)
+              throw new ConflictException({
+                code: 'TENANT_REGISTRATION_CONFLICT',
+                message:
+                  'An organization with these identity details already exists. Contact FinStack if you need access or share a company domain.',
+              });
+            const plan = await tx.plan.findUnique({
+              where: { id: dto.planId },
+              select: {
+                id: true,
+                status: true,
+              },
+            });
 
-        if (!plan || plan.status !== PlanStatus.ACTIVE) {
-          throw new ConflictException({
-            code: 'PLAN_INACTIVE',
-            message: 'Only an active plan can be selected.',
-          });
-        }
+            if (!plan || plan.status !== PlanStatus.ACTIVE) {
+              throw new ConflictException({
+                code: 'PLAN_INACTIVE',
+                message: 'Only an active plan can be selected.',
+              });
+            }
 
-        const organization = await tx.organization.create({
-          data: {
-            name: dto.name.trim(),
-            slug,
-            normalizedDomain: identity.normalizedDomain,
-            registrationIdentifier: identity.registrationIdentifier,
-            registrationIdentifierKey: identity.registrationIdentifierKey,
-            registrationExemptionReason: identity.registrationExemptionReason,
-            primaryEmail,
-            registrationCountry: dto.registrationCountry,
-            country: dto.registrationCountry,
-            authorizedContactTitle: dto.authorizedContactTitle.trim(),
-            registrationStatus: 'PENDING_ORGANIZATION_REVIEW',
-            registrationSubmittedAt: new Date(),
-            primaryContactName: `${dto.firstName.trim()} ${dto.lastName.trim()}`,
-            primaryContactEmail: email,
-          },
-        });
+            const organization = await tx.organization.create({
+              data: {
+                id: organizationId,
+                name: dto.name.trim(),
+                slug,
+                normalizedDomain: identity.normalizedDomain,
+                registrationIdentifier: identity.registrationIdentifier,
+                registrationIdentifierKey: identity.registrationIdentifierKey,
+                registrationExemptionReason:
+                  identity.registrationExemptionReason,
+                primaryEmail,
+                registrationCountry: dto.registrationCountry,
+                country: dto.registrationCountry,
+                authorizedContactTitle: dto.authorizedContactTitle.trim(),
+                registrationStatus: 'PENDING_ORGANIZATION_REVIEW',
+                registrationSubmittedAt: new Date(),
+                primaryContactName: `${dto.firstName.trim()} ${dto.lastName.trim()}`,
+                primaryContactEmail: email,
+              },
+            });
 
-        const user = await tx.tenantUser.create({
-          data: {
-            organizationId: organization.id,
-            employeeId: `CFG-${randomUUID().slice(0, 8).toUpperCase()}`,
-            firstName: dto.firstName.trim(),
-            lastName: dto.lastName.trim(),
-            email,
-            passwordHash,
-            role: TenantRole.CONFIGURATION_MANAGER,
-          },
-        });
+            const user = await tx.tenantUser.create({
+              data: {
+                organizationId: organization.id,
+                employeeId,
+                firstName: dto.firstName.trim(),
+                lastName: dto.lastName.trim(),
+                email,
+                passwordHash,
+                role: TenantRole.CONFIGURATION_MANAGER,
+              },
+            });
 
-        await tx.platformAuditLog.create({
-          data: {
-            action: 'organization.registration.submitted',
-            resourceType: 'Organization',
-            resourceId: organization.id,
-            newValue: {
-              registrationStatus: 'PENDING_ORGANIZATION_REVIEW',
-              domainVerified: false,
-            },
-          },
-        });
-        const commercial = await this.subscriptions.assignInTransaction(
-          tx,
-          {
-            organizationId: organization.id,
-            planId: plan.id,
-            employeeCount: dto.employeeCount,
-            featureIds: dto.featureIds,
-          },
-          null,
-        );
+            await tx.platformAuditLog.create({
+              data: {
+                action: 'organization.registration.submitted',
+                resourceType: 'Organization',
+                resourceId: organization.id,
+                newValue: {
+                  registrationStatus: 'PENDING_ORGANIZATION_REVIEW',
+                  domainVerified: false,
+                },
+              },
+            });
+            const commercial = await this.subscriptions.assignInTransaction(
+              tx,
+              {
+                organizationId: organization.id,
+                planId: plan.id,
+                employeeCount: dto.employeeCount,
+                featureIds: dto.featureIds,
+              },
+              null,
+            );
 
-        return {
-          organization,
-          user,
-          commercial,
-        };
-      });
+            return {
+              organization,
+              user,
+              commercial,
+            };
+          }),
+      );
 
       return {
         organizationId: result.organization.id,

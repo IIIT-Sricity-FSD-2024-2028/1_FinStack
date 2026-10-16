@@ -38,6 +38,33 @@ describe('manual provisioning validation', () => {
       ).toBe(true);
     }
   });
+  it('allows omitted IDs for automatic generation but rejects explicitly invalid legacy IDs and tenant overrides', async () => {
+    const { employeeId: unused, ...automatic } = valid;
+    void unused;
+    expect(
+      await validate(plainToInstance(CreateTenantUserDto, automatic)),
+    ).toEqual([]);
+    for (const employeeId of [null, '', '   ']) {
+      expect(
+        (
+          await validate(
+            plainToInstance(CreateTenantUserDto, { ...automatic, employeeId }),
+          )
+        ).some((error) => error.property === 'employeeId'),
+      ).toBe(true);
+    }
+    expect(
+      (
+        await validate(
+          plainToInstance(CreateTenantUserDto, {
+            ...automatic,
+            organizationId: 'other-tenant',
+          }),
+          { whitelist: true, forbidNonWhitelisted: true },
+        )
+      ).some((error) => error.property === 'organizationId'),
+    ).toBe(true);
+  });
   it('validates optional profile updates, including null and whitespace rejection', async () => {
     expect(
       await validate(

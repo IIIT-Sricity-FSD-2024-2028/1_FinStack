@@ -19,6 +19,7 @@ export function employeeErrors(values, editing = false) {
     errors.email = "Enter a valid email address (up to 320 characters).";
   if (
     !editing &&
+    values.employeeId?.trim() &&
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(values.employeeId.trim())
   )
     errors.employeeId =
