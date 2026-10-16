@@ -3,11 +3,24 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { Role } from '../enums/roles.enum';
+
+const DISABLED_LEGACY_ROUTE_ROOTS = [
+  '/users',
+  '/expenses',
+  '/notifications',
+  '/categories',
+  '/policies',
+  '/transactions',
+  '/reports',
+  '/dashboard',
+  '/audit',
+];
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -27,6 +40,14 @@ export class RolesGuard implements CanActivate {
       requestPath.startsWith('/api/v1/tenant/')
     ) {
       return true;
+    }
+
+    if (
+      DISABLED_LEGACY_ROUTE_ROOTS.some(
+        (root) => requestPath === root || requestPath.startsWith(`${root}/`),
+      )
+    ) {
+      throw new NotFoundException();
     }
 
     const roleHeader = request.header('role');
