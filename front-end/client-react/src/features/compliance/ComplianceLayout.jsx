@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { LogoutAction } from '../../components/LogoutAction'
 import './compliance.css'
 
 export function ComplianceLayout() {
@@ -198,9 +199,7 @@ export function ComplianceLayout() {
         {/* Sidebar Footer with Settings link & full-width Logout button */}
         <div className="sidebar-bottom">
           <Link to="/compliance/settings">Profile &amp; Settings</Link>
-          <button type="button" className="sidebar-logout-btn" onClick={logout}>
-            Logout
-          </button>
+          <LogoutAction className="sidebar-logout-btn" onLogout={logout}>Logout</LogoutAction>
         </div>
       </aside>
 
@@ -271,9 +270,7 @@ export function ComplianceLayout() {
                   <Link to="/compliance/notifications" onClick={() => setProfileMenuOpen(false)}>
                     Notifications ({unreadCount})
                   </Link>
-                  <button type="button" onClick={logout}>
-                    Sign out
-                  </button>
+                  <LogoutAction onLogout={logout}>Sign out</LogoutAction>
                 </div>
               )}
             </div>

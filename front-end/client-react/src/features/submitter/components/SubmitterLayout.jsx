@@ -6,6 +6,7 @@ import { useSubmitter } from "../SubmitterContext";
 import { initials, timeAgo } from "../utils";
 import { logoutSubmitter } from "../submitterNavigation";
 import { Icon } from "./Icons";
+import { LogoutAction } from "../../../components/LogoutAction";
 import "../submitter.css";
 
 const navItems = [
@@ -134,16 +135,12 @@ export default function SubmitterLayout() {
             </NavLink>
           ))}
         </nav>
-        <button
+        <LogoutAction
           className="submitter-logout"
-          type="button"
           title={collapsed ? "Logout" : undefined}
           aria-label="Logout"
-          onClick={handleLogout}
-        >
-          <Icon name="logout" />
-          <span>Logout</span>
-        </button>
+          onLogout={handleLogout}
+        ><Icon name="logout" /><span>Logout</span></LogoutAction>
       </aside>
       <div className="submitter-shell">
         <header className="submitter-topbar">
@@ -289,9 +286,9 @@ export default function SubmitterLayout() {
                   >
                     Profile &amp; Settings
                   </button>
-                  <button type="button" onClick={handleLogout}>
+                  <LogoutAction onLogout={handleLogout}>
                     Logout
-                  </button>
+                  </LogoutAction>
                 </div>
               )}
             </div>

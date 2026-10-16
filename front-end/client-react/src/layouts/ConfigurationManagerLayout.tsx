@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { workspacePages } from "../routes/paths";
 import { Icon } from "../components/Icon";
 import { useWorkspacePreferences } from "../services/preferences";
+import { LogoutAction } from "../components/LogoutAction";
 export function ConfigurationManagerLayout() {
   useWorkspacePreferences();
   const [settingsOpen, setSettingsOpen] = useState(true);
@@ -175,9 +176,7 @@ export function ConfigurationManagerLayout() {
           <Link to={`/configuration/help?from=${page?.[0] || "dashboard"}`}>
             Help & contact
           </Link>
-          <button className="sidebar-logout-btn" onClick={logout}>
-            Logout
-          </button>
+          <LogoutAction className="sidebar-logout-btn" onLogout={logout}>Logout</LogoutAction>
         </div>
       </aside>
       <div className="spa-workspace-body">
@@ -218,7 +217,7 @@ export function ConfigurationManagerLayout() {
                   >
                     Help
                   </Link>
-                  <button onClick={logout}>Sign out</button>
+                  <LogoutAction className="" onLogout={logout}>Sign out</LogoutAction>
                 </div>
               )}
             </div>

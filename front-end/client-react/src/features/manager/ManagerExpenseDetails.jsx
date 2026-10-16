@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../components/Operation
 import { notify } from "../../components/ToastHost";
 import { managerApi } from "./managerApi";
 import { useManagerWorkspace } from "./useManagerWorkspace";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 export function ManagerExpenseDetails() {
   const { expenseId } = useParams();
@@ -14,14 +15,19 @@ export function ManagerExpenseDetails() {
   const [saving, setSaving] = useState(false);
   const [openingReceipt, setOpeningReceipt] = useState(false);
   const [receiptError, setReceiptError] = useState("");
+  const [pendingAction, setPendingAction] = useState(null);
   const expense = [...queue, ...history].find((item) => item.id === expenseId);
 
   async function decide(action) {
     if (saving) return;
     if ((action === "reject" || action === "return") && !note.trim()) return;
     if (action === "approve" && !officerId) return;
-    const labels = { approve: "approve", return: "return for correction", reject: "reject", escalate: "escalate" };
-    if (!window.confirm(`Are you sure you want to ${labels[action]} this expense?`)) return;
+    setPendingAction(action);
+  }
+
+  async function confirmDecision() {
+    const action = pendingAction;
+    if (!action || saving) return;
     setSaving(true);
     try {
       if (action === "approve") await managerApi.approve(expense.id, { financeOfficerId: officerId, ...(note.trim() ? { note: note.trim() } : {}) });
@@ -32,7 +38,7 @@ export function ManagerExpenseDetails() {
       navigate("/manager/history");
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "The decision could not be saved.", "error");
-    } finally { setSaving(false); }
+    } finally { setSaving(false); setPendingAction(null); }
   }
 
   async function viewReceipt() {
@@ -105,5 +111,6 @@ export function ManagerExpenseDetails() {
       <div className="manager-actions"><button type="button" className="btn btn-primary" disabled={saving || !officerId} onClick={() => decide("approve")}>{saving ? "Saving…" : "Approve"}</button><button type="button" className="btn btn-secondary" disabled={saving || !note.trim()} onClick={() => decide("return")}>Return for correction</button><button type="button" className="btn btn-danger" disabled={saving || !note.trim()} onClick={() => decide("reject")}>Reject</button><button type="button" className="btn btn-secondary" disabled={saving} onClick={() => decide("escalate")}>Escalate to Compliance</button></div>
       {officers.length === 0 && <p role="status">No active Finance Officers are available for assignment.</p>}
     </form>}
+    <ConfirmDialog open={Boolean(pendingAction)} title="Confirm expense decision" message={`Are you sure you want to ${pendingAction ? ({ approve: "approve", return: "return for correction", reject: "reject", escalate: "escalate" })[pendingAction] : "update"} this expense?`} confirmLabel="Confirm decision" busy={saving} onCancel={() => setPendingAction(null)} onConfirm={confirmDecision} danger={pendingAction === "reject"} />
   </section>;
 }

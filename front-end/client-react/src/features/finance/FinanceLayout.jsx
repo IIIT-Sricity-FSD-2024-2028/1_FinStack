@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { Icon } from '../../components/Icon'
 import { financeApi } from './financeApi'
+import { LogoutAction } from '../../components/LogoutAction'
 import './finance.css'
 
 export function FinanceLayout() {
@@ -181,9 +182,7 @@ export function FinanceLayout() {
         {/* Sidebar Footer with Settings link & full-width Logout button */}
         <div className="sidebar-bottom">
           <Link to="/finance/settings">Profile &amp; Settings</Link>
-          <button type="button" className="sidebar-logout-btn" onClick={logout}>
-            Logout
-          </button>
+          <LogoutAction className="sidebar-logout-btn" onLogout={logout}>Logout</LogoutAction>
         </div>
       </aside>
 
@@ -254,9 +253,7 @@ export function FinanceLayout() {
                   <Link to="/finance/notifications" onClick={() => setProfileMenuOpen(false)}>
                     Notifications ({unreadCount})
                   </Link>
-                  <button type="button" onClick={logout}>
-                    Sign out
-                  </button>
+                  <LogoutAction onLogout={logout}>Sign out</LogoutAction>
                 </div>
               )}
             </div>
