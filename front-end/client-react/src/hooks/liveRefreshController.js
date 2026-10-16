@@ -22,7 +22,7 @@ export function createLiveRefreshController({
 
   const isVisible = () => !documentTarget || documentTarget.visibilityState !== 'hidden'
 
-  const requestRefresh = ({ force = false } = {}) => {
+  const requestRefresh = ({ force = false, background = true } = {}) => {
     if (!active || !isVisible()) return Promise.resolve(undefined)
 
     if (inFlight) {
@@ -34,12 +34,12 @@ export function createLiveRefreshController({
 
     lastStartedAt = now()
     inFlight = Promise.resolve()
-      .then(refresh)
+      .then(() => refresh({ background }))
       .finally(() => {
         inFlight = null
         if (active && pending && isVisible()) {
           pending = false
-          requestRefresh({ force: true }).catch(() => undefined)
+          requestRefresh({ force: true, background: true }).catch(() => undefined)
         }
       })
 
@@ -62,7 +62,9 @@ export function createLiveRefreshController({
       if (pollIntervalMs > 0) {
         timer = setIntervalFn(() => requestRefresh().catch(() => undefined), pollIntervalMs)
       }
-      if (refreshImmediately) requestRefresh({ force: true }).catch(() => undefined)
+      if (refreshImmediately) {
+        requestRefresh({ force: true, background: false }).catch(() => undefined)
+      }
     },
     stop() {
       if (!active) return

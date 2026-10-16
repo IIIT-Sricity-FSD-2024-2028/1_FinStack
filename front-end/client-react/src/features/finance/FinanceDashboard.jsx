@@ -1,5 +1,5 @@
 import { formatCurrencyTotals } from '../shared/expensePresentation.js'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState } from '../../components/OperationalStates'
@@ -16,9 +16,11 @@ export function FinanceDashboard() {
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
 
-  async function loadDashboard() {
-    setLoading(true)
-    setError('')
+  async function loadDashboard({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [workspace, cats] = await Promise.all([
         financeApi.getFinanceWorkspace(),
@@ -27,16 +29,14 @@ export function FinanceDashboard() {
       setData(workspace || { expenses: [], transactions: [] })
       setCategories(cats || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load finance dashboard metrics.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadDashboard()
-  }, [])
-  useLiveRefresh(loadDashboard, { refreshImmediately: false })
+  const { refreshError } = useLiveRefresh(loadDashboard)
 
   if (loading) return <LoadingState message="Loading finance metrics and workspace data…" />
   if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={loadDashboard} />
@@ -63,6 +63,7 @@ export function FinanceDashboard() {
 
   return (
     <div className="finance-dashboard-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh live data. Showing the last loaded results.</p>}
       <div className="finance-toolbar" style={{ marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Financial Overview</h2>

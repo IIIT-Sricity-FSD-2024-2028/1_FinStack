@@ -13,38 +13,37 @@ export function ComplianceNotifications() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  function loadNotifications() {
-    setLoading(true)
-    setError('')
-
-    complianceApi
-      .getNotifications({
+  async function loadNotifications({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const data = await complianceApi.getNotifications({
         page,
         pageSize,
         state: filterState === 'unread' ? 'unread' : undefined,
       })
-      .then((data) => {
-        // Handle both paginated response object and flat array
-        if (Array.isArray(data)) {
-          setNotifications(data)
-          setTotal(data.length)
-        } else {
-          setNotifications(Array.isArray(data?.items) ? data.items : [])
-          setTotal(data?.total || 0)
-        }
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load notifications.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      if (Array.isArray(data)) {
+        setNotifications(data)
+        setTotal(data.length)
+      } else {
+        setNotifications(Array.isArray(data?.items) ? data.items : [])
+        setTotal(data?.total || 0)
+      }
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load notifications.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
+  const { refreshError, refreshNow } = useLiveRefresh(loadNotifications)
+
   useEffect(() => {
-    loadNotifications()
-  }, [page, filterState])
-  useLiveRefresh(loadNotifications, { refreshImmediately: false })
+    if (!loading) refreshNow()
+  }, [page, filterState, refreshNow])
 
   async function handleMarkRead(id) {
     try {
@@ -75,6 +74,7 @@ export function ComplianceNotifications() {
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh notifications. Showing the last loaded results.</p>}
       {/* Header Info */}
       <div
         style={{

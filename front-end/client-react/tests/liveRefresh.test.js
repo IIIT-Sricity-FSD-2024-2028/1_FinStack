@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import {
   LIVE_REFRESH_EVENT,
@@ -91,6 +92,80 @@ test('coalesces overlapping refresh requests and runs one trailing refresh', asy
   resolvers.shift()()
   await tick()
   controller.stop()
+})
+
+test('tracks the complete delayed request promise before mutation refresh', async () => {
+  const windowTarget = new EventTargetStub()
+  const documentTarget = new EventTargetStub()
+  const contexts = []
+  const resolvers = []
+  const controller = createLiveRefreshController({
+    refresh: (context) => {
+      contexts.push(context)
+      return new Promise((resolve) => resolvers.push(resolve))
+    },
+    windowTarget,
+    documentTarget,
+    pollIntervalMs: 0,
+    minIntervalMs: 0,
+  })
+
+  controller.start()
+  await tick()
+  assert.deepEqual(contexts, [{ background: false }])
+
+  windowTarget.dispatch(LIVE_REFRESH_EVENT)
+  await tick()
+  assert.equal(contexts.length, 1, 'mutation must not overlap the slow initial request')
+
+  resolvers.shift()()
+  await tick()
+  assert.deepEqual(contexts, [{ background: false }, { background: true }])
+  resolvers.shift()()
+  await tick()
+  controller.stop()
+})
+
+test('polling uses background mode so mounted content and dialogs stay visible', async () => {
+  const windowTarget = new EventTargetStub()
+  const documentTarget = new EventTargetStub()
+  const contexts = []
+  let intervalCallback
+  const controller = createLiveRefreshController({
+    refresh: async (context) => { contexts.push(context) },
+    windowTarget,
+    documentTarget,
+    setIntervalFn: (callback) => { intervalCallback = callback; return 7 },
+    clearIntervalFn: () => {},
+    minIntervalMs: 0,
+  })
+
+  controller.start({ refreshImmediately: false })
+  intervalCallback()
+  await tick()
+  assert.deepEqual(contexts, [{ background: true }])
+  controller.stop()
+})
+
+test('Compliance live loaders are async and only enter full loading state initially', async () => {
+  const files = [
+    'ComplianceDashboard.jsx',
+    'ComplianceReviewQueue.jsx',
+    'ComplianceNotifications.jsx',
+    'PoliciesViolationsView.jsx',
+    'ComplianceAuditView.jsx',
+  ]
+
+  for (const file of files) {
+    const source = await readFile(new URL(`../src/features/compliance/${file}`, import.meta.url), 'utf8')
+    assert.match(source, /async function load(?:DashboardData|Notifications|Data|Logs)\(\{ background = false \} = \{\}\)/)
+    assert.match(source, /if \(!background\) \{\s*setLoading\(true\)/)
+    assert.match(source, /if \(background\) throw err/)
+    assert.match(source, /useLiveRefresh\(/)
+  }
+
+  const queue = await readFile(new URL('../src/features/compliance/ComplianceReviewQueue.jsx', import.meta.url), 'utf8')
+  assert.match(queue, /refreshError[\s\S]*<ComplianceDecisionDialog/)
 })
 
 test('stops polling and removes all listeners on cleanup', async () => {

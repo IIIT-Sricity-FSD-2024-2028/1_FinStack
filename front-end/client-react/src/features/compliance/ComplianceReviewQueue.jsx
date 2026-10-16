@@ -28,27 +28,27 @@ export function ComplianceReviewQueue() {
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
 
-  function loadData() {
-    setLoading(true)
-    setError('')
-
-    Promise.all([complianceApi.getComplianceQueue(), complianceApi.getCategories().catch(() => [])])
-      .then(([qData, cData]) => {
-        setQueue(Array.isArray(qData) ? qData : [])
-        setCategories(Array.isArray(cData) ? cData : [])
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load compliance review queue.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const [qData, cData] = await Promise.all([
+        complianceApi.getComplianceQueue(),
+        complianceApi.getCategories().catch(() => []),
+      ])
+      setQueue(Array.isArray(qData) ? qData : [])
+      setCategories(Array.isArray(cData) ? cData : [])
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load compliance review queue.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-  useLiveRefresh(loadData, { refreshImmediately: false })
+  const { refreshError } = useLiveRefresh(loadData)
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -132,6 +132,7 @@ export function ComplianceReviewQueue() {
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh the review queue. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <div

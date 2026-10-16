@@ -18,9 +18,11 @@ export function FinanceNotifications() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function loadNotifications() {
-    setLoading(true)
-    setError('')
+  async function loadNotifications({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const response = await financeApi.getNotifications({
         page,
@@ -31,16 +33,18 @@ export function FinanceNotifications() {
       setTotal(response?.total || 0)
       setUnreadCount(response?.unreadCount || 0)
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load notifications.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
+  const { refreshError, refreshNow } = useLiveRefresh(loadNotifications)
+
   useEffect(() => {
-    loadNotifications()
-  }, [page, stateFilter])
-  useLiveRefresh(loadNotifications, { refreshImmediately: false })
+    if (!loading) refreshNow()
+  }, [page, stateFilter, refreshNow])
 
   async function handleMarkRead(id) {
     try {
@@ -66,6 +70,7 @@ export function FinanceNotifications() {
 
   return (
     <div className="notifications-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh notifications. Showing the last loaded results.</p>}
       <div className="finance-toolbar">
         <div className="finance-toolbar-group">
           <select

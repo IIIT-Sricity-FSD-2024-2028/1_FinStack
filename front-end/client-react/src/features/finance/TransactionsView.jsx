@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Modal } from '../../components/Modal'
@@ -31,23 +31,23 @@ export function TransactionsView() {
     setActionConfirm({ open: true, transaction, action })
   }
 
-  async function loadData() {
-    setLoading(true)
-    setError('')
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const workspace = await financeApi.getFinanceWorkspace()
       setTransactions(workspace?.transactions || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load transaction records.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-  useLiveRefresh(loadData, { refreshImmediately: false })
+  const { refreshError } = useLiveRefresh(loadData)
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -89,6 +89,7 @@ export function TransactionsView() {
 
   return (
     <div className="transactions-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh transactions. Showing the last loaded results.</p>}
       {actionResult && <p role="status">{actionResult}</p>}
       <div className="finance-notice-banner">
         <Icon name="shieldCheck" size={20} />

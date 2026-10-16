@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createLiveRefreshController } from './liveRefreshController.js'
 
 export function useLiveRefresh(refresh, options = {}) {
   const refreshRef = useRef(refresh)
   const controllerRef = useRef(null)
+  const [refreshError, setRefreshError] = useState(null)
   refreshRef.current = refresh
 
   const { enabled = true, pollIntervalMs = 15_000, refreshImmediately = true } = options
@@ -12,7 +13,16 @@ export function useLiveRefresh(refresh, options = {}) {
     if (!enabled) return undefined
 
     const controller = createLiveRefreshController({
-      refresh: () => refreshRef.current(),
+      refresh: async (context) => {
+        try {
+          const result = await refreshRef.current(context)
+          if (context.background) setRefreshError(null)
+          return result
+        } catch (error) {
+          if (context.background) setRefreshError(error)
+          throw error
+        }
+      },
       pollIntervalMs,
     })
     controllerRef.current = controller
@@ -25,5 +35,5 @@ export function useLiveRefresh(refresh, options = {}) {
   }, [enabled, pollIntervalMs, refreshImmediately])
 
   const refreshNow = useCallback(() => controllerRef.current?.refreshNow(), [])
-  return { refreshNow }
+  return { refreshNow, refreshError }
 }

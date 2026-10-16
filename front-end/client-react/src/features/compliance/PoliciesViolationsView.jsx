@@ -17,32 +17,29 @@ export function PoliciesViolationsView() {
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
 
-  function loadData() {
-    setLoading(true)
-    setError('')
-
-    Promise.all([
-      complianceApi.getPolicies(),
-      complianceApi.getCategories().catch(() => []),
-      complianceApi.getComplianceQueue(),
-    ])
-      .then(([pData, cData, qData]) => {
-        setPolicies(activePolicies(pData))
-        setCategories(Array.isArray(cData) ? cData : [])
-        setQueue(Array.isArray(qData) ? qData : [])
-      })
-      .catch((err) => {
-        setError(err?.message || 'Failed to load organization policy rules.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
+    try {
+      const [pData, cData, qData] = await Promise.all([
+        complianceApi.getPolicies(),
+        complianceApi.getCategories().catch(() => []),
+        complianceApi.getComplianceQueue(),
+      ])
+      setPolicies(activePolicies(pData))
+      setCategories(Array.isArray(cData) ? cData : [])
+      setQueue(Array.isArray(qData) ? qData : [])
+    } catch (err) {
+      if (background) throw err
+      setError(err?.message || 'Failed to load organization policy rules.')
+    } finally {
+      if (!background) setLoading(false)
+    }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-  useLiveRefresh(loadData, { refreshImmediately: false, pollIntervalMs: 30_000 })
+  const { refreshError } = useLiveRefresh(loadData, { pollIntervalMs: 30_000 })
 
   useEffect(() => {
     if (!toastMessage) return
@@ -61,6 +58,7 @@ export function PoliciesViolationsView() {
 
   return (
     <div>
+      {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh policy monitoring. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <div

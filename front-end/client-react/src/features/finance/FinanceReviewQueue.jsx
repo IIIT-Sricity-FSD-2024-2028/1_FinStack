@@ -23,9 +23,11 @@ export function FinanceReviewQueue() {
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
 
-  async function loadData() {
-    setLoading(true)
-    setError('')
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [workspace, cats] = await Promise.all([
         financeApi.getFinanceWorkspace(),
@@ -34,16 +36,14 @@ export function FinanceReviewQueue() {
       setExpenses(workspace?.expenses || [])
       setCategories(cats || [])
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Unable to load finance queue records.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-  useLiveRefresh(loadData, { refreshImmediately: false })
+  const { refreshError } = useLiveRefresh(loadData)
 
   // Filter & Search Logic
   const filtered = useMemo(() => {
@@ -100,6 +100,7 @@ export function FinanceReviewQueue() {
 
   return (
     <div className="finance-queue-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh the queue. Showing the last loaded results.</p>}
       <div className="finance-toolbar">
         <div className="finance-toolbar-group">
           <input

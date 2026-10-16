@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { MAX_PAYMENT_BATCH, batchLimitMessage, validatePaymentBatch, togglePaymentSelection, selectAllPayments } from './paymentBatch.js'
 import { Icon } from '../../components/Icon'
@@ -20,29 +20,39 @@ export function PaymentReleaseView() {
   const [releaseResult, setReleaseResult] = useState(null)
   const [selectionError, setSelectionError] = useState('')
 
-  async function loadData() {
-    setLoading(true)
-    setError('')
+  async function loadData({ background = false } = {}) {
+    if (!background) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [workspace, cats] = await Promise.all([
         financeApi.getFinanceWorkspace(),
         financeApi.getCategories().catch(() => []),
       ])
-      setExpenses(workspace?.expenses || [])
+      const nextExpenses = workspace?.expenses || []
+      const eligibleIds = new Set(
+        nextExpenses
+          .filter((expense) => expense.workflowStatus === 'approved_for_payment')
+          .map((expense) => expense.id),
+      )
+      setExpenses(nextExpenses)
       setCategories(cats || [])
-      setSelectedIds(new Set())
-      setSelectionError('')
+      setSelectedIds((current) =>
+        background
+          ? new Set(Array.from(current).filter((id) => eligibleIds.has(id)))
+          : new Set(),
+      )
+      if (!background) setSelectionError('')
     } catch (err) {
+      if (background) throw err
       setError(err.message || 'Failed to load payment release data.')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-  useLiveRefresh(loadData, { refreshImmediately: false })
+  const { refreshError } = useLiveRefresh(loadData)
 
   // Eligible expenses for payment release:
   // Backend accepts: approved_for_payment and payment_processing
@@ -104,6 +114,7 @@ export function PaymentReleaseView() {
 
   return (
     <div className="payment-release-page">
+      {refreshError && <p role="alert" className="finance-refresh-error">Unable to refresh payment candidates. Showing the last loaded results.</p>}
       {/* Disclaimer / Notice */}
       <div className="finance-notice-banner warning">
         <Icon name="shieldCheck" size={20} />
