@@ -14,7 +14,10 @@ const compiled = ts.transpileModule(source, {
   },
 }).outputText;
 const runtime = await import(
-  "data:text/javascript;base64," + Buffer.from(compiled).toString("base64")
+  "data:text/javascript;base64," + Buffer.from(compiled.replace(
+    /(["'])\.\.\/hooks\/liveRefreshController\.js\1/g,
+    JSON.stringify(new URL("../src/hooks/liveRefreshController.js", import.meta.url).href),
+  )).toString("base64")
 );
 function storage() {
   const values = new Map();
@@ -52,6 +55,7 @@ function setup(status = 200, payload = { data: { ok: true } }) {
       json: async () => payload,
     };
   };
+  globalThis.BroadcastChannel = undefined;
   runtime.installSessionRuntime();
   return calls;
 }

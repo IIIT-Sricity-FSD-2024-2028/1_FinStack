@@ -8,7 +8,7 @@ vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ hasPermission: () => po
 vi.mock('../../services/api/platform-organizations', () => ({ reviewOrganization: vi.fn() }));
 const organization = { id:'org-1', name:'Example organization', status:'PROVISIONING', registrationStatus:'PENDING_ORGANIZATION_REVIEW', registrationCountry:'IN', registrationIdentifier:'REG-123', domainVerifiedAt:null, normalizedDomain:'example-company.org' } as Organization;
 describe('Organization registration review', () => {
-  beforeEach(() => { policy.allowed = true; vi.clearAllMocks(); vi.spyOn(window,'confirm').mockReturnValue(true); });
+  beforeEach(() => { policy.allowed = true; vi.clearAllMocks(); vi.spyOn(window,'confirm'); });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); });
   it('requires an evidence note and submits only one authorized decision while a request is pending', async () => {
     let resolve!: (org: Organization) => void;
@@ -21,9 +21,15 @@ describe('Organization registration review', () => {
     expect(save).toBeEnabled();
     const form = save.closest('form')!;
     fireEvent.submit(form);fireEvent.submit(form);
+    expect(screen.getByRole('dialog', {name: 'Approve organization access'})).toBeInTheDocument();
+    expect(reviewOrganization).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', {name: 'Approve access'}));
+    expect(screen.getByRole('button', {name: 'Working...'})).toBeDisabled();
+    expect(screen.getByRole('button', {name: 'Saving review…'})).toBeDisabled();
     expect(reviewOrganization).toHaveBeenCalledTimes(1);
     expect(reviewOrganization).toHaveBeenCalledWith('org-1','APPROVED','Checked evidence source.\nDomain control is still unverified.');
     resolve(organization);await waitFor(() => expect(onReviewed).toHaveBeenCalledTimes(1));
+    expect(window.confirm).not.toHaveBeenCalled();
   });
   it('keeps review evidence for retry after an API failure', async () => {
     vi.mocked(reviewOrganization).mockRejectedValue(new Error('Review was changed by another reviewer.'));
@@ -32,8 +38,18 @@ describe('Organization registration review', () => {
     fireEvent.change(note,{target:{value:'Independent evidence is insufficient for approval.'}});
     fireEvent.change(screen.getByLabelText('Decision'),{target:{value:'REJECTED'}});
     fireEvent.click(screen.getByRole('button',{name:'Save review decision'}));
+    fireEvent.click(screen.getByRole('button',{name:'Reject registration'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('another reviewer');
     expect(note).toHaveValue('Independent evidence is insufficient for approval.');
+  });
+  it('cancels safely without sending a review', () => {
+    render(<OrganizationRegistrationReview organization={organization} onReviewed={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Evidence checked and decision reason'),{target:{value:'Evidence reviewed, domain ownership remains unverified.'}});
+    fireEvent.click(screen.getByRole('button',{name:'Save review decision'}));
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(reviewOrganization).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
   });
   it('shows honest unverified context without offering review actions to unauthorized staff', () => {
     policy.allowed = false;

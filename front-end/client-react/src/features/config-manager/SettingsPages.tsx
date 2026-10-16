@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { request } from "../../services/session";
 import { useAsyncResource } from "../../hooks/useAsyncResource";
@@ -418,9 +418,6 @@ function OrganizationForm({
               Delete
             </button>
           </div>
-          <Link to="/configuration/help?from=organization-settings">
-            Contact guidance
-          </Link>
         </SettingsCard>
       </div>
       {error && <p role="alert">{error}</p>}
@@ -640,10 +637,7 @@ function ProfileForm({
           </div>
           <p className="field-help">
             Email address changes require identity verification by your
-            organization’s authorized account administrator.{" "}
-            <Link to="/configuration/help?from=profile-settings">
-              Contact guidance
-            </Link>
+            organization’s authorized account administrator.
           </p>
           {error && <p role="alert">{error}</p>}
           {notice && <p role="status">{notice}</p>}
@@ -789,9 +783,6 @@ export function PasswordSection() {
           <button className="btn btn-primary" disabled={busy}>
             Update Password
           </button>
-          <Link to="/configuration/password-assistance?from=profile-settings">
-            Password assistance
-          </Link>
         </form>
       )}
     </SettingsCard>
@@ -1081,68 +1072,6 @@ export function PreferencesPage() {
         </div>
         {notice && <p role="status">{notice}</p>}
       </form>
-    </>
-  );
-}
-export function WorkspaceHelpPage({
-  password = false,
-}: {
-  password?: boolean;
-}) {
-  const location = useLocation();
-  const from = new URLSearchParams(location.search).get("from");
-  const destination =
-    from &&
-    [
-      "dashboard",
-      "organization-settings",
-      "profile-settings",
-      "subscription",
-      "notifications",
-      "preferences",
-    ].includes(from)
-      ? from
-      : "dashboard";
-  return (
-    <>
-      <PageTitle
-        title={password ? "Password Assistance" : "Help & Support"}
-        description="Help for your authenticated workspace"
-      />
-      {password && <PasswordSection />}
-      <SettingsCard
-        title={password ? "Account access" : "Contact guidance"}
-        description="Keep your account and organization information safe"
-      >
-        <p>
-          {password
-            ? "If you cannot provide your current password, use your established organization support channel for identity-verified recovery."
-            : "For legal identity, billing or account restrictions, contact your authorized FinStack platform representative through your established organization channel."}
-        </p>
-        <div className="form-actions">
-          <Link
-            className="btn btn-secondary"
-            to="/configuration/profile-settings"
-          >
-            Profile Settings
-          </Link>
-          <Link
-            className="btn btn-secondary"
-            to="/configuration/organization-settings"
-          >
-            Organization Settings
-          </Link>
-          <Link className="btn btn-secondary" to="/configuration/subscription">
-            Subscription & Billing
-          </Link>
-          <Link
-            className="btn btn-primary"
-            to={`/configuration/${destination}`}
-          >
-            Return to workspace
-          </Link>
-        </div>
-      </SettingsCard>
     </>
   );
 }

@@ -11,7 +11,7 @@ const actors = [
   { role: 'MANAGER', dashboard: '/manager/dashboard', shell: '.manager-workspace', pages: ['/manager', '/manager/dashboard', '/manager/expenses', '/manager/expenses/expense-1', '/manager/history', '/manager/notifications', '/manager/profile-settings'] },
   { role: 'FINANCE_OFFICER', dashboard: '/finance/dashboard', shell: '.finance-workspace', pages: ['/finance', '/finance/dashboard', '/finance/queue', '/finance/payments', '/finance/transactions', '/finance/notifications', '/finance/settings'] },
   { role: 'COMPLIANCE_OFFICER', dashboard: '/compliance/dashboard', shell: '.compliance-workspace', pages: ['/compliance', '/compliance/dashboard', '/compliance/queue', '/compliance/policies', '/compliance/audit', '/compliance/notifications', '/compliance/settings'] },
-  { role: 'CONFIGURATION_MANAGER', dashboard: '/configuration/dashboard', shell: '.spa-workspace', pages: ['/configuration', '/configuration/dashboard', '/configuration/notifications', '/configuration/help'] },
+  { role: 'CONFIGURATION_MANAGER', dashboard: '/configuration/dashboard', shell: '.spa-workspace', pages: ['/configuration', '/configuration/dashboard', '/configuration/notifications'] },
 ];
 
 test('one SPA supports all actor routes, login/logout, legacy refreshes and role boundaries', { timeout: 180000 }, async () => {

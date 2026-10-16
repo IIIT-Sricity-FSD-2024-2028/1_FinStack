@@ -1,7 +1,58 @@
 export const LIVE_REFRESH_EVENT = 'finstack:live-refresh'
+export const CROSS_TAB_CHANNEL = 'finstack:tenant-updates-v1'
+
+let installedBridge = null
+
+// Cross-tab messages contain only a tenant identifier and a change signal.
+// Each receiving tab makes its own role-scoped authenticated API request.
+export function createCrossTabRefreshBridge({
+  getOrganizationId,
+  onChange,
+  BroadcastChannelCtor = globalThis.BroadcastChannel,
+}) {
+  const noop = { broadcast() {}, close() {} }
+  if (typeof BroadcastChannelCtor !== 'function') return noop
+  let channel
+  try {
+    channel = new BroadcastChannelCtor(CROSS_TAB_CHANNEL)
+  } catch {
+    return noop
+  }
+  channel.onmessage = (event) => {
+    const organizationId = getOrganizationId?.()
+    if (organizationId && event?.data?.kind === 'tenant-changed' &&
+        event.data.organizationId === organizationId) {
+      onChange()
+    }
+  }
+  return {
+    broadcast() {
+      const organizationId = getOrganizationId?.()
+      if (!organizationId) return
+      try {
+        channel.postMessage({ kind: 'tenant-changed', organizationId })
+      } catch {
+        // A notification failure must not turn a successful API write into an error.
+      }
+    },
+    close() {
+      channel.onmessage = null
+      channel.close()
+    },
+  }
+}
+
+export function installCrossTabLiveRefresh(getOrganizationId, target = globalThis.window) {
+  installedBridge?.close()
+  installedBridge = createCrossTabRefreshBridge({
+    getOrganizationId,
+    onChange: () => target?.dispatchEvent?.(new Event(LIVE_REFRESH_EVENT)),
+  })
+}
 
 export function announceLiveRefresh(target = globalThis.window) {
   target?.dispatchEvent?.(new Event(LIVE_REFRESH_EVENT))
+  installedBridge?.broadcast()
 }
 
 export function createLiveRefreshController({
@@ -18,17 +69,19 @@ export function createLiveRefreshController({
   let inFlight = null
   let pending = false
   let pendingBackground = true
+  let pendingAllowHidden = false
   let lastStartedAt = Number.NEGATIVE_INFINITY
   let timer = null
 
   const isVisible = () => !documentTarget || documentTarget.visibilityState !== 'hidden'
 
-  const requestRefresh = ({ force = false, background = true } = {}) => {
-    if (!active || !isVisible()) return Promise.resolve(undefined)
+  const requestRefresh = ({ force = false, background = true, allowHidden = false } = {}) => {
+    if (!active || (!allowHidden && !isVisible())) return Promise.resolve(undefined)
 
     if (inFlight) {
       pending = true
       pendingBackground = pendingBackground && background
+      pendingAllowHidden = pendingAllowHidden || allowHidden
       return inFlight
     }
 
@@ -39,11 +92,13 @@ export function createLiveRefreshController({
       .then(() => refresh({ background }))
       .finally(() => {
         inFlight = null
-        if (active && pending && isVisible()) {
+        if (active && pending && (pendingAllowHidden || isVisible())) {
           const nextBackground = pendingBackground
+          const nextAllowHidden = pendingAllowHidden
           pending = false
           pendingBackground = true
-          requestRefresh({ force: true, background: nextBackground }).catch(() => undefined)
+          pendingAllowHidden = false
+          requestRefresh({ force: true, background: nextBackground, allowHidden: nextAllowHidden }).catch(() => undefined)
         }
       })
 
@@ -54,7 +109,7 @@ export function createLiveRefreshController({
   const onVisibilityChange = () => {
     if (isVisible()) requestRefresh().catch(() => undefined)
   }
-  const onMutation = () => requestRefresh({ force: true }).catch(() => undefined)
+  const onMutation = () => requestRefresh({ force: true, allowHidden: true }).catch(() => undefined)
 
   return {
     start({ refreshImmediately = true } = {}) {
@@ -75,6 +130,7 @@ export function createLiveRefreshController({
       active = false
       pending = false
       pendingBackground = true
+      pendingAllowHidden = false
       windowTarget?.removeEventListener?.('focus', onFocus)
       windowTarget?.removeEventListener?.(LIVE_REFRESH_EVENT, onMutation)
       documentTarget?.removeEventListener?.('visibilitychange', onVisibilityChange)

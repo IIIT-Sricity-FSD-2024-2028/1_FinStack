@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   formatPreferredDate,
   preferredMoney,
@@ -109,7 +108,6 @@ export function SubscriptionPage() {
           <p>Plan, employee capacity, invoices and payment history.</p>
         </div>
       </div>
-      <Link to="/configuration/help?from=subscription">Help &amp; Support</Link>
       {notice && (
         <p role="status" className="success-banner">
           {notice}

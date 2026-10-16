@@ -1,4 +1,13 @@
 // Reused legal-identity/domain validation from the current registration UI.
+// Accept both legacy CFG IDs and current server-generated organization-linked IDs.
+export function isRegistrationEmployeeId(value) {
+  return (
+    typeof value === "string" &&
+    (/^CFG-[A-F0-9]{8}$/.test(value) ||
+      /^[A-Z0-9]{1,3}-[A-F0-9]{32}-[A-F0-9]{20}$/.test(value))
+  );
+}
+
 export const countryCodes = [
   "AD",
   "AE",

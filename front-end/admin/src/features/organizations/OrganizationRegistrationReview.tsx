@@ -1,6 +1,7 @@
 import './organization-registration-review.css';
 import { useRef, useState } from 'react';
 import { PermissionGate } from '../../auth/PermissionGate';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { reviewOrganization } from '../../services/api/platform-organizations';
 import type { Organization } from '../../types/organization';
 
@@ -9,18 +10,32 @@ export function OrganizationRegistrationReview({ organization, onReviewed }: { o
   const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const lock = useRef(false);
   const valid = note.trim().length >= 20 && note.trim().length <= 2000 && !/[\p{Cc}\p{Cf}<>]/u.test(note.replace(/[\n\r\t]/g, ''));
-  async function submit(event: React.FormEvent) {
+  function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (lock.current || !valid) return;
-    if (!window.confirm(`${decision === 'APPROVED' ? 'Approve access for' : 'Reject'} ${organization.name}? This records a manual review, not automated legal or domain verification.`)) return;
-    lock.current = true; setBusy(true); setError('');
-    try { await reviewOrganization(organization.id, decision, note.trim()); await onReviewed(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Review could not be saved.'); }
-    finally { lock.current = false; setBusy(false); }
+    if (lock.current || busy || !valid) return;
+    setConfirmOpen(true);
   }
-  return <article className="status-card form-panel organization-registration-review" aria-labelledby="registration-review-title">
+  async function confirmReview() {
+    if (lock.current || busy || !valid || !confirmOpen) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await reviewOrganization(organization.id, decision, note.trim());
+      setConfirmOpen(false);
+      await onReviewed();
+    } catch (err) {
+      setConfirmOpen(false);
+      setError(err instanceof Error ? err.message : 'Review could not be saved.');
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  return <><article className="status-card form-panel organization-registration-review" aria-labelledby="registration-review-title">
     <h2 id="registration-review-title">Organization registration review</h2>
     <p><strong>{organization.registrationStatus === 'LEGACY_APPROVED' ? 'Trusted Admin provisioning / preserved historical access' : organization.registrationStatus?.replaceAll('_', ' ') ?? 'Historical organization'}</strong></p>
     <dl>
@@ -46,5 +61,20 @@ export function OrganizationRegistrationReview({ organization, onReviewed }: { o
           <button type="submit" className="button button-primary" disabled={busy || !valid}>{busy ? 'Saving review…' : 'Save review decision'}</button>
         </form>
       </PermissionGate></PermissionGate>}
-  </article>;
+  </article>
+  <ConfirmDialog
+    open={confirmOpen && organization.registrationStatus === 'PENDING_ORGANIZATION_REVIEW' && organization.status === 'PROVISIONING'}
+    title={decision === 'APPROVED' ? 'Approve organization access' : 'Reject registration'}
+    message={<>
+      <p><strong>{organization.name}</strong></p>
+      <p>This records a manual review; it does not establish legal genuineness or domain ownership.</p>
+      <p>Your evidence and decision reason will be saved with this review.</p>
+    </>}
+    confirmLabel={decision === 'APPROVED' ? 'Approve access' : 'Reject registration'}
+    destructive={decision === 'REJECTED'}
+    pending={busy}
+    onCancel={() => { if (!busy) setConfirmOpen(false); }}
+    onConfirm={() => { void confirmReview(); }}
+  />
+  </>;
 }

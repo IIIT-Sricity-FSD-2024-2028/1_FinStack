@@ -6,7 +6,7 @@ import type {
   RegistrationReceipt,
 } from "../../services/contracts";
 import { request } from "../../services/session";
-import { countryCodes, registrationErrors } from "./registrationValidation";
+import { countryCodes, registrationErrors, isRegistrationEmployeeId } from "./registrationValidation";
 import { PasswordInput } from "./PublicPages";
 import { useAsyncResource } from "../../hooks/useAsyncResource";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
@@ -115,7 +115,7 @@ export function RegistrationPage() {
       controller.abort();
     };
   }, [values.planId, values.employeeCount, features]);
-  if (/^CFG-[A-F0-9]{8}$/.test(saved || ""))
+  if (isRegistrationEmployeeId(saved))
     return <Navigate to="/registration/receipt" replace />;
   function update(key: keyof typeof empty, value: string) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -382,7 +382,7 @@ export function RegistrationPage() {
 export function RegistrationReceiptPage() {
   const navigate = useNavigate();
   const employeeId = sessionStorage.getItem(RECEIPT);
-  if (!/^CFG-[A-F0-9]{8}$/.test(employeeId || ""))
+  if (!isRegistrationEmployeeId(employeeId))
     return (
       <section className="registration-content">
         <h1>No receipt in this tab</h1>

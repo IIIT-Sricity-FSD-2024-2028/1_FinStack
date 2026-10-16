@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../components/Operation
 import { notify } from "../../components/ToastHost";
 import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { managerApi } from "./managerApi";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh";
 
 const tabs = [["all", "All"], ["unread", "Unread"], ["read", "Read"]];
 function notificationCategory(item) {
@@ -36,6 +37,12 @@ export function ManagerNotifications() {
     return () => controller.abort();
   }, [revision]);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  useLiveRefresh(async () => {
+    const result = await managerApi.notifications();
+    setItems(Array.isArray(result) ? result : []);
+    setStatus("success");
+    setError("");
+  }, { refreshImmediately: false });
   const filtered = useMemo(() => items.filter((item) =>
     (filter === "all" || (filter === "unread" ? item.unread : !item.unread)) &&
     (typeFilter === "all" || notificationCategory(item) === typeFilter),

@@ -12,6 +12,10 @@ const attributes = {
 function render(node, key, pricing) {
   if (typeof node === "string") return node;
   if (node.tag === "script") return null;
+  // Hide retired contact and employee-account-request entry points in the restored home snapshot.
+  if (node.attrs.id === "contact") return null;
+  if (node.tag === "a" && (node.attrs.href === "#contact" ||
+      node.attrs.href?.includes("account-request"))) return null;
   if (node.attrs.id === "pricing") return pricing;
   const props = { key };
   for (const [name, value] of Object.entries(node.attrs)) {

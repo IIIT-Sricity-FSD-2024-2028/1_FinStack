@@ -1,5 +1,6 @@
 import { OrganizationRegistrationReview } from './OrganizationRegistrationReview';
 import { useState } from 'react';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Link, useParams } from 'react-router-dom';
 import { PermissionGate } from '../../auth/PermissionGate';
 import {
@@ -24,6 +25,11 @@ export function OrganizationDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [pendingLifecycle, setPendingLifecycle] = useState<{
+    label: string;
+    permission: string;
+    action: (id: string) => Promise<Organization>;
+  } | null>(null);
 
   async function save(payload: OrganizationPayload) {
     if (!data) return;
@@ -43,20 +49,27 @@ export function OrganizationDetailPage() {
     }
   }
 
-  async function runLifecycle(
+  function runLifecycle(
     label: string,
     permission: string,
     action: (id: string) => Promise<Organization>,
   ) {
-    if (!data || !window.confirm(`${label} ${data.name}?`)) return;
+    if (!data || runningAction !== null) return;
+    setPendingLifecycle({ label, permission, action });
+  }
+
+  async function confirmLifecycle() {
+    const pending = pendingLifecycle;
+    if (!data || !pending || runningAction !== null) return;
     setActionError(null);
-    setRunningAction(permission);
+    setRunningAction(pending.permission);
     try {
-      await action(data.id);
+      await pending.action(data.id);
+      setPendingLifecycle(null);
       await reload();
     } catch (error) {
       setActionError(
-        error instanceof Error ? error.message : `${label} action failed.`,
+        error instanceof Error ? error.message : `${pending.label} action failed.`,
       );
     } finally {
       setRunningAction(null);
@@ -64,6 +77,7 @@ export function OrganizationDetailPage() {
   }
 
   return (
+    <>
     <section className="organization-detail" aria-labelledby="organization-detail-title">
       <div className="page-header">
         <div>
@@ -230,5 +244,16 @@ export function OrganizationDetailPage() {
         </>
       )}
     </section>
+    <ConfirmDialog
+      open={pendingLifecycle !== null}
+      title={`${pendingLifecycle?.label ?? 'Update'} organization`}
+      message={<p>Confirm {pendingLifecycle?.label.toLowerCase()} for <strong>{data?.name}</strong>? This change will be recorded in FinStack.</p>}
+      confirmLabel={pendingLifecycle?.label ?? 'Confirm'}
+      destructive={pendingLifecycle?.label === 'Cancel' || pendingLifecycle?.label === 'Archive' || pendingLifecycle?.label === 'Suspend'}
+      pending={runningAction !== null}
+      onCancel={() => { if (runningAction === null) setPendingLifecycle(null); }}
+      onConfirm={() => { void confirmLifecycle(); }}
+    />
+    </>
   );
 }

@@ -43,7 +43,6 @@ export function configurationNavigation(pages, currentPage) {
     section: sections[index],
     end: true,
   }));
-  navItems.push({ to: `/configuration/help?from=${currentPage || "dashboard"}`, label: "Help & contact", icon: "audit", section: "System", end: true });
   return navItems;
 }
 

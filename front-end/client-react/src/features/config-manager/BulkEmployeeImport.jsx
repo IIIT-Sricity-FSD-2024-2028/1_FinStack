@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { employeeImports } from "../../adapters/employeeImports";
 import { useAsyncResource } from "../../hooks/useAsyncResource";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
+import { ConfirmDialog } from "../../components/CrudPrimitives";
 import "./employee-import.css";
 
 const loadJobs = () => employeeImports.list();
@@ -13,6 +14,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
   const [page, setPage] = useState(1);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [activationJobId, setActivationJobId] = useState(null);
   const [compact, setCompact] = useState(false);
   const [error, setError] = useState("");
   const fileInput = useRef(null);
@@ -329,20 +331,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
                 className="btn btn-secondary"
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      "This CSV contains sensitive account activation links. Distribute each only to its intended employee through a trusted channel. Downloading again replaces outstanding links; links expire in 48 hours. No email is sent.",
-                    )
-                  )
-                    return;
-                  action(async () =>
-                    onSuccess?.(
-                      `${await employeeImports.activationLinks(job.id)} activation links downloaded. Distribute them securely; no email was sent.`,
-                      3000,
-                    ),
-                  );
-                }}
+                onClick={() => setActivationJobId(job.id)}
               >
                 Download activation links
               </button>
@@ -437,6 +426,27 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(activationJobId)}
+        title="Download employee activation links?"
+        description="The download contains sensitive, single-use employee activation links. Share each link only with its intended employee through a trusted channel. Downloading again replaces any outstanding links. Links expire after 48 hours, and no email is sent."
+        tone="default"
+        confirmLabel="Download secure CSV"
+        confirmingLabel="Preparing links…"
+        submitting={busy}
+        onCancel={() => setActivationJobId(null)}
+        onConfirm={() => {
+          if (!activationJobId || lock.current) return;
+          void action(async () => {
+            const count = await employeeImports.activationLinks(activationJobId);
+            setActivationJobId(null);
+            onSuccess?.(
+              `${count} activation links downloaded. Distribute them securely; no email was sent.`,
+              3000,
+            );
+          });
+        }}
+      />
     </section>
   );
 }

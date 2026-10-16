@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { TenantAppShell } from "./TenantAppShell";
 import { configurationNavigation } from "./tenantNavigation";
@@ -18,6 +18,5 @@ export function ConfigurationManagerLayout() {
 
   return <TenantAppShell role="configuration-workspace" roleLabel="Configuration Manager" title={title} homePath="/configuration/dashboard" profilePath="/configuration/profile-settings" notificationPath="/configuration/notifications" navItems={navItems} user={user} logout={logout} contentClassName="configuration-content">
     <Outlet />
-    <footer className="configuration-help-link"><Link to={`/configuration/help?from=${page?.[0] || "dashboard"}`}>Help &amp; contact</Link></footer>
   </TenantAppShell>;
 }

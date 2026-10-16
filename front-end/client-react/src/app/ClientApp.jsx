@@ -29,7 +29,6 @@ import {
   OrganizationSettingsPage,
   PreferencesPage,
   ProfilePage,
-  WorkspaceHelpPage,
 } from "../features/config-manager/SettingsPages";
 const Subscription = lazy(() =>
   import("../features/config-manager/SubscriptionPage").then((module) => ({
@@ -180,11 +179,6 @@ export function ClientApp() {
                   <Route path="preferences" element={<PreferencesPage />} />
                   <Route path="profile-settings" element={<ProfilePage />} />
                   <Route path="subscription" element={<Subscription />} />
-                  <Route path="help" element={<WorkspaceHelpPage />} />
-                  <Route
-                    path="password-assistance"
-                    element={<WorkspaceHelpPage password />}
-                  />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>

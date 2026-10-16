@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh";
 import { managerApi } from "./managerApi";
 import { loadManagerWorkspace } from "./managerWorkspaceLoader.js";
 
@@ -8,34 +9,41 @@ export function useManagerWorkspace({ includeOfficers = false } = {}) {
   const [officers, setOfficers] = useState([]);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-  const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  const activeRequest = useRef(null);
 
-  useEffect(() => {
-    window.addEventListener("finstack:dashboard-refresh", refresh);
-    return () => window.removeEventListener("finstack:dashboard-refresh", refresh);
-  }, [refresh]);
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
-  useEffect(() => {
+  async function loadWorkspace({ background = false } = {}) {
     const controller = new AbortController();
-    setStatus("loading");
-    setError("");
-    loadManagerWorkspace(managerApi, includeOfficers, controller.signal)
-      .then((workspace) => {
-        if (controller.signal.aborted) return;
-        if (!workspace) return;
-        setQueue(workspace.queue);
-        setHistory(workspace.history);
-        if (includeOfficers) setOfficers(workspace.officers);
-        setStatus("success");
-      })
-      .catch((caught) => {
-        if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : "The Manager workspace could not be loaded.");
-        setStatus("error");
-      });
-    return () => controller.abort();
-  }, [includeOfficers, revision]);
+    activeRequest.current = controller;
+    if (!background) {
+      setStatus("loading");
+      setError("");
+    }
+    try {
+      const workspace = await loadManagerWorkspace(managerApi, includeOfficers, controller.signal);
+      if (controller.signal.aborted || !workspace) return;
+      setQueue(workspace.queue);
+      setHistory(workspace.history);
+      if (includeOfficers) setOfficers(workspace.officers);
+      setStatus("success");
+      setError("");
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      if (background) throw caught;
+      setError(caught instanceof Error ? caught.message : "The Manager workspace could not be loaded.");
+      setStatus("error");
+    } finally {
+      if (activeRequest.current === controller) activeRequest.current = null;
+    }
+  }
 
-  return { queue, history, officers, status, error, refresh };
+  // Live changes refresh in the background, preserving filters and the current route.
+  const { refreshNow, retryNow, refreshError } = useLiveRefresh(loadWorkspace);
+  useEffect(() => {
+    window.addEventListener("finstack:dashboard-refresh", refreshNow);
+    return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);
+  }, [refreshNow]);
+
+  return { queue, history, officers, status, error, refresh: retryNow, refreshError };
 }

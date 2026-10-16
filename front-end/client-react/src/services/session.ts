@@ -1,3 +1,5 @@
+import { announceLiveRefresh, installCrossTabLiveRefresh } from "../hooks/liveRefreshController.js";
+
 export interface TenantUser {
   id: string;
   organizationId: string;
@@ -128,6 +130,13 @@ export async function request<T = any>(
       payload?.error?.code,
     );
   }
+  // Notify other actor tabs only after a successful authenticated tenant write.
+  // No expense details, credentials or API response content are broadcast.
+  const method = (options.method || "GET").toUpperCase();
+  if (options.authenticated !== false && path.startsWith("/api/v1/tenant/") &&
+      !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    announceLiveRefresh();
+  }
   return payload?.data ?? payload;
 }
 
@@ -175,5 +184,6 @@ const runtime = {
 export function installSessionRuntime() {
   window.FinStackApi = { baseUrl: apiBase() };
   window.FinStackTenantSession = runtime;
+  installCrossTabLiveRefresh(() => currentSession()?.organizationId);
 }
 export { SESSION_EVENT };

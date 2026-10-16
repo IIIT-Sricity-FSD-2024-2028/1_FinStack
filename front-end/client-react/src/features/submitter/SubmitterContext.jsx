@@ -4,10 +4,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { submitterApi } from "./api/submitterApi";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh";
 
 const SubmitterContext = createContext(null);
 const initialResource = { loading: true, error: "" };
@@ -20,13 +22,19 @@ export function SubmitterProvider({ children }) {
   const [expenseState, setExpenseState] = useState(initialResource);
   const [categoryState, setCategoryState] = useState(initialResource);
   const [notificationState, setNotificationState] = useState(initialResource);
+  const generations = useRef({ expenses: 0, categories: 0, notifications: 0 });
 
-  const refreshExpenses = useCallback(async () => {
-    setExpenseState({ loading: true, error: "" });
+  const refreshExpenses = useCallback(async ({ background = false } = {}) => {
+    const generation = ++generations.current.expenses;
+    if (!background) setExpenseState({ loading: true, error: "" });
     try {
-      setExpenses(await submitterApi.getMyExpenses());
+      const next = await submitterApi.getMyExpenses();
+      if (generation !== generations.current.expenses) return;
+      setExpenses(next);
       setExpenseState({ loading: false, error: "" });
     } catch (error) {
+      if (generation !== generations.current.expenses) return;
+      if (background) throw error;
       setExpenseState({
         loading: false,
         error: error.message || "Unable to load expenses.",
@@ -34,12 +42,17 @@ export function SubmitterProvider({ children }) {
     }
   }, []);
 
-  const refreshCategories = useCallback(async () => {
-    setCategoryState({ loading: true, error: "" });
+  const refreshCategories = useCallback(async ({ background = false } = {}) => {
+    const generation = ++generations.current.categories;
+    if (!background) setCategoryState({ loading: true, error: "" });
     try {
-      setCategories(await submitterApi.getCategories());
+      const next = await submitterApi.getCategories();
+      if (generation !== generations.current.categories) return;
+      setCategories(next);
       setCategoryState({ loading: false, error: "" });
     } catch (error) {
+      if (generation !== generations.current.categories) return;
+      if (background) throw error;
       setCategoryState({
         loading: false,
         error: error.message || "Unable to load categories.",
@@ -47,13 +60,17 @@ export function SubmitterProvider({ children }) {
     }
   }, []);
 
-  const refreshNotifications = useCallback(async () => {
-    setNotificationState({ loading: true, error: "" });
+  const refreshNotifications = useCallback(async ({ background = false } = {}) => {
+    const generation = ++generations.current.notifications;
+    if (!background) setNotificationState({ loading: true, error: "" });
     try {
       const page = await submitterApi.getNotifications();
+      if (generation !== generations.current.notifications) return;
       setNotifications(page.items);
       setNotificationState({ loading: false, error: "" });
     } catch (error) {
+      if (generation !== generations.current.notifications) return;
+      if (background) throw error;
       setNotificationState({
         loading: false,
         error: error.message || "Unable to load notifications.",
@@ -73,6 +90,15 @@ export function SubmitterProvider({ children }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useLiveRefresh(
+    ({ background }) => Promise.all([
+      refreshExpenses({ background }),
+      refreshCategories({ background }),
+      refreshNotifications({ background }),
+    ]),
+    { refreshImmediately: false },
+  );
 
   const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
   const value = useMemo(

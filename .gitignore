@@ -13,3 +13,6 @@ Thumbs.db
 
 # Frontend temp (optional safety)
 coverage/
+
+.vite/
+front-end/js/react/client/

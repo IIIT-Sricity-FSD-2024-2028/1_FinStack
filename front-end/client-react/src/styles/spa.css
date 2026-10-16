@@ -1149,3 +1149,39 @@ body:has(#finstack-client-root[data-theme="light"]) {
   border-color: var(--purple);
   color: var(--purple-light);
 }
+
+/* FinStack streamlined login and landing footer */
+#finstack-client-root .auth-card-inner .login-welcome-title {
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-default);
+}
+#finstack-client-root .auth-card-inner .login-registration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-default);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+#finstack-client-root .auth-card-inner .login-registration a {
+  color: var(--purple-light, #c4b5fd);
+  font-weight: 600;
+  text-decoration: none;
+}
+#finstack-client-root .auth-card-inner .login-registration a:hover { text-decoration: underline; }
+#finstack-client-root .landing-page .landing-footer {
+  margin-top: 28px;
+  padding-block: 48px;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.055), transparent);
+}
+@media (max-width: 480px) {
+  #finstack-client-root .auth-card-inner .login-registration {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

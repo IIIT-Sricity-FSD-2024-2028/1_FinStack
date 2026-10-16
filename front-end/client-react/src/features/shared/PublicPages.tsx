@@ -171,8 +171,8 @@ export function LoginPage() {
           <span className="sidebar-logo-icon">F</span>FinStack
         </Link>
         <section className="auth-card-inner">
-          <h1>Welcome back</h1>
-          <p>Sign in with your employee ID.</p>
+          <h1 className="login-welcome-title">Welcome back</h1>
+
           <form
             id="login-form"
             aria-busy={busy}
@@ -240,10 +240,9 @@ export function LoginPage() {
               {busy ? "Signing in…" : "Sign in"}
             </button>
           </form>
-          <div className="login-links">
-            <Link to="/forgot-password">Forgot password?</Link>
-            <Link to="/account-request">Request an account</Link>
-            <Link to="/register">Register an organization</Link>
+          <div className="login-registration">
+            <span>New to FinStack?</span>
+            <Link to="/register">Register your organization <span aria-hidden="true">→</span></Link>
           </div>
         </section>
         <Link className="login-home" to="/">

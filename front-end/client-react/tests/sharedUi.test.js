@@ -78,7 +78,7 @@ test("shared role navigation preserves each actor route and notification badges"
   const config = configurationNavigation([["dashboard", "Dashboard", "home"], ["manage-users", "Manage Users", "users"]], "manage-users");
   assert.equal(config[0].to, "/configuration/dashboard");
   assert.equal(config[1].section, "User Management");
-  assert.equal(config.at(-1).to, "/configuration/help?from=manage-users");
+  assert.equal(config.at(-1).to, "/configuration/manage-users");
   const finance = withNavigationBadge(financeNavigation, "/finance/notifications", 3);
   assert.equal(finance.find((item) => item.to === "/finance/notifications").badge, 3);
   assert.equal(titleForRoute({ "/manager/expenses": "Review Expenses" }, "/manager/expenses/expense-id", "Workspace"), "Review Expenses");

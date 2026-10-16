@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { TenantAppShell } from "../../layouts/TenantAppShell";
@@ -31,6 +32,11 @@ export function ManagerLayout() {
     window.addEventListener("finstack:manager-notifications-refresh", refresh);
     return () => { active = false; controller.abort(); window.removeEventListener("finstack:manager-notifications-refresh", refresh); };
   }, [location.pathname]);
+  useLiveRefresh(async () => {
+    const items = await managerApi.notifications();
+    if (Array.isArray(items))
+      setNotificationCount(items.filter((item) => item.unread).length);
+  }, { refreshImmediately: false });
   const roleNav = navItems.map((item) => item.to === "/manager/notifications" ? { ...item, badge: notificationCount } : item);
   return <TenantAppShell role="manager-workspace" roleLabel="Manager" title={title} homePath="/manager/dashboard" profilePath="/manager/profile-settings" notificationPath="/manager/notifications" navItems={roleNav} user={user} logout={logout} notificationCount={notificationCount} contentClassName="manager-main">
     <Outlet />
