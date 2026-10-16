@@ -1,28 +1,38 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { TenantAppShell } from "../../layouts/TenantAppShell";
+import { managerNavigation as navItems, titleForRoute } from "../../layouts/tenantNavigation";
 import { useWorkspacePreferences } from "../../services/preferences";
+import { managerApi } from "./managerApi";
 import "./manager.css";
+
+const titles = {
+  "/manager/dashboard": "Manager Dashboard",
+  "/manager/expenses": "Review Expenses",
+  "/manager/history": "Approval History",
+  "/manager/notifications": "Notifications",
+  "/manager/profile-settings": "Profile & Settings",
+};
 
 export function ManagerLayout() {
   useWorkspacePreferences();
   const { user, logout } = useAuth();
-  return (
-    <div className="manager-workspace">
-      <aside className="manager-sidebar">
-        <NavLink className="manager-brand" to="/manager/dashboard">FinStack</NavLink>
-        <nav aria-label="Manager navigation">
-          <NavLink to="/manager/dashboard">Dashboard</NavLink>
-          <NavLink to="/manager/expenses">Review Expenses</NavLink>
-          <NavLink to="/manager/history">Approval History</NavLink>
-          <NavLink to="/manager/notifications">Notifications</NavLink>
-          <NavLink to="/manager/profile-settings">Profile &amp; Settings</NavLink>
-        </nav>
-        <div className="manager-sidebar-footer">
-          <span>{user?.firstName} {user?.lastName}</span>
-          <button type="button" onClick={logout}>Log out</button>
-        </div>
-      </aside>
-      <main className="manager-main" id="manager-main" tabIndex={-1}><Outlet /></main>
-    </div>
-  );
+  const location = useLocation();
+  const [notificationCount, setNotificationCount] = useState(0);
+  const title = titleForRoute(titles, location.pathname, "Manager Workspace");
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const refresh = () => managerApi.notifications(controller.signal).then((items) => {
+      if (active && Array.isArray(items)) setNotificationCount(items.filter((item) => item.unread).length);
+    }).catch(() => {});
+    refresh();
+    window.addEventListener("finstack:manager-notifications-refresh", refresh);
+    return () => { active = false; controller.abort(); window.removeEventListener("finstack:manager-notifications-refresh", refresh); };
+  }, [location.pathname]);
+  const roleNav = navItems.map((item) => item.to === "/manager/notifications" ? { ...item, badge: notificationCount } : item);
+  return <TenantAppShell role="manager-workspace" roleLabel="Manager" title={title} homePath="/manager/dashboard" profilePath="/manager/profile-settings" notificationPath="/manager/notifications" navItems={roleNav} user={user} logout={logout} notificationCount={notificationCount} contentClassName="manager-main">
+    <Outlet />
+  </TenantAppShell>;
 }

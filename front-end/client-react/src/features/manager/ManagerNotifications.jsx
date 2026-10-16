@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
 import { notify } from "../../components/ToastHost";
+import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { managerApi } from "./managerApi";
 
 const tabs = [["all", "All"], ["unread", "Unread"], ["read", "Read"]];
@@ -46,6 +47,7 @@ export function ManagerNotifications() {
     try {
       await managerApi.markNotificationRead(item.id);
       setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, unread: false, readAt: new Date().toISOString() } : entry));
+      window.dispatchEvent(new Event("finstack:manager-notifications-refresh"));
     } catch (caught) { notify(caught instanceof Error ? caught.message : "Notification update failed.", "error"); }
     finally { setBusyId(""); }
   }
@@ -56,6 +58,7 @@ export function ManagerNotifications() {
       await managerApi.markAllNotificationsRead();
       const readAt = new Date().toISOString();
       setItems((current) => current.map((item) => item.unread ? { ...item, unread: false, readAt } : item));
+      window.dispatchEvent(new Event("finstack:manager-notifications-refresh"));
       notify("All notifications marked as read.", "success");
     } catch (caught) { notify(caught instanceof Error ? caught.message : "Notifications could not be updated.", "error"); }
     finally { setBusyId(""); }
@@ -66,13 +69,14 @@ export function ManagerNotifications() {
     try {
       await managerApi.dismissNotification(item.id);
       setItems((current) => current.filter((entry) => entry.id !== item.id));
+      window.dispatchEvent(new Event("finstack:manager-notifications-refresh"));
     } catch (caught) { notify(caught instanceof Error ? caught.message : "Notification could not be dismissed.", "error"); }
     finally { setBusyId(""); }
   }
 
   const unreadCount = items.filter((item) => item.unread).length;
   return <section className="manager-page">
-    <header className="page-header"><div><h1>Notifications</h1><p>Updates for expenses assigned to your Manager account.</p><p className="manager-settings-note">{unreadCount} unread of {items.length}</p></div><div className="manager-actions"><button className="btn btn-secondary" type="button" onClick={refresh}>Refresh</button><button className="btn btn-primary" type="button" disabled={busyId === "all" || unreadCount === 0} onClick={markAllRead}>{busyId === "all" ? "Saving…" : "Mark all read"}</button></div></header>
+    <SharedPageHeader title="Notifications" description={`Updates for expenses assigned to your Manager account. ${unreadCount} unread of ${items.length}.`} actions={<div className="manager-actions"><button className="btn btn-secondary" type="button" onClick={refresh}>Refresh</button><button className="btn btn-primary" type="button" disabled={busyId === "all" || unreadCount === 0} onClick={markAllRead}>{busyId === "all" ? "Saving…" : "Mark all read"}</button></div>} />
     <div className="manager-filters"><label>Status<select className="form-input" value={filter} onChange={(event) => setFilter(event.target.value)}>{tabs.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Category<select className="form-input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="all">All categories</option><option value="pending">Pending</option><option value="high-risk">High risk</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="other">Other</option></select></label><span className="manager-count">Showing {filtered.length} of {items.length}</span></div>
     {status === "loading" ? <LoadingState message="Loading notifications…" /> : status === "error" ? <ErrorState title="Notifications unavailable" description={error} onRetry={refresh} /> : filtered.length === 0 ? <EmptyState title={items.length ? "No matching notifications" : "No notifications"} description={items.length ? "Try changing the notification filters." : "New expense updates will appear here."} /> : <div className="manager-notifications">{filtered.map((item) => <article className={`card manager-notification ${item.unread ? "is-unread" : ""}`} key={item.id}><div><div className="manager-notification-title"><strong>{item.title}</strong><span className="manager-badge">{notificationCategory(item)}</span><span className="manager-badge">{item.unread ? "Unread" : "Read"}</span></div><p>{item.message}</p><small>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</small></div><div className="manager-notification-actions">{item.relatedExpenseId && <Link to={`/manager/expenses/${encodeURIComponent(item.relatedExpenseId)}`}>View expense</Link>}{item.unread && <button className="btn btn-secondary" type="button" disabled={Boolean(busyId)} onClick={() => markRead(item)}>Mark read</button>}<button className="btn btn-secondary" type="button" disabled={Boolean(busyId)} onClick={() => dismiss(item)}>Dismiss</button></div></article>)}</div>}
   </section>;

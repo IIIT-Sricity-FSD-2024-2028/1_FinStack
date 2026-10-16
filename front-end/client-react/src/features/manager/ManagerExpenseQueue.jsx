@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
+import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { useManagerWorkspace } from "./useManagerWorkspace";
 
 const riskLevel = (score) => (score ?? 0) >= 70 ? "High" : (score ?? 0) >= 40 ? "Medium" : "Low";
@@ -20,7 +21,7 @@ export function ManagerExpenseQueue() {
   }), [queue, query, flagFilter, riskFilter]);
 
   return <section className="manager-page">
-    <header className="page-header"><div><h1>Review Expenses</h1><p>Review pending requests from your direct reports.</p></div><span className="manager-count">{filtered.length} of {queue.length} pending</span></header>
+    <SharedPageHeader title="Review Expenses" description="Review pending requests from your direct reports." actions={<span className="manager-count">{filtered.length} of {queue.length} pending</span>} />
     <div className="manager-filters">
       <label className="manager-search">Search expenses<input className="form-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Employee, merchant, category, or ID" /></label>
       <label>Attention<select className="form-input" value={flagFilter} onChange={(event) => setFlagFilter(event.target.value)}><option value="all">All items</option><option value="flagged">Flagged only</option><option value="unflagged">Not flagged</option></select></label>

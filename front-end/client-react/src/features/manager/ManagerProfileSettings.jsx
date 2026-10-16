@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { notify } from "../../components/ToastHost";
 import { request } from "../../services/session";
-import { readPreferences, savePreferences } from "../../services/preferences";
+import { readPreferences } from "../../services/preferences";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { SharedPageHeader } from "../../layouts/TenantAppShell";
 
 const settingsUrl = "/api/v1/tenant/me/settings";
 export function managerLandingPath() {
@@ -20,10 +22,10 @@ export function ManagerProfileSettings() {
   const [error, setError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [preferences, setPreferences] = useState(readPreferences);
-  const [savingPreferences, setSavingPreferences] = useState(false);
   const [password, setPassword] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [savingPassword, setSavingPassword] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,17 +56,6 @@ export function ManagerProfileSettings() {
     finally { setSavingProfile(false); }
   }
 
-  async function submitPreferences(event) {
-    event.preventDefault();
-    setSavingPreferences(true);
-    try {
-      const saved = await savePreferences(preferences);
-      setPreferences(saved);
-      notify("Preferences saved to your account.", "success");
-    } catch (caught) { notify(caught instanceof Error ? caught.message : "Preferences could not be saved.", "error"); }
-    finally { setSavingPreferences(false); }
-  }
-
   async function submitPassword(event) {
     event.preventDefault();
     if (password.newPassword !== password.confirmPassword) { notify("The new passwords do not match.", "error"); return; }
@@ -78,17 +69,17 @@ export function ManagerProfileSettings() {
   }
 
   async function revokeSessions() {
-    if (!window.confirm("Sign out this account from all devices? You will need to sign in again.")) return;
     setRevoking(true);
     try { await request(`${settingsUrl}/session-revocations`, { method: "POST", body: {} }); auth.logout(); }
     catch (caught) { notify(caught instanceof Error ? caught.message : "Sessions could not be revoked.", "error"); setRevoking(false); }
+    finally { setConfirmRevoke(false); }
   }
 
   if (status === "loading") return <section className="manager-page"><p role="status">Loading profile…</p></section>;
   if (status === "error") return <section className="manager-page"><div className="card manager-section"><h1>Profile &amp; Settings</h1><p role="alert">{error}</p><button type="button" className="btn btn-secondary" onClick={() => { setStatus("loading"); request(`${settingsUrl}/profile`).then((value) => { setProfile({ ...value, fullName: `${value.firstName || ""} ${value.lastName || ""}`.trim() }); setStatus("success"); }).catch((caught) => { setError(caught.message || "Profile could not be loaded."); setStatus("error"); }); }}>Try again</button></div></section>;
 
   return <section className="manager-page">
-    <header className="page-header"><div><h1>Profile &amp; Settings</h1><p>Manage your profile, workspace preferences, and account security.</p></div></header>
+    <SharedPageHeader title="Profile & Settings" description="Manage your profile, workspace preferences, and account security." />
     <form className="card manager-section manager-settings-form" onSubmit={submitProfile}>
       <div><h2>Personal information</h2><p className="manager-settings-note">Your account identity and organization are managed by your Configuration Manager.</p></div>
       <div className="manager-settings-grid">
@@ -103,8 +94,9 @@ export function ManagerProfileSettings() {
       <div className="manager-settings-actions"><button className="btn btn-primary" disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"}</button></div>
     </form>
 
-    <form className="card manager-section manager-settings-form" onSubmit={submitPreferences}>
-      <div><h2>Workspace preferences</h2><p className="manager-settings-note">Workspace preferences are saved to your account. Email alerts and weekly digest are saved preferences; email delivery is not configured.</p></div>
+    <form className="card manager-section manager-settings-form" onSubmit={(event) => event.preventDefault()}>
+      <div><h2>Workspace preferences</h2><p className="manager-settings-note">Preference saving is not available for Manager accounts. Email alerts and weekly digest are not delivered.</p></div>
+      <fieldset disabled className="manager-preferences-unavailable">
       <div className="manager-settings-grid">
         <Label title="Default currency"><select className="form-input" value={preferences.managerCurrency} onChange={(event) => updatePreference("managerCurrency", event.target.value)}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option></select></Label>
         <Label title="Interface theme"><select className="form-input" value={preferences.theme} onChange={(event) => updatePreference("theme", event.target.value)}><option value="dark">Dark</option><option value="light">Light</option><option value="system">Use device setting</option></select></Label>
@@ -119,7 +111,8 @@ export function ManagerProfileSettings() {
         {[["compactMode", "Compact layout"], ["animations", "Interface animations"], ["desktopNotifications", "Desktop notifications"], ["autoRefresh", "Automatically refresh workspace"]].map(([name, label]) => <label className="manager-setting-toggle" key={name}><strong>{label}</strong><input type="checkbox" checked={preferences[name]} onChange={(event) => updatePreference(name, event.target.checked)} /></label>)}
         {[["emailAlerts", "Email alerts"], ["weeklyDigest", "Weekly digest"]].map(([name, label]) => <label className="manager-setting-toggle" key={name}><strong>{label}</strong><input type="checkbox" checked={preferences[name]} onChange={(event) => updatePreference(name, event.target.checked)} /></label>)}
       </div>
-      <div className="manager-settings-actions"><button className="btn btn-primary" disabled={savingPreferences}>{savingPreferences ? "Saving…" : "Save preferences"}</button></div>
+      <div className="manager-settings-actions"><button className="btn btn-primary" type="button" disabled>Save preferences unavailable</button></div>
+      </fieldset>
     </form>
 
     <form className="card manager-section manager-settings-form" onSubmit={submitPassword}>
@@ -131,6 +124,7 @@ export function ManagerProfileSettings() {
       </div>
       <div className="manager-settings-actions"><button className="btn btn-primary" disabled={savingPassword}>{savingPassword ? "Updating…" : "Update password"}</button></div>
     </form>
-    <section className="card manager-section manager-security-row"><div><h2>Active sessions</h2><p className="manager-settings-note">Sign out your account from other devices.</p></div><button className="btn btn-secondary" type="button" disabled={revoking} onClick={revokeSessions}>{revoking ? "Signing out…" : "Sign out all devices"}</button></section>
+    <section className="card manager-section manager-security-row"><div><h2>Active sessions</h2><p className="manager-settings-note">Sign out your account from other devices.</p></div><button className="btn btn-secondary" type="button" disabled={revoking} onClick={() => setConfirmRevoke(true)}>{revoking ? "Signing out…" : "Sign out all devices"}</button></section>
+    <ConfirmDialog open={confirmRevoke} title="Sign out all devices?" message="This account will be signed out from all devices. You will need to sign in again." confirmLabel="Sign out all devices" busy={revoking} onCancel={() => setConfirmRevoke(false)} onConfirm={revokeSessions} danger />
   </section>;
 }

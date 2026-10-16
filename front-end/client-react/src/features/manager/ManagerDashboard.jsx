@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
+import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { useManagerWorkspace } from "./useManagerWorkspace";
 
 function Metric({ label, value, note }) {
@@ -16,7 +17,7 @@ export function ManagerDashboard() {
   const recent = [...history].sort((a, b) => new Date(b.managerDecisionAt || b.updatedAt || b.createdAt || 0) - new Date(a.managerDecisionAt || a.updatedAt || a.createdAt || 0)).slice(0, 5);
   const pending = [...queue].sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, 5);
   return <section className="manager-page">
-    <header className="page-header"><div><h1>Manager Dashboard</h1><p>Review and approve expense requests from your reporting team.</p></div><div className="manager-actions"><button className="btn btn-secondary" type="button" onClick={refresh}>Refresh</button><Link className="btn btn-primary" to="/manager/expenses">Review expenses</Link></div></header>
+    <SharedPageHeader title="Manager Dashboard" description="Review and approve expense requests from your reporting team." actions={<div className="manager-actions"><button className="btn btn-secondary" type="button" onClick={refresh}>Refresh</button><Link className="btn btn-primary" to="/manager/expenses">Review expenses</Link></div>} />
     <div className="manager-metrics"><Metric label="Pending approvals" value={queue.length} note="Awaiting your decision" /><Metric label="Processed expenses" value={history.length} note="In your approval history" /><Metric label="Returned for correction" value={returned} note="Manager returns" /><Metric label="High risk" value={highRisk.length} note="Score 70 or above" /></div>
     <div className="manager-dashboard-grid">
       <div>
