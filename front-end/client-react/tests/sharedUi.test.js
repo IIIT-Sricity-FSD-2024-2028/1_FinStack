@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createConfirmedAction } from "../src/components/confirmedAction.js";
+import { confirmationReducer } from "../src/components/confirmationState.js";
+import { complianceNavigation, configurationNavigation, financeNavigation, managerNavigation, submitterNavigation, titleForRoute, withNavigationBadge } from "../src/layouts/tenantNavigation.js";
 
 const root = new URL("../src/", import.meta.url);
 const source = (path) => readFile(new URL(path, root), "utf8");
 
-test("every tenant actor layout uses the shared confirmed logout action", async () => {
+test("all five tenant layouts use the shared application shell and logout action", async () => {
   const paths = [
     "features/submitter/components/SubmitterLayout.jsx",
     "features/manager/ManagerLayout.jsx",
@@ -14,7 +17,53 @@ test("every tenant actor layout uses the shared confirmed logout action", async 
     "layouts/ConfigurationManagerLayout.tsx",
   ];
   const layouts = await Promise.all(paths.map(source));
-  for (const layout of layouts) assert.match(layout, /LogoutAction/);
+  for (const layout of layouts) assert.match(layout, /TenantAppShell/);
+  const shell = await source("layouts/TenantAppShell.jsx");
+  assert.match(shell, /LogoutAction/);
+  assert.match(shell, /submitter-topbar/);
+  assert.match(shell, /submitter-sidebar/);
+});
+
+test("logout cancellation leaves the session callback untouched and confirmation invokes it once", async () => {
+  let logoutCalls = 0;
+  const runLogout = createConfirmedAction();
+  assert.equal(await runLogout(() => { logoutCalls += 1; }, { confirmed: false }), false);
+  assert.equal(logoutCalls, 0);
+  assert.equal(await runLogout(() => { logoutCalls += 1; }, { confirmed: true }), true);
+  assert.equal(logoutCalls, 1);
+});
+
+test("logout interaction opens on request and Cancel or Escape closes without confirming", () => {
+  assert.equal(confirmationReducer(false, "open"), true);
+  assert.equal(confirmationReducer(true, "cancel"), false);
+  assert.equal(confirmationReducer(true, "open"), true);
+  assert.equal(confirmationReducer(true, "close"), false);
+  assert.equal(confirmationReducer(true, "confirm"), false);
+});
+
+test("confirmed actions reject duplicate in-flight work and busy confirmation", async () => {
+  const run = createConfirmedAction();
+  let calls = 0;
+  let release;
+  const pending = run(() => new Promise((resolve) => { calls += 1; release = resolve; }), { confirmed: true });
+  assert.equal(await run(() => { calls += 1; }, { confirmed: true }), false);
+  assert.equal(await run(() => { calls += 1; }, { confirmed: true, busy: true }), false);
+  assert.equal(calls, 1);
+  release();
+  assert.equal(await pending, true);
+});
+
+test("shared role navigation preserves each actor route and notification badges", () => {
+  const allItems = [...submitterNavigation, ...managerNavigation, ...financeNavigation, ...complianceNavigation];
+  for (const route of ["/dashboard", "/submit", "/expenses", "/manager/expenses", "/finance/payments", "/compliance/audit"])
+    assert.ok(allItems.some((item) => item.to === route), `missing route ${route}`);
+  const config = configurationNavigation([["dashboard", "Dashboard", "home"], ["manage-users", "Manage Users", "users"]], "manage-users");
+  assert.equal(config[0].to, "/configuration/dashboard");
+  assert.equal(config[1].section, "User Management");
+  assert.equal(config.at(-1).to, "/configuration/help?from=manage-users");
+  const finance = withNavigationBadge(financeNavigation, "/finance/notifications", 3);
+  assert.equal(finance.find((item) => item.to === "/finance/notifications").badge, 3);
+  assert.equal(titleForRoute({ "/manager/expenses": "Review Expenses" }, "/manager/expenses/expense-id", "Workspace"), "Review Expenses");
 });
 
 test("shared confirmation dialog is modal, labeled, cancellable and blocks repeat action while busy", async () => {
@@ -24,16 +73,31 @@ test("shared confirmation dialog is modal, labeled, cancellable and blocks repea
   assert.match(dialog, /onCancel/);
   assert.match(dialog, /disabled=\{busy\}/);
   assert.match(dialog, /onConfirm/);
+  const modal = await source("components/Modal.jsx");
+  assert.match(modal, /event\.key === "Escape"/);
+  assert.match(modal, /previous\.focus\(\)/);
+  assert.match(modal, /aria-modal="true"/);
+});
+
+test("shared shell includes responsive drawer, keyboard controls, and common visual tokens", async () => {
+  const shell = await source("layouts/TenantAppShell.jsx");
+  const styles = await source("layouts/tenant-app-shell.css");
+  assert.match(shell, /aria-expanded=\{mobileOpen\}/);
+  assert.match(shell, /aria-controls="workspace-navigation"/);
+  assert.match(shell, /event\.key === "Escape"/);
+  assert.match(styles, /max-width: 900px/);
+  assert.match(styles, /is-mobile-open \.tenant-sidebar/);
+  assert.match(styles, /--submitter-primary/);
+  assert.match(styles, /data-theme="light"/);
 });
 
 test("Manager decisions confirm before API mutation and retain role-specific routes", async () => {
   const details = await source("features/manager/ManagerExpenseDetails.jsx");
-  const layout = await source("features/manager/ManagerLayout.jsx");
   assert.match(details, /<ConfirmDialog/);
   assert.match(details, /managerApi\.(approve|reject|escalate|returnForCorrection)/);
   assert.doesNotMatch(details, /window\.confirm|window\.alert/);
   for (const route of ["dashboard", "expenses", "history", "notifications", "profile-settings"])
-    assert.ok(layout.includes(`/manager/${route}`), `missing manager ${route} navigation`);
+    assert.ok(managerNavigation.some((item) => item.to === `/manager/${route}`), `missing manager ${route} navigation`);
 });
 
 test("Manager preference controls are disabled while supported profile and security actions remain", async () => {

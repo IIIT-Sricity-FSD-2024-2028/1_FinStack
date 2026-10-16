@@ -4,6 +4,7 @@ import { notify } from "../../components/ToastHost";
 import { request } from "../../services/session";
 import { readPreferences } from "../../services/preferences";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { SharedPageHeader } from "../../layouts/TenantAppShell";
 
 const settingsUrl = "/api/v1/tenant/me/settings";
 export function managerLandingPath() {
@@ -78,7 +79,7 @@ export function ManagerProfileSettings() {
   if (status === "error") return <section className="manager-page"><div className="card manager-section"><h1>Profile &amp; Settings</h1><p role="alert">{error}</p><button type="button" className="btn btn-secondary" onClick={() => { setStatus("loading"); request(`${settingsUrl}/profile`).then((value) => { setProfile({ ...value, fullName: `${value.firstName || ""} ${value.lastName || ""}`.trim() }); setStatus("success"); }).catch((caught) => { setError(caught.message || "Profile could not be loaded."); setStatus("error"); }); }}>Try again</button></div></section>;
 
   return <section className="manager-page">
-    <header className="page-header"><div><h1>Profile &amp; Settings</h1><p>Manage your profile, workspace preferences, and account security.</p></div></header>
+    <SharedPageHeader title="Profile & Settings" description="Manage your profile, workspace preferences, and account security." />
     <form className="card manager-section manager-settings-form" onSubmit={submitProfile}>
       <div><h2>Personal information</h2><p className="manager-settings-note">Your account identity and organization are managed by your Configuration Manager.</p></div>
       <div className="manager-settings-grid">
