@@ -5,6 +5,8 @@ import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
 import { submitTransactionAction, transactionErrorMessage } from './paymentWorkflow'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function TransactionsView() {
   const [transactions, setTransactions] = useState([])
@@ -45,6 +47,7 @@ export function TransactionsView() {
   useEffect(() => {
     loadData()
   }, [])
+  useLiveRefresh(loadData, { refreshImmediately: false })
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -72,7 +75,7 @@ export function TransactionsView() {
       setActionResult(result.message)
       notify(result.message, action === 'fail' ? 'warning' : 'info')
       setActionConfirm({ open: false, transaction: null, action: null })
-      await loadData()
+      announceLiveRefresh()
     } catch (err) {
       setActionError(transactionErrorMessage(err))
     } finally {

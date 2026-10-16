@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceReviewQueue() {
   const [queue, setQueue] = useState([])
@@ -47,6 +48,7 @@ export function ComplianceReviewQueue() {
   useEffect(() => {
     loadData()
   }, [])
+  useLiveRefresh(loadData, { refreshImmediately: false })
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -113,7 +115,6 @@ export function ComplianceReviewQueue() {
       correctiveAction: 'Corrective action initiated.',
     }
     setToastMessage(labels[type] || 'Action completed successfully.')
-    loadData()
   }
 
   function renderRiskBadge(score) {

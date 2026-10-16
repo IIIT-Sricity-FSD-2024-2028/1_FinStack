@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function PoliciesViolationsView() {
   const [policies, setPolicies] = useState([])
@@ -41,6 +42,7 @@ export function PoliciesViolationsView() {
   useEffect(() => {
     loadData()
   }, [])
+  useLiveRefresh(loadData, { refreshImmediately: false, pollIntervalMs: 30_000 })
 
   useEffect(() => {
     if (!toastMessage) return
@@ -55,7 +57,6 @@ export function PoliciesViolationsView() {
       correctiveAction: 'Corrective action initiated.',
     }
     setToastMessage(labels[type] || 'Action completed successfully.')
-    loadData()
   }
 
   return (

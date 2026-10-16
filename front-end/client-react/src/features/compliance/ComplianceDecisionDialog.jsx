@@ -2,6 +2,7 @@ import { formatExpenseAmount } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { complianceApi } from './complianceApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
 
 export function ComplianceDecisionDialog({ open, type, expense, onClose, onSuccess }) {
   const [note, setNote] = useState('')
@@ -64,6 +65,7 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
       }
 
       setNote('')
+      announceLiveRefresh()
       onSuccess?.(res, type)
       onClose()
     } catch (err) {

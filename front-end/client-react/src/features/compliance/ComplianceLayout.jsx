@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 import './compliance.css'
 
 export function ComplianceLayout() {
@@ -16,6 +17,17 @@ export function ComplianceLayout() {
   const profileDropdownRef = useRef(null)
   const sidebarRef = useRef(null)
   const menuButtonRef = useRef(null)
+
+  async function refreshWorkspaceBadges() {
+    const [unread, queue] = await Promise.all([
+      complianceApi.getUnreadNotificationCount(),
+      complianceApi.getComplianceQueue(),
+    ])
+    setUnreadCount(typeof unread === 'number' ? unread : unread?.count || 0)
+    setQueueCount(Array.isArray(queue) ? queue.length : 0)
+  }
+
+  useLiveRefresh(refreshWorkspaceBadges, { refreshImmediately: false })
 
   // Sync notification and queue badges
   useEffect(() => {

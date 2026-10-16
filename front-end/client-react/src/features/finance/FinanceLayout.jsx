@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { Icon } from '../../components/Icon'
 import { financeApi } from './financeApi'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 import './finance.css'
 
 export function FinanceLayout() {
@@ -15,6 +16,13 @@ export function FinanceLayout() {
   const profileDropdownRef = useRef(null)
   const sidebarRef = useRef(null)
   const menuButtonRef = useRef(null)
+
+  async function refreshUnreadCount() {
+    const res = await financeApi.getUnreadNotificationCount()
+    setUnreadCount(typeof res === 'number' ? res : res?.count || 0)
+  }
+
+  useLiveRefresh(refreshUnreadCount, { refreshImmediately: false })
 
   // Sync notification badges
   useEffect(() => {

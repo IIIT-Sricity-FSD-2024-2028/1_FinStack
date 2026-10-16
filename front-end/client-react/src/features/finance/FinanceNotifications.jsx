@@ -4,6 +4,8 @@ import { LoadingState, ErrorState, EmptyState } from '../../components/Operation
 import { Pagination } from '../../components/Pagination'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 const PAGE_SIZE = 15
 
@@ -38,11 +40,12 @@ export function FinanceNotifications() {
   useEffect(() => {
     loadNotifications()
   }, [page, stateFilter])
+  useLiveRefresh(loadNotifications, { refreshImmediately: false })
 
   async function handleMarkRead(id) {
     try {
       await financeApi.markNotificationRead(id)
-      await loadNotifications()
+      announceLiveRefresh()
       notify('Notification marked read.', 'info')
     } catch (err) {
       setError(err.message || 'Failed to mark notification read.')
@@ -52,10 +55,10 @@ export function FinanceNotifications() {
   async function handleMarkAllRead() {
     try {
       await financeApi.markAllNotificationsRead()
+      announceLiveRefresh()
       setItems((prev) => prev.map((item) => ({ ...item, unread: false, readAt: new Date().toISOString() })))
       setUnreadCount(0)
       notify('All notifications marked read.', 'success')
-      await loadNotifications()
     } catch (err) {
       setError(err.message || 'Failed to mark all read.')
     }

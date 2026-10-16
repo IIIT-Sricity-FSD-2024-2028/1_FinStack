@@ -6,6 +6,7 @@ import { LoadingState, ErrorState } from '../../components/OperationalStates'
 import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function FinanceDashboard() {
   const [data, setData] = useState({ expenses: [], transactions: [] })
@@ -35,6 +36,7 @@ export function FinanceDashboard() {
   useEffect(() => {
     loadDashboard()
   }, [])
+  useLiveRefresh(loadDashboard, { refreshImmediately: false })
 
   if (loading) return <LoadingState message="Loading finance metrics and workspace data…" />
   if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={loadDashboard} />
@@ -275,9 +277,6 @@ export function FinanceDashboard() {
         expense={decisionModal.expense}
         action={decisionModal.action}
         onClose={() => setDecisionModal({ open: false, expense: null, action: null })}
-        onSuccess={() => {
-          loadDashboard()
-        }}
       />
     </div>
   )

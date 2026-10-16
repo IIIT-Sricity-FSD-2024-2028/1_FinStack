@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
 
 const CONFIG = {
   approve: {
@@ -87,6 +88,7 @@ export function FinanceDecisionDialog({
       }
 
       notify(config.successToast, 'success')
+      announceLiveRefresh()
       setNote('')
       onClose()
       if (onSuccess) onSuccess()

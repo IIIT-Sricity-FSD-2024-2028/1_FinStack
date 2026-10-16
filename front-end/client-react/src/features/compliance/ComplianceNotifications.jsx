@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceNotifications() {
   const [notifications, setNotifications] = useState([])
@@ -42,11 +44,12 @@ export function ComplianceNotifications() {
   useEffect(() => {
     loadNotifications()
   }, [page, filterState])
+  useLiveRefresh(loadNotifications, { refreshImmediately: false })
 
   async function handleMarkRead(id) {
     try {
       await complianceApi.markNotificationRead(id)
-      loadNotifications()
+      announceLiveRefresh()
     } catch (err) {
       setError(err?.message || 'Failed to mark notification read.')
     }
@@ -55,7 +58,7 @@ export function ComplianceNotifications() {
   async function handleMarkAllRead() {
     try {
       await complianceApi.markAllNotificationsRead()
-      loadNotifications()
+      announceLiveRefresh()
     } catch (err) {
       setError(err?.message || 'Failed to mark all as read.')
     }

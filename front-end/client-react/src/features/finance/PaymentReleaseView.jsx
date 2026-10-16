@@ -6,6 +6,8 @@ import { LoadingState, ErrorState, EmptyState } from '../../components/Operation
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
 import { financeApi } from './financeApi'
+import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function PaymentReleaseView() {
   const [expenses, setExpenses] = useState([])
@@ -40,6 +42,7 @@ export function PaymentReleaseView() {
   useEffect(() => {
     loadData()
   }, [])
+  useLiveRefresh(loadData, { refreshImmediately: false })
 
   // Eligible expenses for payment release:
   // Backend accepts: approved_for_payment and payment_processing
@@ -86,7 +89,7 @@ export function PaymentReleaseView() {
       setReleaseResult(result)
       notify(`Internal payment batch ${result.batchId} recorded. Bank settlement remains unverified.`, 'info')
       setConfirmModalOpen(false)
-      await loadData()
+      announceLiveRefresh()
     } catch (err) {
       setError(err.message || 'Payment release failed.')
     } finally {

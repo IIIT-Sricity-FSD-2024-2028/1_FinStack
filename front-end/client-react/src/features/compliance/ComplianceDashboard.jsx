@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceDashboard() {
   const [queue, setQueue] = useState([])
@@ -42,6 +43,7 @@ export function ComplianceDashboard() {
   useEffect(() => {
     loadDashboardData()
   }, [])
+  useLiveRefresh(loadDashboardData, { refreshImmediately: false })
 
   useEffect(() => {
     if (!toastMessage) return
@@ -70,7 +72,6 @@ export function ComplianceDashboard() {
       correctiveAction: 'Corrective action initiated.',
     }
     setToastMessage(labels[type] || 'Action completed successfully.')
-    loadDashboardData()
   }
 
   return (

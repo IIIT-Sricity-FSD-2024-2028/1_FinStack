@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 export function ComplianceAuditView() {
   const [logs, setLogs] = useState([])
@@ -16,6 +17,7 @@ export function ComplianceAuditView() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
 
   function loadLogs() {
     setLoading(true)
@@ -46,6 +48,7 @@ export function ComplianceAuditView() {
   useEffect(() => {
     loadLogs()
   }, [page, outcome])
+  useLiveRefresh(loadLogs, { refreshImmediately: false, pollIntervalMs: 30_000 })
 
   function handleFilterSubmit(e) {
     e.preventDefault()
@@ -56,6 +59,7 @@ export function ComplianceAuditView() {
   async function handleExport() {
     try {
       setExporting(true)
+      setExportError('')
       const blob = await complianceApi.exportAuditLogs({
         search: search.trim() || undefined,
         outcome: outcome || undefined,
@@ -71,7 +75,7 @@ export function ComplianceAuditView() {
       a.remove()
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert(err?.message || 'Failed to export audit logs.')
+      setExportError(err?.message || 'Failed to export audit logs.')
     } finally {
       setExporting(false)
     }
@@ -79,6 +83,7 @@ export function ComplianceAuditView() {
 
   return (
     <div>
+      {exportError && <p role="alert" className="compliance-error-banner">{exportError}</p>}
       {/* Header Info */}
       <div
         style={{

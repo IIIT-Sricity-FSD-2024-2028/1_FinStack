@@ -5,6 +5,7 @@ import { Pagination } from '../../components/Pagination'
 import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
+import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
 
 const PAGE_SIZE = 10
 
@@ -42,6 +43,7 @@ export function FinanceReviewQueue() {
   useEffect(() => {
     loadData()
   }, [])
+  useLiveRefresh(loadData, { refreshImmediately: false })
 
   // Filter & Search Logic
   const filtered = useMemo(() => {
@@ -286,9 +288,6 @@ export function FinanceReviewQueue() {
         expense={decisionModal.expense}
         action={decisionModal.action}
         onClose={() => setDecisionModal({ open: false, expense: null, action: null })}
-        onSuccess={() => {
-          loadData()
-        }}
       />
     </div>
   )
