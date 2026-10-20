@@ -30,6 +30,13 @@ import {
   ProfilePage,
   WorkspaceHelpPage,
 } from "../features/config-manager/SettingsPages";
+import { FinanceLayout } from "../features/finance/FinanceLayout";
+import { FinanceDashboard } from "../features/finance/FinanceDashboard";
+import { FinanceReviewQueue } from "../features/finance/FinanceReviewQueue";
+import { PaymentReleaseView } from "../features/finance/PaymentReleaseView";
+import { TransactionsView } from "../features/finance/TransactionsView";
+import { FinanceNotifications } from "../features/finance/FinanceNotifications";
+import { FinanceSettings } from "../features/finance/FinanceSettings";
 const Subscription = lazy(() =>
   import("../features/config-manager/SubscriptionPage").then((module) => ({
     default: module.SubscriptionPage,
@@ -147,6 +154,28 @@ export function ClientApp() {
                     path="password-assistance"
                     element={<WorkspaceHelpPage password />}
                   />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Route>
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["FINANCE_OFFICER"]} />
+                }
+              >
+                <Route path="finance" element={<FinanceLayout />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<FinanceDashboard />} />
+                  <Route path="queue" element={<FinanceReviewQueue />} />
+                  <Route path="payments" element={<PaymentReleaseView />} />
+                  <Route
+                    path="transactions"
+                    element={<TransactionsView />}
+                  />
+                  <Route
+                    path="notifications"
+                    element={<FinanceNotifications />}
+                  />
+                  <Route path="settings" element={<FinanceSettings />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>
