@@ -140,7 +140,11 @@ export function useAuth() {
   if (!value) throw Error("AuthProvider is required.");
   return value;
 }
-export function ProtectedRoute() {
+export function ProtectedRoute({
+  allowedRoles = ["CONFIGURATION_MANAGER"],
+}: {
+  allowedRoles?: string[];
+} = {}) {
   const auth = useAuth();
   const location = useLocation();
   if (auth.status === "loading")
@@ -160,7 +164,7 @@ export function ProtectedRoute() {
     );
   if (!auth.user)
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (auth.user.role !== "CONFIGURATION_MANAGER")
+  if (!allowedRoles.includes(auth.user.role))
     return <Navigate to="/forbidden" replace />;
   return <Outlet />;
 }

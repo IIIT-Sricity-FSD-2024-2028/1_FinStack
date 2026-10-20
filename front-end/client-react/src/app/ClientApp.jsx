@@ -30,6 +30,20 @@ import {
   ProfilePage,
   WorkspaceHelpPage,
 } from "../features/config-manager/SettingsPages";
+import { ComplianceLayout } from "../features/compliance/ComplianceLayout";
+import { ComplianceDashboard } from "../features/compliance/ComplianceDashboard";
+import { ComplianceReviewQueue } from "../features/compliance/ComplianceReviewQueue";
+import { PoliciesViolationsView } from "../features/compliance/PoliciesViolationsView";
+import { ComplianceAuditView } from "../features/compliance/ComplianceAuditView";
+import { ComplianceNotifications } from "../features/compliance/ComplianceNotifications";
+import { ComplianceSettings } from "../features/compliance/ComplianceSettings";
+import { FinanceLayout } from "../features/finance/FinanceLayout";
+import { FinanceDashboard } from "../features/finance/FinanceDashboard";
+import { FinanceReviewQueue } from "../features/finance/FinanceReviewQueue";
+import { PaymentReleaseView } from "../features/finance/PaymentReleaseView";
+import { TransactionsView } from "../features/finance/TransactionsView";
+import { FinanceNotifications } from "../features/finance/FinanceNotifications";
+import { FinanceSettings } from "../features/finance/FinanceSettings";
 const Subscription = lazy(() =>
   import("../features/config-manager/SubscriptionPage").then((module) => ({
     default: module.SubscriptionPage,
@@ -147,6 +161,47 @@ export function ClientApp() {
                     path="password-assistance"
                     element={<WorkspaceHelpPage password />}
                   />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Route>
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["COMPLIANCE_OFFICER"]} />
+                }
+              >
+                <Route path="compliance" element={<ComplianceLayout />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<ComplianceDashboard />} />
+                  <Route path="queue" element={<ComplianceReviewQueue />} />
+                  <Route path="policies" element={<PoliciesViolationsView />} />
+                  <Route path="audit" element={<ComplianceAuditView />} />
+                  <Route
+                    path="notifications"
+                    element={<ComplianceNotifications />}
+                  />
+                  <Route path="settings" element={<ComplianceSettings />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Route>
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["FINANCE_OFFICER"]} />
+                }
+              >
+                <Route path="finance" element={<FinanceLayout />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<FinanceDashboard />} />
+                  <Route path="queue" element={<FinanceReviewQueue />} />
+                  <Route path="payments" element={<PaymentReleaseView />} />
+                  <Route
+                    path="transactions"
+                    element={<TransactionsView />}
+                  />
+                  <Route
+                    path="notifications"
+                    element={<FinanceNotifications />}
+                  />
+                  <Route path="settings" element={<FinanceSettings />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>
