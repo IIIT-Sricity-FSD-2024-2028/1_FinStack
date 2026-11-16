@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { submitterApi } from "../api/submitterApi";
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectExpenses, selectExpenseState, fetchExpenses } from "../store/expensesSlice.js";
+import { selectCategories } from "../store/categoriesSlice.js";
+import { updateExpense, deleteExpense as removeExpense } from "../store/submitterActions.js";
 import {
   currency,
   date,
@@ -39,8 +42,11 @@ function DetailItem({ label, value, fullWidth = false }) {
 }
 
 export default function ExpensesPage() {
-  const { expenses, categories, expenseState, refreshExpenses } =
-    useSubmitter();
+  const dispatch = useDispatch();
+  const expenses = useSelector(selectExpenses);
+  const categories = useSelector(selectCategories);
+  const expenseState = useSelector(selectExpenseState);
+  const refreshExpenses = () => dispatch(fetchExpenses());
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
@@ -109,7 +115,7 @@ export default function ExpensesPage() {
     setBusy(true);
     try {
       // Backend owns workflow state; only editable expense fields are sent.
-      await submitterApi.updateExpense(editExpense.id, {
+      await dispatch(updateExpense(editExpense.id, {
         amount: Number(editExpense.amount),
         categoryId: editExpense.categoryId,
         merchant: editExpense.merchant.trim(),
@@ -117,8 +123,7 @@ export default function ExpensesPage() {
         notes: (editExpense.notes || "").trim(),
         paymentMethod: editExpense.paymentMethod || "personal-card",
         currency: editExpense.currency || "INR",
-      });
-      await refreshExpenses();
+      }));
       setEditExpense(null);
       setToast({
         message: isReturnedExpense
@@ -137,8 +142,7 @@ export default function ExpensesPage() {
 
     setBusy(true);
     try {
-      await submitterApi.deleteExpense(deletingExpense.id);
-      await refreshExpenses();
+      await dispatch(removeExpense(deletingExpense.id));
       setDeletingExpense(null);
       setToast({
         message: `Expense ${formatExpenseId(deletingExpense.id)} deleted.`,

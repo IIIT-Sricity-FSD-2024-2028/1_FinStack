@@ -11,6 +11,14 @@ export interface TenantUserIdentity {
   email: string;
   role: TenantRole;
   status: TenantUserStatus;
+  department?: string;
+  organizationName?: string;
+  manager?: {
+    id: string;
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface TenantAuthContext {

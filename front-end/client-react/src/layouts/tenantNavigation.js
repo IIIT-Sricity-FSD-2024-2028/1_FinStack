@@ -34,7 +34,7 @@ export const complianceNavigation = [
   { to: "/compliance/settings", icon: "settings", label: "Profile & Settings", section: "Account" },
 ];
 
-export function configurationNavigation(pages, currentPage) {
+export function configurationNavigation(pages, _currentPage) {
   const sections = ["Overview", "User Management", "User Management", "User Management", "Expense Configuration", "Expense Configuration", "Expense Configuration", "System", "System", "System", "System", "System"];
   const navItems = pages.map((entry, index) => ({
     to: `/configuration/${entry[0]}`,

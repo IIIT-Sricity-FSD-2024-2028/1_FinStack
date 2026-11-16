@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectExpenses, selectExpenseState, fetchExpenses } from "../store/expensesSlice.js";
 import { currency, date, workflowClass, workflowLabel } from "../utils";
 import { Icon } from "../components/Icons";
 import ResourceState from "../components/ResourceState";
@@ -111,7 +112,10 @@ function CategoryChart({ items }) {
 }
 
 export default function DashboardPage() {
-  const { expenses, expenseState, refreshExpenses } = useSubmitter();
+  const dispatch = useDispatch();
+  const expenses = useSelector(selectExpenses);
+  const expenseState = useSelector(selectExpenseState);
+  const refreshExpenses = () => dispatch(fetchExpenses());
   const navigate = useNavigate();
 
   const analytics = useMemo(() => {
