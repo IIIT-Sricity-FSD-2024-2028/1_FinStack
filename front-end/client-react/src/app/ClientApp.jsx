@@ -59,7 +59,7 @@ const Users = feature("ConfigManagerManageUsers"),
   Audit = feature("ConfigManagerAuditLogs");
 
 const named = (loader, name) => lazy(() => loader().then(module => ({ default: module[name] })));
-const SubmitterProvider = named(() => import('../features/submitter/SubmitterContext'), 'SubmitterProvider');
+const SubmitterReduxProvider = named(() => import('../features/submitter/store/SubmitterReduxProvider'), 'SubmitterReduxProvider');
 const SubmitterLayout = lazy(() => import('../features/submitter/components/SubmitterLayout'));
 const SubmitterDashboard = lazy(() => import('../features/submitter/pages/DashboardPage'));
 const SubmitExpense = lazy(() => import('../features/submitter/pages/SubmitExpensePage'));
@@ -91,7 +91,7 @@ const ComplianceNotifications = named(() => import('../features/compliance/Compl
 const ComplianceSettings = named(() => import('../features/compliance/ComplianceSettings'), 'ComplianceSettings');
 
 function SubmitterWorkspace() {
-  return <SubmitterProvider><SubmitterLayout /></SubmitterProvider>;
+  return <SubmitterReduxProvider><SubmitterLayout /></SubmitterReduxProvider>;
 }
 
 function LegacyRedirect() {

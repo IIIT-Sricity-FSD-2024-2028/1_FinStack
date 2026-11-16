@@ -1,20 +1,15 @@
-import { profileField, managerProfileField } from "../../shared/expensePresentation.js";
-import { useSubmitter } from "../SubmitterContext";
+import { profileField } from "../../shared/expensePresentation.js";
+import { submitterProfileDetails } from "../profileDetails.js";
+import { useAuth } from "../../../auth/AuthContext";
 import { initials } from "../utils";
 
 export default function ProfileSettingsPage() {
-  const { user } = useSubmitter();
-  const manager = managerProfileField(user?.manager);
-  const details = [
-    ["Name", user?.fullName],
-    ["Email", user?.email],
-    ["Employee ID", user?.employeeId],
-    ["Department", user?.department],
-    ["Manager", manager],
-    ["Role", "Expense Submitter"],
-    ["Organization", user?.organizationName],
-    ["Account status", user?.status],
-  ];
+  const { user: authenticatedUser } = useAuth();
+  const user = authenticatedUser ? {
+    ...authenticatedUser,
+    fullName: `${authenticatedUser.firstName || ""} ${authenticatedUser.lastName || ""}`.trim(),
+  } : null;
+  const details = submitterProfileDetails(user);
   return (
     <>
       <div className="dashboard-head">

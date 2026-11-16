@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectExpenses, selectExpenseState, fetchExpenses } from "../store/expensesSlice.js";
 import { demoAiForExpense, flagLabel, riskLabel } from "../aiDemo";
 import { currency, date, formatExpenseId, workflowLabel } from "../utils";
 import ResourceState from "../components/ResourceState";
@@ -108,7 +109,10 @@ function ConfidenceBars({ items }) {
 }
 
 export default function ReportsPage() {
-  const { expenses, expenseState, refreshExpenses } = useSubmitter();
+  const dispatch = useDispatch();
+  const expenses = useSelector(selectExpenses);
+  const expenseState = useSelector(selectExpenseState);
+  const refreshExpenses = () => dispatch(fetchExpenses());
   const report = useMemo(() => {
     const analyses = expenses
       .slice(0, 25)
