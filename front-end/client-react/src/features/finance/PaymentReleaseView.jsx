@@ -1,58 +1,29 @@
 import { useState, useMemo } from 'react'
+import { useReleasePaymentMutation } from './financeApiSlice.js'
 import { formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { MAX_PAYMENT_BATCH, batchLimitMessage, validatePaymentBatch, togglePaymentSelection, selectAllPayments } from './paymentBatch.js'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
-import { financeApi } from './financeApi'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useFinanceWorkspace } from './useFinanceWorkspace.js'
 
 export function PaymentReleaseView() {
-  const [expenses, setExpenses] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data, categories, loading, error: queryError, refreshError, retryNow: refetch } = useFinanceWorkspace()
+  const expenses = data.expenses || []
   const [error, setError] = useState('')
-  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [releasePayment, { isLoading: releasing }] = useReleasePaymentMutation()
+  const [selection, setSelectedIds] = useState(new Set())
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
-  const [releasing, setReleasing] = useState(false)
   const [releaseResult, setReleaseResult] = useState(null)
   const [selectionError, setSelectionError] = useState('')
 
-  async function loadData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [workspace, cats] = await Promise.all([
-        financeApi.getFinanceWorkspace(),
-        financeApi.getCategories().catch(() => []),
-      ])
-      const nextExpenses = workspace?.expenses || []
-      const eligibleIds = new Set(
-        nextExpenses
-          .filter((expense) => expense.workflowStatus === 'approved_for_payment')
-          .map((expense) => expense.id),
-      )
-      setExpenses(nextExpenses)
-      setCategories(cats || [])
-      setSelectedIds((current) =>
-        background
-          ? new Set(Array.from(current).filter((id) => eligibleIds.has(id)))
-          : new Set(),
-      )
-      if (!background) setSelectionError('')
-    } catch (err) {
-      if (background) throw err
-      setError(err.message || 'Failed to load payment release data.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, retryNow } = useLiveRefresh(loadData)
+  // Revalidate selection against current server eligibility before confirming a batch.
+  const selectedIds = useMemo(() => {
+    const eligible = new Set(expenses.filter((item) => item.workflowStatus === 'approved_for_payment').map((item) => item.id))
+    return new Set([...selection].filter((id) => eligible.has(id)))
+  }, [expenses, selection])
+  const retryNow = () => { setError(''); refetch() }
 
   // Eligible expenses for payment release:
   // Backend accepts: approved_for_payment and payment_processing
@@ -89,27 +60,24 @@ export function PaymentReleaseView() {
   }
 
   async function handleConfirmRelease() {
-    if (selectedIds.size === 0) return
+    if (releasing || selectedIds.size === 0) return
     try { validatePaymentBatch(Array.from(selectedIds)) }
     catch (err) { setSelectionError(err.message); return }
-    setReleasing(true)
     setError('')
     try {
-      const result = await financeApi.releasePayment(Array.from(selectedIds))
+      const result = await releasePayment(Array.from(selectedIds)).unwrap()
       setReleaseResult(result)
       notify(`Internal payment batch ${result.batchId} recorded. Bank settlement remains unverified.`, 'info')
       setConfirmModalOpen(false)
-      announceLiveRefresh()
+      setSelectedIds(new Set())
     } catch (err) {
       setError(err.message || 'Payment release failed.')
-    } finally {
-      setReleasing(false)
     }
   }
 
   if (loading) return <LoadingState message="Loading payment release candidates..." />
-  if (error && !confirmModalOpen)
-    return <ErrorState title="Error Loading Release Queue" description={error} onRetry={retryNow} />
+  if ((queryError || error) && !confirmModalOpen)
+    return <ErrorState title="Error Loading Release Queue" description={error || queryError} onRetry={retryNow} />
 
 
   return (
@@ -361,7 +329,7 @@ export function PaymentReleaseView() {
             type="button"
             className="btn btn-primary"
             onClick={handleConfirmRelease}
-            disabled={releasing}
+            disabled={releasing || selectedIds.size === 0}
           >
             {releasing ? 'Releasing Batch…' : `Confirm Release (${selectedIds.size})`}
           </button>

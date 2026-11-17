@@ -24,18 +24,20 @@ test("all five tenant layouts use the shared application shell and logout action
   assert.match(shell, /submitter-sidebar/);
 });
 
-test("Finance and Compliance keep the shared shell and serialize badge refreshes through useLiveRefresh", async () => {
+test("Finance and Compliance keep the shared shell and automatically refresh badges", async () => {
   const finance = await source("features/finance/FinanceLayout.jsx");
   const compliance = await source("features/compliance/ComplianceLayout.jsx");
 
   for (const layout of [finance, compliance]) {
     assert.match(layout, /TenantAppShell/);
-    assert.match(layout, /useLiveRefresh/);
-    assert.match(layout, /refreshImmediately:\s*false/);
-    assert.match(layout, /refreshNow\(\)\?\.catch/);
   }
 
-  assert.equal((finance.match(/financeApi\.getUnreadNotificationCount\(\)/g) || []).length, 1);
+  assert.match(finance, /useFinanceUnreadCountQuery/);
+  assert.match(finance, /pollingInterval:\s*15_000/);
+  assert.match(finance, /skipPollingIfUnfocused:\s*true/);
+  assert.match(compliance, /useLiveRefresh/);
+  assert.match(compliance, /refreshImmediately:\s*false/);
+  assert.match(compliance, /refreshNow\(\)\?\.catch/);
   assert.equal((compliance.match(/complianceApi\.getUnreadNotificationCount\(\)/g) || []).length, 1);
   assert.equal((compliance.match(/complianceApi\.getComplianceQueue\(\)/g) || []).length, 1);
   assert.match(compliance, /withNavigationBadge\(\s*withNavigationBadge\(complianceNavigation,\s*"\/compliance\/queue",\s*queueCount\)/);

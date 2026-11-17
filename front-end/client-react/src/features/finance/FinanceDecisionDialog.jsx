@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
-import { financeApi } from './financeApi'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useApproveExpenseMutation, useRejectExpenseMutation, useRequestInfoExpenseMutation, useFlagExpenseMutation } from './financeApiSlice.js'
+import { useFinanceExpense } from './useFinanceWorkspace.js'
 
 const CONFIG = {
   approve: {
@@ -47,14 +47,19 @@ const CONFIG = {
 }
 
 export function FinanceDecisionDialog({
-  expense,
+  expense: suppliedExpense,
   action, // 'approve' | 'reject' | 'request-info' | 'flag'
   open,
   onClose,
   onSuccess,
 }) {
   const [note, setNote] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const expense = useFinanceExpense(suppliedExpense, open)
+  const [approveExpense, approveState] = useApproveExpenseMutation()
+  const [rejectExpense, rejectState] = useRejectExpenseMutation()
+  const [requestInfoExpense, requestInfoState] = useRequestInfoExpenseMutation()
+  const [flagExpense, flagState] = useFlagExpenseMutation()
+  const submitting = approveState.isLoading || rejectState.isLoading || requestInfoState.isLoading || flagState.isLoading
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -68,34 +73,31 @@ export function FinanceDecisionDialog({
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (submitting) return
     if (config.requireNote && !note.trim()) {
       setError('Please provide a note explaining this decision.')
       return
     }
 
-    setSubmitting(true)
     setError('')
 
     try {
       if (action === 'approve') {
-        await financeApi.approveExpense(expense.id, note)
+        await approveExpense({ expenseId: expense.id, note }).unwrap()
       } else if (action === 'reject') {
-        await financeApi.rejectExpense(expense.id, note)
+        await rejectExpense({ expenseId: expense.id, note }).unwrap()
       } else if (action === 'request-info') {
-        await financeApi.requestInfoExpense(expense.id, note)
+        await requestInfoExpense({ expenseId: expense.id, note }).unwrap()
       } else if (action === 'flag') {
-        await financeApi.flagExpense(expense.id, note)
+        await flagExpense({ expenseId: expense.id, note }).unwrap()
       }
 
       notify(config.successToast, 'success')
-      announceLiveRefresh()
       setNote('')
       onClose()
       if (onSuccess) onSuccess()
     } catch (err) {
       setError(err.message || 'Action failed. Please try again.')
-    } finally {
-      setSubmitting(false)
     }
   }
 

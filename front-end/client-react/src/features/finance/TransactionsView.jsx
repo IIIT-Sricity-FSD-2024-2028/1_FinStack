@@ -1,19 +1,25 @@
 import { useState, useMemo } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { financeSlice } from './financeSlice.js'
+import { useProcessTransactionMutation, useFailTransactionMutation, useReconcileTransactionMutation } from './financeApiSlice.js'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Modal } from '../../components/Modal'
 import { notify } from '../../components/ToastHost'
-import { financeApi } from './financeApi'
 import { submitTransactionAction, transactionErrorMessage } from './paymentWorkflow'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useFinanceWorkspace } from './useFinanceWorkspace.js'
 
 export function TransactionsView() {
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [search, setSearch] = useState('')
+  const { data, loading, error, refreshError, refreshNow, retryNow } = useFinanceWorkspace()
+  const transactions = data.transactions || []
+  const dispatch = useDispatch()
+  const { statusFilter, search } = useSelector((state) => state.finance.transactions)
+  const setStatusFilter = (statusFilter) => dispatch(financeSlice.actions.setTransactionFilter({ statusFilter }))
+  const setSearch = (search) => dispatch(financeSlice.actions.setTransactionFilter({ search }))
+  const [processTransaction, processState] = useProcessTransactionMutation()
+  const [failTransaction, failState] = useFailTransactionMutation()
+  const [reconcileTransaction, reconcileState] = useReconcileTransactionMutation()
+  const processing = processState.isLoading || failState.isLoading || reconcileState.isLoading
 
   // Confirmation modal state
   const [actionConfirm, setActionConfirm] = useState({
@@ -21,7 +27,6 @@ export function TransactionsView() {
     transaction: null,
     action: null, // 'process' | 'fail' | 'reconcile'
   })
-  const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionResult, setActionResult] = useState('')
 
@@ -30,24 +35,6 @@ export function TransactionsView() {
     setActionResult('')
     setActionConfirm({ open: true, transaction, action })
   }
-
-  async function loadData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const workspace = await financeApi.getFinanceWorkspace()
-      setTransactions(workspace?.transactions || [])
-    } catch (err) {
-      if (background) throw err
-      setError(err.message || 'Failed to load transaction records.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -66,20 +53,20 @@ export function TransactionsView() {
 
   async function handleExecuteAction() {
     const { transaction, action } = actionConfirm
-    if (!transaction || !action) return
+    if (processing || !transaction || !action) return
 
-    setProcessing(true)
     setActionError('')
     try {
-      const result = await submitTransactionAction(action, transaction.id)
+      const result = await submitTransactionAction(action, transaction.id, {
+        processTransaction: (id) => processTransaction(id).unwrap(),
+        failTransaction: (id) => failTransaction(id).unwrap(),
+        reconcileTransaction: (id) => reconcileTransaction(id).unwrap(),
+      })
       setActionResult(result.message)
       notify(result.message, action === 'fail' ? 'warning' : 'info')
       setActionConfirm({ open: false, transaction: null, action: null })
-      announceLiveRefresh()
     } catch (err) {
       setActionError(transactionErrorMessage(err))
-    } finally {
-      setProcessing(false)
     }
   }
 

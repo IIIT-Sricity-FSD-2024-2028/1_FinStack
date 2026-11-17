@@ -41,9 +41,10 @@ export const financeApi = {
   /**
    * Approves an expense in finance review for payment.
    */
-  async approveExpense(expenseId, note) {
+  async approveExpense(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/finance/approve`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -51,9 +52,10 @@ export const financeApi = {
   /**
    * Rejects an expense during finance review.
    */
-  async rejectExpense(expenseId, note) {
+  async rejectExpense(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/finance/reject`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -61,9 +63,10 @@ export const financeApi = {
   /**
    * Requests additional information from the submitter.
    */
-  async requestInfoExpense(expenseId, note) {
+  async requestInfoExpense(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/finance/request-info`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -71,9 +74,10 @@ export const financeApi = {
   /**
    * Flags an expense for compliance review.
    */
-  async flagExpense(expenseId, note) {
+  async flagExpense(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/finance/flag`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -82,10 +86,11 @@ export const financeApi = {
    * Releases a batch of approved expenses for payment processing.
    * Note: Creates internal transaction records; does NOT perform a live bank wire.
    */
-  async releasePayment(expenseIds) {
+  async releasePayment(expenseIds, signal) {
     validatePaymentBatch(expenseIds)
     return request('/api/v1/tenant/expenses/finance/payment-releases', {
       method: 'POST',
+      signal,
       body: { expenseIds },
     })
   },
@@ -93,27 +98,30 @@ export const financeApi = {
   /**
    * Requests processing; bank evidence may be required by the backend.
    */
-  async processTransaction(transactionId) {
+  async processTransaction(transactionId, signal) {
     return request(`/api/v1/tenant/expenses/finance/transactions/${transactionId}/process`, {
       method: 'POST',
+      signal,
     })
   },
 
   /**
    * Transitions a pending transaction to failed.
    */
-  async failTransaction(transactionId) {
+  async failTransaction(transactionId, signal) {
     return request(`/api/v1/tenant/expenses/finance/transactions/${transactionId}/fail`, {
       method: 'POST',
+      signal,
     })
   },
 
   /**
    * Requests reconciliation; does not establish bank settlement in the UI.
    */
-  async reconcileTransaction(transactionId) {
+  async reconcileTransaction(transactionId, signal) {
     return request(`/api/v1/tenant/expenses/finance/transactions/${transactionId}/reconcile`, {
       method: 'POST',
+      signal,
     })
   },
 
@@ -188,18 +196,20 @@ export const financeApi = {
   /**
    * Marks a notification as read.
    */
-  async markNotificationRead(id) {
+  async markNotificationRead(id, signal) {
     return request(`/api/v1/tenant/expenses/notifications/${id}/read`, {
       method: 'PATCH',
+      signal,
     })
   },
 
   /**
    * Marks all notifications as read.
    */
-  async markAllNotificationsRead() {
+  async markAllNotificationsRead(signal) {
     return request('/api/v1/tenant/expenses/notifications/read-all', {
       method: 'POST',
+      signal,
     })
   },
 }

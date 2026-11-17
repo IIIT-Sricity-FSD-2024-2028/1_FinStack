@@ -197,7 +197,7 @@ test('Compliance live loaders are async and only enter full loading state initia
   assert.match(queue, /refreshError[\s\S]*<ComplianceDecisionDialog/)
 })
 
-test('Finance and Compliance reload handlers use the serialized controller', async () => {
+test('Finance and Compliance reload handlers avoid direct unmanaged requests', async () => {
   const files = [
     '../src/features/finance/FinanceDashboard.jsx',
     '../src/features/finance/FinanceReviewQueue.jsx',
@@ -218,7 +218,6 @@ test('Finance and Compliance reload handlers use the serialized controller', asy
   }
 
   for (const path of [
-    '../src/features/finance/FinanceNotifications.jsx',
     '../src/features/compliance/ComplianceNotifications.jsx',
     '../src/features/compliance/ComplianceAuditView.jsx',
   ]) {
