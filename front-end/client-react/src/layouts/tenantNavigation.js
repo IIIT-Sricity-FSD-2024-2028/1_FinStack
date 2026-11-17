@@ -20,7 +20,7 @@ export const financeNavigation = [
   { to: "/finance/dashboard", icon: "home", label: "Dashboard", section: "Finance Oversight", end: true },
   { to: "/finance/queue", icon: "folder", label: "Review Queue" },
   { to: "/finance/payments", icon: "receipt", label: "Payment Release" },
-  { to: "/finance/transactions", icon: "calculator", label: "Transactions & Reconciliation" },
+  { to: "/finance/transactions", icon: "calculator", label: "Transactions" },
   { to: "/finance/notifications", icon: "bell", label: "Notifications" },
   { to: "/finance/settings", icon: "settings", label: "Profile & Settings", section: "Account" },
 ];
@@ -34,7 +34,7 @@ export const complianceNavigation = [
   { to: "/compliance/settings", icon: "settings", label: "Profile & Settings", section: "Account" },
 ];
 
-export function configurationNavigation(pages, currentPage) {
+export function configurationNavigation(pages, _currentPage) {
   const sections = ["Overview", "User Management", "User Management", "User Management", "Expense Configuration", "Expense Configuration", "Expense Configuration", "System", "System", "System", "System", "System"];
   const navItems = pages.map((entry, index) => ({
     to: `/configuration/${entry[0]}`,

@@ -1,49 +1,28 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { financeSlice } from './financeSlice.js'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Pagination } from '../../components/Pagination'
-import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useFinanceWorkspace } from './useFinanceWorkspace.js'
 
 const PAGE_SIZE = 10
 
 export function FinanceReviewQueue() {
-  const [expenses, setExpenses] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-  const [stageFilter, setStageFilter] = useState('finance_review')
-  const [categoryFilter, setCategoryFilter] = useState('')
-  const [sortKey, setSortKey] = useState('date_desc')
-  const [page, setPage] = useState(1)
+  const { data, categories, loading, error, refreshError, refreshNow, retryNow } = useFinanceWorkspace()
+  const expenses = data.expenses || []
+  const dispatch = useDispatch()
+  const { search, stageFilter, categoryFilter, sortKey, page: requestedPage } = useSelector((state) => state.finance.review)
+  const setSearch = (search) => dispatch(financeSlice.actions.setReviewFilter({ search }))
+  const setStageFilter = (stageFilter) => dispatch(financeSlice.actions.setReviewFilter({ stageFilter }))
+  const setCategoryFilter = (categoryFilter) => dispatch(financeSlice.actions.setReviewFilter({ categoryFilter }))
+  const setSortKey = (sortKey) => dispatch(financeSlice.actions.setReviewFilter({ sortKey }))
+  const setPage = (page) => dispatch(financeSlice.actions.setReviewPage(page))
 
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
-
-  async function loadData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [workspace, cats] = await Promise.all([
-        financeApi.getFinanceWorkspace(),
-        financeApi.getCategories().catch(() => []),
-      ])
-      setExpenses(workspace?.expenses || [])
-      setCategories(cats || [])
-    } catch (err) {
-      if (background) throw err
-      setError(err.message || 'Unable to load finance queue records.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Filter & Search Logic
   const filtered = useMemo(() => {
@@ -86,14 +65,11 @@ export function FinanceReviewQueue() {
 
   // Pagination
   const totalItems = sorted.length
+  const page = Math.min(requestedPage, Math.max(1, Math.ceil(totalItems / PAGE_SIZE)))
   const pagedItems = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
     return sorted.slice(start, start + PAGE_SIZE)
   }, [sorted, page])
-
-  useEffect(() => {
-    setPage(1)
-  }, [stageFilter, categoryFilter, search, sortKey])
 
   if (loading) return <LoadingState message="Loading finance expenses..." />
   if (error) return <ErrorState title="Error Loading Expenses" description={error} onRetry={retryNow} />

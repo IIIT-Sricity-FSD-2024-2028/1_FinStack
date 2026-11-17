@@ -1,55 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { financeSlice } from './financeSlice.js'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState, EmptyState } from '../../components/OperationalStates'
 import { Pagination } from '../../components/Pagination'
 import { notify } from '../../components/ToastHost'
-import { financeApi } from './financeApi'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useFinanceNotificationsQuery, useFinanceUnreadCountQuery, useMarkFinanceNotificationReadMutation, useMarkAllFinanceNotificationsReadMutation } from './financeApiSlice.js'
 
 const PAGE_SIZE = 15
 
 export function FinanceNotifications() {
-  const [items, setItems] = useState([])
-  const [total, setTotal] = useState(0)
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [page, setPage] = useState(1)
-  const [stateFilter, setStateFilter] = useState('all') // 'all' | 'unread' | 'read'
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  async function loadNotifications({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const response = await financeApi.getNotifications({
-        page,
-        pageSize: PAGE_SIZE,
-        state: stateFilter,
-      })
-      setItems(response?.items || [])
-      setTotal(response?.total || 0)
-      setUnreadCount(response?.unreadCount || 0)
-    } catch (err) {
-      if (background) throw err
-      setError(err.message || 'Failed to load notifications.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadNotifications)
-
-  useEffect(() => {
-    if (!loading) refreshNow()
-  }, [page, stateFilter, refreshNow])
+  const dispatch = useDispatch()
+  const { page, stateFilter } = useSelector((state) => state.finance.notifications)
+  const setPage = (page) => dispatch(financeSlice.actions.setNotificationPage(page))
+  const setStateFilter = (stateFilter) => dispatch(financeSlice.actions.setNotificationFilter(stateFilter))
+  const [actionError, setError] = useState('')
+  const { currentData: data, isFetching, error: queryError, refetch } = useFinanceNotificationsQuery({
+    page, pageSize: PAGE_SIZE, state: stateFilter,
+  }, { pollingInterval: 15_000, skipPollingIfUnfocused: true })
+  const { data: unread } = useFinanceUnreadCountQuery()
+  const unreadCount = typeof unread === 'number' ? unread : unread?.count || 0
+  const items = data?.items || []
+  const total = data?.total || 0
+  const loading = isFetching && !data
+  const error = actionError || (!data && queryError?.message)
+  const refreshError = data && queryError
+  const refreshNow = () => { setError(''); refetch() }
+  const retryNow = refreshNow
+  const [markRead, readState] = useMarkFinanceNotificationReadMutation()
+  const [markAllRead, readAllState] = useMarkAllFinanceNotificationsReadMutation()
+  const markingRead = readState.isLoading || readAllState.isLoading
 
   async function handleMarkRead(id) {
     try {
-      await financeApi.markNotificationRead(id)
-      announceLiveRefresh()
+      setError('')
+      await markRead(id).unwrap()
       notify('Notification marked read.', 'info')
     } catch (err) {
       setError(err.message || 'Failed to mark notification read.')
@@ -58,10 +43,8 @@ export function FinanceNotifications() {
 
   async function handleMarkAllRead() {
     try {
-      await financeApi.markAllNotificationsRead()
-      announceLiveRefresh()
-      setItems((prev) => prev.map((item) => ({ ...item, unread: false, readAt: new Date().toISOString() })))
-      setUnreadCount(0)
+      setError('')
+      await markAllRead().unwrap()
       notify('All notifications marked read.', 'success')
     } catch (err) {
       setError(err.message || 'Failed to mark all read.')
@@ -78,7 +61,6 @@ export function FinanceNotifications() {
             value={stateFilter}
             onChange={(e) => {
               setStateFilter(e.target.value)
-              setPage(1)
             }}
           >
             <option value="all">All Notifications</option>
@@ -93,6 +75,7 @@ export function FinanceNotifications() {
               type="button"
               className="btn btn-secondary btn-xs"
               onClick={handleMarkAllRead}
+              disabled={markingRead}
             >
               Mark All as Read
             </button>
@@ -206,6 +189,7 @@ export function FinanceNotifications() {
                       type="button"
                       className="btn btn-secondary btn-xs"
                       onClick={() => handleMarkRead(item.id)}
+                      disabled={markingRead}
                     >
                       Mark Read
                     </button>
