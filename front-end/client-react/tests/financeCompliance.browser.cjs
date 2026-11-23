@@ -135,10 +135,11 @@ async function actorRoutes() {
     await textIncludes('saving is unavailable');
     check(`${actor}: unavailable preference saving is explicit`);
     await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
-    assert(await page.locator(`.${actor}-workspace.nav-collapsed`).count());
+    assert(await page.locator(`.${actor}-workspace.is-collapsed`).count());
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
-    await page.getByRole('button', { name: `${user().firstName} QA ▾`, exact: true }).click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.locator('button[aria-controls="tenant-account-menu"]').click();
+    await page.locator('#tenant-account-menu').getByRole('button', { name: 'Log out', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Log out of FinStack?' }).getByRole('button', { name: 'Log out', exact: true }).click();
     await page.waitForURL(`${base}/login`); await idle();
     assert.equal(new URL(page.url()).pathname, '/login');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
@@ -264,10 +265,10 @@ async function statesAndMobile() {
       const width = await page.evaluate(() => ({ viewport: innerWidth, body: document.documentElement.scrollWidth }));
       assert(width.body <= width.viewport + 1, `${actor}/${route} overflow: ${JSON.stringify(width)}`);
     }
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    assert.equal(await page.locator(`.${actor}-workspace.nav-mobile-open`).count(), 1);
+    await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    assert.equal(await page.locator(`.${actor}-workspace.is-mobile-open`).count(), 1);
     await page.keyboard.press('Escape');
-    assert.equal(await page.locator(`.${actor}-workspace.nav-mobile-open`).count(), 0);
+    assert.equal(await page.locator(`.${actor}-workspace.is-mobile-open`).count(), 0);
     await page.screenshot({ path: path.join(output, `${actor}-mobile.png`), fullPage: true });
     check(`${actor}: mobile dashboard/settings and navigation`);
     await page.setViewportSize({ width: 1440, height: 1000 });

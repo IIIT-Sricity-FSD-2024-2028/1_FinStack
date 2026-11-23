@@ -36,8 +36,11 @@ test("Finance and Compliance keep the shared shell and serialize badge refreshes
   }
 
   assert.equal((finance.match(/financeApi\.getUnreadNotificationCount\(\)/g) || []).length, 1);
-  assert.equal((compliance.match(/complianceApi\.getUnreadNotificationCount\(\)/g) || []).length, 1);
-  assert.equal((compliance.match(/complianceApi\.getComplianceQueue\(\)/g) || []).length, 1);
+  assert.match(compliance, /ComplianceProvider/);
+  assert.match(compliance, /useSelector\(selectUnreadCount\)/);
+  assert.match(compliance, /useSelector\(selectQueue\)/);
+  assert.match(compliance, /dispatch\(refreshWorkspace/);
+  assert.doesNotMatch(compliance, /complianceApi|setUnreadCount|setQueueCount/);
   assert.match(compliance, /withNavigationBadge\(\s*withNavigationBadge\(complianceNavigation,\s*"\/compliance\/queue",\s*queueCount\)/);
   assert.match(compliance, /"\/compliance\/notifications",\s*unreadCount/);
 });

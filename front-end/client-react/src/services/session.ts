@@ -98,8 +98,8 @@ export async function request<T = any>(
 ): Promise<T> {
   const multipart = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = multipart ? {} : { "Content-Type": "application/json" };
+  const session = options.authenticated === false ? null : currentSession();
   if (options.authenticated !== false) {
-    const session = currentSession();
     if (!session) {
       clearSession();
       throw new ApiError("Sign in again to continue.", 401);
@@ -114,8 +114,10 @@ export async function request<T = any>(
     cache: "no-store",
   });
   const payload = await response.json().catch(() => null);
+  const sessionStillCurrent = session && !options.signal?.aborted &&
+    currentSession()?.accessToken === session.accessToken;
   if (!response.ok) {
-    if (response.status === 401 && options.authenticated !== false)
+    if (response.status === 401 && sessionStillCurrent)
       clearSession();
     const message = payload?.error?.message || payload?.message;
     throw new ApiError(
@@ -133,7 +135,7 @@ export async function request<T = any>(
   // Notify other actor tabs only after a successful authenticated tenant write.
   // No expense details, credentials or API response content are broadcast.
   const method = (options.method || "GET").toUpperCase();
-  if (options.authenticated !== false && path.startsWith("/api/v1/tenant/") &&
+  if (sessionStillCurrent && path.startsWith("/api/v1/tenant/") &&
       !["GET", "HEAD", "OPTIONS"].includes(method)) {
     announceLiveRefresh();
   }

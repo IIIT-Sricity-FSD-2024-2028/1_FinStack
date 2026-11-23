@@ -11,7 +11,7 @@ const actors = [
   { role: 'MANAGER', dashboard: '/manager/dashboard', shell: '.manager-workspace', pages: ['/manager', '/manager/dashboard', '/manager/expenses', '/manager/expenses/expense-1', '/manager/history', '/manager/notifications', '/manager/profile-settings'] },
   { role: 'FINANCE_OFFICER', dashboard: '/finance/dashboard', shell: '.finance-workspace', pages: ['/finance', '/finance/dashboard', '/finance/queue', '/finance/payments', '/finance/transactions', '/finance/notifications', '/finance/settings'] },
   { role: 'COMPLIANCE_OFFICER', dashboard: '/compliance/dashboard', shell: '.compliance-workspace', pages: ['/compliance', '/compliance/dashboard', '/compliance/queue', '/compliance/policies', '/compliance/audit', '/compliance/notifications', '/compliance/settings'] },
-  { role: 'CONFIGURATION_MANAGER', dashboard: '/configuration/dashboard', shell: '.spa-workspace', pages: ['/configuration', '/configuration/dashboard', '/configuration/notifications'] },
+  { role: 'CONFIGURATION_MANAGER', dashboard: '/configuration/dashboard', shell: '.configuration-workspace', pages: ['/configuration', '/configuration/dashboard', '/configuration/notifications'] },
 ];
 
 test('one SPA supports all actor routes, login/logout, legacy refreshes and role boundaries', { timeout: 180000 }, async () => {
@@ -111,11 +111,12 @@ test('one SPA supports all actor routes, login/logout, legacy refreshes and role
         await loaded(page, actor.dashboard, actor.shell);
         await loaded(page, actor.dashboard + '?before-logout=1', actor.shell);
         if (actor.role === 'CONFIGURATION_MANAGER') {
-          await page.locator('button[aria-controls="account-menu"]').click();
-          await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+          await page.locator('button[aria-controls="tenant-account-menu"]').click();
+          await page.locator('#tenant-account-menu').getByRole('button', { name: 'Log out', exact: true }).click();
         } else {
-          await page.getByRole('button', { name: actor.role === 'MANAGER' ? 'Log out' : 'Logout', exact: true }).first().click();
+          await page.getByRole('button', { name: 'Log out', exact: true }).first().click();
         }
+        await page.getByRole('dialog', { name: 'Log out of FinStack?' }).getByRole('button', { name: 'Log out', exact: true }).click();
         await page.waitForURL(base + '/login');
         assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
         await page.goBack();

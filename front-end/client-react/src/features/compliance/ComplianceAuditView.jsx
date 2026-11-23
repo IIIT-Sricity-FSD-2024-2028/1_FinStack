@@ -1,83 +1,71 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useCompliancePage } from './store/useComplianceData.js'
 
 export function ComplianceAuditView() {
-  const [logs, setLogs] = useState([])
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(25)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
   const [search, setSearch] = useState('')
   const [outcome, setOutcome] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [appliedFilters, setAppliedFilters] = useState({})
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
+  const exportRequest = useRef(null)
+  useEffect(() => () => exportRequest.current?.abort(), [])
 
-  async function loadLogs({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const data = await complianceApi.getAuditLogs({
-        page,
-        pageSize,
-        search: search.trim() || undefined,
-        outcome: outcome || undefined,
-        from: from || undefined,
-        to: to || undefined,
-      })
-      setLogs(Array.isArray(data?.items) ? data.items : [])
-      setTotal(data?.total || 0)
-      setTotalPages(data?.totalPages || 1)
-    } catch (err) {
-      if (background) throw err
-      setError(err?.message || 'Failed to load audit logs.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadLogs, { pollIntervalMs: 30_000 })
-
-  useEffect(() => {
-    if (!loading) refreshNow()
-  }, [page, outcome, refreshNow])
+  const { data, loading, error, refreshError, refreshNow, retryNow } = useCompliancePage('audit', {
+    page, pageSize, outcome: outcome || undefined, ...appliedFilters,
+  })
+  const { items: logs, total, totalPages } = data
 
   function handleFilterSubmit(e) {
     e.preventDefault()
-    if (page === 1) refreshNow()
-    else setPage(1)
+    const filters = {
+      search: search.trim() || undefined,
+      from: from || undefined,
+      to: to ? `${to}T23:59:59.999Z` : undefined,
+    }
+    if (page === 1 && filters.search === appliedFilters.search &&
+        filters.from === appliedFilters.from && filters.to === appliedFilters.to) {
+      refreshNow()
+    } else {
+      setAppliedFilters(filters)
+      setPage(1)
+    }
   }
 
   async function handleExport() {
+    if (exportRequest.current && !exportRequest.current.signal.aborted) return
+    const controller = new AbortController()
+    exportRequest.current = controller
     try {
       setExporting(true)
       setExportError('')
       const blob = await complianceApi.exportAuditLogs({
-        search: search.trim() || undefined,
         outcome: outcome || undefined,
-        from: from || undefined,
-        to: to || undefined,
-      })
+        ...appliedFilters,
+      }, controller.signal)
+      if (controller.signal.aborted) return
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = 'finstack-compliance-audit.csv'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      try {
+        a.href = url
+        a.download = 'finstack-compliance-audit.csv'
+        document.body.appendChild(a)
+        a.click()
+      } finally {
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
     } catch (err) {
-      setExportError(err?.message || 'Failed to export audit logs.')
+      if (!controller.signal.aborted) setExportError(err?.message || 'Failed to export audit logs.')
     } finally {
-      setExporting(false)
+      if (!controller.signal.aborted) setExporting(false)
+      if (exportRequest.current === controller) exportRequest.current = null
     }
   }
 
@@ -109,7 +97,7 @@ export function ComplianceAuditView() {
           type="button"
           className="compliance-btn compliance-btn-secondary"
           onClick={handleExport}
-          disabled={exporting || loading}
+          disabled={exporting}
         >
           <Icon name="download" size={16} />
           <span>{exporting ? 'Exporting…' : 'Export CSV'}</span>

@@ -1,45 +1,21 @@
-import { formatExpenseAmount, activePolicies } from '../shared/expensePresentation.js'
+import { formatExpenseAmount } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
-import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useSelector } from 'react-redux'
+import { selectQueue, selectCategories, selectActivePolicies } from './store/complianceSlice.js'
+import { useComplianceData } from './store/useComplianceData.js'
 
 export function PoliciesViolationsView() {
-  const [policies, setPolicies] = useState([])
-  const [categories, setCategories] = useState([])
-  const [queue, setQueue] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const queue = useSelector(selectQueue)
+  const categories = useSelector(selectCategories)
+  const policies = useSelector(selectActivePolicies)
+  const { loading, error, optionalError, refreshError, retryNow } = useComplianceData(['policies', 'categories', 'queue'], ['categories'])
 
   const [inspectExpense, setInspectExpense] = useState(null)
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
-
-  async function loadData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [pData, cData, qData] = await Promise.all([
-        complianceApi.getPolicies(),
-        complianceApi.getCategories().catch(() => []),
-        complianceApi.getComplianceQueue(),
-      ])
-      setPolicies(activePolicies(pData))
-      setCategories(Array.isArray(cData) ? cData : [])
-      setQueue(Array.isArray(qData) ? qData : [])
-    } catch (err) {
-      if (background) throw err
-      setError(err?.message || 'Failed to load organization policy rules.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, retryNow } = useLiveRefresh(loadData, { pollIntervalMs: 30_000 })
 
   useEffect(() => {
     if (!toastMessage) return
@@ -58,6 +34,7 @@ export function PoliciesViolationsView() {
 
   return (
     <div>
+      {optionalError && <p role="alert" className="compliance-error-banner">{optionalError} <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" onClick={retryNow}>Retry categories</button></p>}
       {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh policy monitoring. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (

@@ -1,46 +1,24 @@
-import { formatExpenseAmount, formatCurrencyTotals, activePolicies } from '../shared/expensePresentation.js'
+import { formatExpenseAmount, formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useSelector } from 'react-redux'
+import { selectQueue, selectCategories, selectActivePolicies } from './store/complianceSlice.js'
+import { useComplianceData } from './store/useComplianceData.js'
 
 export function ComplianceDashboard() {
-  const [queue, setQueue] = useState([])
-  const [policies, setPolicies] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const queue = useSelector(selectQueue)
+  const categories = useSelector(selectCategories)
+  const policies = useSelector(selectActivePolicies)
+  const { loading, error, optionalError, refreshError, refreshNow, retryNow } = useComplianceData(['queue', 'policies', 'categories'], ['policies', 'categories'])
+  const policiesReady = useSelector((state) => state.compliance.policies.loaded)
+  const categoriesReady = useSelector((state) => state.compliance.categories.loaded)
 
   const [inspectExpense, setInspectExpense] = useState(null)
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
-
-  async function loadDashboardData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [qData, pData, cData] = await Promise.all([
-        complianceApi.getComplianceQueue(),
-        complianceApi.getPolicies().catch(() => []),
-        complianceApi.getCategories().catch(() => []),
-      ])
-      setQueue(Array.isArray(qData) ? qData : [])
-      setPolicies(activePolicies(pData))
-      setCategories(Array.isArray(cData) ? cData : [])
-    } catch (err) {
-      if (background) throw err
-      setError(err?.message || 'Failed to load compliance dashboard metrics.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboardData)
 
   useEffect(() => {
     if (!toastMessage) return
@@ -73,6 +51,7 @@ export function ComplianceDashboard() {
 
   return (
     <div>
+      {optionalError && <p role="alert" className="compliance-error-banner">{optionalError} <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" onClick={retryNow}>Retry definitions</button></p>}
       {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh dashboard data. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
@@ -178,8 +157,8 @@ export function ComplianceDashboard() {
         <div className="compliance-stat-card">
           <div>
             <div className="compliance-stat-label">Active Policies</div>
-            <div className="compliance-stat-value">{loading ? '…' : policies.length}</div>
-            <div className="compliance-stat-sub">{categories.length} expense categories</div>
+            <div className="compliance-stat-value">{policiesReady ? policies.length : '…'}</div>
+            <div className="compliance-stat-sub">{categoriesReady ? categories.length : '…'} expense categories</div>
           </div>
           <div className="compliance-stat-icon-wrap stat-icon-cyan">
             <Icon name="file" size={24} />

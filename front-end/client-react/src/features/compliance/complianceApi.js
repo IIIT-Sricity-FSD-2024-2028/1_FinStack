@@ -20,6 +20,15 @@ function getApiBase() {
   ).replace(/\/$/, '')
 }
 
+function assertDownloadSession(session) {
+  const current = tenantSession.current()
+  if (!current || current.accessToken !== session.accessToken ||
+      current.organizationId !== session.organizationId || current.user?.id !== session.user?.id ||
+      current.user?.role !== session.user?.role) {
+    throw new ApiError('Your session changed. Sign in again to continue.', 401)
+  }
+}
+
 export const complianceApi = {
   /**
    * Fetches expenses currently awaiting compliance review for this organization.
@@ -31,9 +40,10 @@ export const complianceApi = {
   /**
    * Approves a flagged / escalated expense and forwards it to the Finance Officer.
    */
-  async approveClaim(expenseId, note) {
+  async approveClaim(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/compliance/approve`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -41,9 +51,10 @@ export const complianceApi = {
   /**
    * Rejects an expense during compliance review and notifies the submitter.
    */
-  async rejectClaim(expenseId, note) {
+  async rejectClaim(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/compliance/reject`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -51,9 +62,10 @@ export const complianceApi = {
   /**
    * Initiates corrective action on an expense and records a compliance audit event.
    */
-  async correctiveAction(expenseId, note) {
+  async correctiveAction(expenseId, note, signal) {
     return request(`/api/v1/tenant/expenses/${expenseId}/compliance/corrective-action`, {
       method: 'POST',
+      signal,
       body: { note: note?.trim() || undefined },
     })
   },
@@ -75,17 +87,19 @@ export const complianceApi = {
   /**
    * Downloads receipt file as Blob. Scoped to authenticated tenant.
    */
-  async downloadReceipt(expenseId) {
+  async downloadReceipt(expenseId, signal) {
     const session = tenantSession.current()
     if (!session) throw new ApiError('Sign in again to continue.', 401)
 
     const url = `${getApiBase()}/api/v1/tenant/expenses/${expenseId}/receipt`
     const res = await fetch(url, {
+      signal,
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
       },
     })
 
+    assertDownloadSession(session)
     if (!res.ok) {
       if (res.status === 401) tenantSession.logout()
       const err = await res.json().catch(() => null)
@@ -102,6 +116,7 @@ export const complianceApi = {
     }
 
     const blob = await res.blob()
+    assertDownloadSession(session)
     const contentType = res.headers.get('content-type') || 'application/octet-stream'
     return { blob, contentType }
   },
@@ -129,7 +144,7 @@ export const complianceApi = {
   /**
    * Downloads CSV export of organization audit logs.
    */
-  async exportAuditLogs({ search, eventCode, targetType, outcome, from, to } = {}) {
+  async exportAuditLogs({ search, eventCode, targetType, outcome, from, to } = {}, signal) {
     const session = tenantSession.current()
     if (!session) throw new ApiError('Sign in again to continue.', 401)
 
@@ -144,17 +159,21 @@ export const complianceApi = {
     const query = params.toString() ? `?${params.toString()}` : ''
     const url = `${getApiBase()}/api/v1/tenant/configuration/audit-logs/export${query}`
     const res = await fetch(url, {
+      signal,
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
       },
     })
 
+    assertDownloadSession(session)
     if (!res.ok) {
       if (res.status === 401) tenantSession.logout()
       throw new ApiError('Failed to export audit logs.', res.status)
     }
 
-    return res.blob()
+    const blob = await res.blob()
+    assertDownloadSession(session)
+    return blob
   },
 
   /**
@@ -180,18 +199,20 @@ export const complianceApi = {
   /**
    * Marks a notification as read.
    */
-  async markNotificationRead(id) {
+  async markNotificationRead(id, signal) {
     return request(`/api/v1/tenant/expenses/notifications/${id}/read`, {
       method: 'PATCH',
+      signal,
     })
   },
 
   /**
    * Marks all notifications as read.
    */
-  async markAllNotificationsRead() {
+  async markAllNotificationsRead(signal) {
     return request('/api/v1/tenant/expenses/notifications/read-all', {
       method: 'POST',
+      signal,
     })
   },
 }
