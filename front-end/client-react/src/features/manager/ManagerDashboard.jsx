@@ -1,7 +1,9 @@
+import { useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
 import { SharedPageHeader } from "../../layouts/TenantAppShell";
-import { useManagerWorkspace } from "./useManagerWorkspace";
+import { useGetManagerHistoryQuery, useGetManagerQueueQuery } from "./managerApiSlice.js";
 
 function Metric({ label, value, note }) {
   return <article className="card manager-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
@@ -9,7 +11,22 @@ function Metric({ label, value, note }) {
 const money = (expense) => `${expense.currency || ""} ${expense.amount ?? "—"}`.trim();
 
 export function ManagerDashboard() {
-  const { queue, history, status, error, refresh } = useManagerWorkspace();
+  const queueQuery = useGetManagerQueueQuery();
+  const historyQuery = useGetManagerHistoryQuery();
+  const queue = queueQuery.data || [];
+  const history = historyQuery.data || [];
+  const refresh = useCallback(() => {
+    return Promise.all([queueQuery.refetch(), historyQuery.refetch()]);
+  }, [queueQuery.refetch, historyQuery.refetch]);
+  const { refreshNow } = useLiveRefresh(refresh);
+  useEffect(() => {
+    window.addEventListener("finstack:dashboard-refresh", refreshNow);
+    return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);
+  }, [refreshNow]);
+  const status = queueQuery.isLoading || historyQuery.isLoading
+    ? "loading"
+    : queueQuery.isError || historyQuery.isError ? "error" : "success";
+  const error = queueQuery.error?.data?.message || historyQuery.error?.data?.message || "The Manager workspace could not be loaded.";
   if (status === "loading") return <LoadingState message="Loading your review workspace…" />;
   if (status === "error") return <ErrorState title="Dashboard unavailable" description={error} onRetry={refresh} />;
   const returned = history.filter((expense) => String(expense.managerDecision).toLowerCase().includes("return")).length;

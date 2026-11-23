@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
 import { notify } from "../../components/ToastHost";
 import { managerApi } from "./managerApi";
-import { useManagerWorkspace } from "./useManagerWorkspace";
+import { useGetFinanceOfficersQuery, useGetManagerHistoryQuery, useGetManagerQueueQuery } from "./managerApiSlice.js";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { createConfirmedAction } from "../../components/confirmedAction";
 import { SharedPageHeader } from "../../layouts/TenantAppShell";
@@ -11,7 +12,26 @@ import { SharedPageHeader } from "../../layouts/TenantAppShell";
 export function ManagerExpenseDetails() {
   const { expenseId } = useParams();
   const navigate = useNavigate();
-  const { queue, history, officers, status, error, refresh } = useManagerWorkspace({ includeOfficers: true });
+  const queueQuery = useGetManagerQueueQuery();
+  const historyQuery = useGetManagerHistoryQuery();
+  const officersQuery = useGetFinanceOfficersQuery();
+  const queue = queueQuery.data || [];
+  const history = historyQuery.data || [];
+  const officers = officersQuery.data || [];
+  const refresh = useCallback(() => Promise.all([
+    queueQuery.refetch(),
+    historyQuery.refetch(),
+    officersQuery.refetch(),
+  ]), [queueQuery.refetch, historyQuery.refetch, officersQuery.refetch]);
+  const { refreshNow } = useLiveRefresh(refresh);
+  useEffect(() => {
+    window.addEventListener("finstack:dashboard-refresh", refreshNow);
+    return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);
+  }, [refreshNow]);
+  const status = queueQuery.isLoading || historyQuery.isLoading || officersQuery.isLoading
+    ? "loading"
+    : queueQuery.isError || historyQuery.isError || officersQuery.isError ? "error" : "success";
+  const error = queueQuery.error?.data?.message || historyQuery.error?.data?.message || officersQuery.error?.data?.message || "The Manager workspace could not be loaded.";
   const [note, setNote] = useState("");
   const [officerId, setOfficerId] = useState("");
   const [saving, setSaving] = useState(false);
