@@ -50,8 +50,8 @@ export function installCrossTabLiveRefresh(getOrganizationId, target = globalThi
   })
 }
 
-export function announceLiveRefresh(target = globalThis.window) {
-  target?.dispatchEvent?.(new Event(LIVE_REFRESH_EVENT))
+export function announceLiveRefresh(target = globalThis.window, { dispatchLocal = true } = {}) {
+  if (dispatchLocal) target?.dispatchEvent?.(new Event(LIVE_REFRESH_EVENT))
   installedBridge?.broadcast()
 }
 

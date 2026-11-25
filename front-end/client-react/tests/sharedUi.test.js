@@ -138,7 +138,10 @@ test("shared shell covers drawer dismissal, long employee IDs, modal stacking, a
 test("Manager decisions confirm before API mutation and retain role-specific routes", async () => {
   const details = await source("features/manager/ManagerExpenseDetails.jsx");
   assert.match(details, /<ConfirmDialog/);
-  assert.match(details, /managerApi\.(approve|reject|escalate|returnForCorrection)/);
+  for (const mutation of ["approveExpense", "rejectExpense", "returnExpense", "escalateExpense"])
+    assert.match(details, new RegExp(`${mutation}\\([\\s\\S]*?\\.unwrap\\(\\)`));
+  assert.match(details, /managerApi\.receipt/);
+  assert.doesNotMatch(details, /managerApi\.(approve|reject|escalate|returnForCorrection)/);
   assert.doesNotMatch(details, /window\.confirm|window\.alert/);
   for (const route of ["dashboard", "expenses", "history", "notifications", "profile-settings"])
     assert.ok(managerNavigation.some((item) => item.to === `/manager/${route}`), `missing manager ${route} navigation`);

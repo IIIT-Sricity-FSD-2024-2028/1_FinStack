@@ -15,12 +15,12 @@ const managerFiltersSlice = createSlice({
     resetQueueSearch: (state) => { state.queue.search = initialState.queue.search; },
     resetQueueFlag: (state) => { state.queue.flag = initialState.queue.flag; },
     resetQueueRisk: (state) => { state.queue.risk = initialState.queue.risk; },
-    resetQueueFilters: (state) => { state.queue = initialState.queue; },
+    resetQueueFilters: (state) => { state.queue = { ...initialState.queue }; },
     setHistorySearch: (state, action) => { state.history.search = action.payload; },
     setHistoryStatus: (state, action) => { state.history.status = action.payload; },
     resetHistorySearch: (state) => { state.history.search = initialState.history.search; },
     resetHistoryStatus: (state) => { state.history.status = initialState.history.status; },
-    resetHistoryFilters: (state) => { state.history = initialState.history; },
+    resetHistoryFilters: (state) => { state.history = { ...initialState.history }; },
   },
 });
 

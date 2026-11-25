@@ -6,23 +6,14 @@ import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
 import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { useGetManagerHistoryQuery } from "./managerApiSlice.js";
 import { setHistorySearch, setHistoryStatus } from "./managerFiltersSlice.js";
-
-function decisionStatus(expense) {
-  const decision = String(expense.managerDecision || "").toLowerCase();
-  if (decision.includes("escalat")) return "Escalated";
-  if (decision.includes("return")) return "Returned";
-  if (decision.includes("reject")) return "Rejected";
-  if (decision.includes("approv")) return "Approved";
-  const workflow = String(expense.workflowStatus || "").toLowerCase();
-  if (workflow.includes("compliance")) return "Escalated";
-  return workflow || "Processed";
-}
+import { decisionStatus, selectFilteredManagerHistory, selectManagerHistory } from "./managerSelectors.js";
 
 export function ManagerHistory() {
   const dispatch = useDispatch();
   const { search: query, status: statusFilter } = useSelector((state) => state.managerFilters.history);
   const historyQuery = useGetManagerHistoryQuery();
-  const history = historyQuery.data || [];
+  const history = useSelector(selectManagerHistory);
+  const processed = useSelector(selectFilteredManagerHistory);
   const refresh = useCallback(() => historyQuery.refetch(), [historyQuery.refetch]);
   const { refreshNow } = useLiveRefresh(refresh);
   useEffect(() => {
@@ -32,11 +23,6 @@ export function ManagerHistory() {
   const status = historyQuery.isLoading ? "loading" : historyQuery.isError ? "error" : "success";
   const error = historyQuery.error?.data?.message || "The Manager workspace could not be loaded.";
   const statusOptions = useMemo(() => [...new Set(history.map(decisionStatus))].sort(), [history]);
-  const processed = useMemo(() => history.filter((expense) => {
-    const matchesStatus = statusFilter === "all" || decisionStatus(expense) === statusFilter;
-    const text = [expense.id, expense.merchant, expense.category, expense.employee?.fullName, expense.employeeId].join(" ").toLowerCase();
-    return matchesStatus && text.includes(query.trim().toLowerCase());
-  }), [history, statusFilter, query]);
   return <section className="manager-page">
     <SharedPageHeader title="Approval History" description="View expense requests processed in your Manager workflow." />
     <div className="manager-filters"><label className="manager-search">Search<input className="form-input" value={query} onChange={(event) => dispatch(setHistorySearch(event.target.value))} placeholder="Employee, merchant, category, or ID" /></label><label>Status<select className="form-input" value={statusFilter} onChange={(event) => dispatch(setHistoryStatus(event.target.value))}><option value="all">All statuses</option>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><span className="manager-count">Showing {processed.length} of {history.length}</span></div>

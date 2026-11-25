@@ -1,9 +1,16 @@
 import { useCallback, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
 import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
 import { SharedPageHeader } from "../../layouts/TenantAppShell";
 import { useGetManagerHistoryQuery, useGetManagerQueueQuery } from "./managerApiSlice.js";
+import {
+  selectHighRiskManagerExpenses,
+  selectManagerHistory,
+  selectPendingManagerCount,
+  selectTopPendingManagerExpenses,
+} from "./managerSelectors.js";
 
 function Metric({ label, value, note }) {
   return <article className="card manager-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
@@ -13,8 +20,10 @@ const money = (expense) => `${expense.currency || ""} ${expense.amount ?? "—"}
 export function ManagerDashboard() {
   const queueQuery = useGetManagerQueueQuery();
   const historyQuery = useGetManagerHistoryQuery();
-  const queue = queueQuery.data || [];
-  const history = historyQuery.data || [];
+  const history = useSelector(selectManagerHistory);
+  const pendingCount = useSelector(selectPendingManagerCount);
+  const highRisk = useSelector(selectHighRiskManagerExpenses);
+  const pending = useSelector(selectTopPendingManagerExpenses);
   const refresh = useCallback(() => {
     return Promise.all([queueQuery.refetch(), historyQuery.refetch()]);
   }, [queueQuery.refetch, historyQuery.refetch]);
@@ -30,12 +39,10 @@ export function ManagerDashboard() {
   if (status === "loading") return <LoadingState message="Loading your review workspace…" />;
   if (status === "error") return <ErrorState title="Dashboard unavailable" description={error} onRetry={refresh} />;
   const returned = history.filter((expense) => String(expense.managerDecision).toLowerCase().includes("return")).length;
-  const highRisk = queue.filter((expense) => (expense.riskScore ?? 0) >= 70);
   const recent = [...history].sort((a, b) => new Date(b.managerDecisionAt || b.updatedAt || b.createdAt || 0) - new Date(a.managerDecisionAt || a.updatedAt || a.createdAt || 0)).slice(0, 5);
-  const pending = [...queue].sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, 5);
   return <section className="manager-page">
     <SharedPageHeader title="Manager Dashboard" description="Review and approve expense requests from your reporting team." actions={<div className="manager-actions"><button className="btn btn-secondary" type="button" onClick={refresh}>Refresh</button><Link className="btn btn-primary" to="/manager/expenses">Review expenses</Link></div>} />
-    <div className="manager-metrics"><Metric label="Pending approvals" value={queue.length} note="Awaiting your decision" /><Metric label="Processed expenses" value={history.length} note="In your approval history" /><Metric label="Returned for correction" value={returned} note="Manager returns" /><Metric label="High risk" value={highRisk.length} note="Score 70 or above" /></div>
+    <div className="manager-metrics"><Metric label="Pending approvals" value={pendingCount} note="Awaiting your decision" /><Metric label="Processed expenses" value={history.length} note="In your approval history" /><Metric label="Returned for correction" value={returned} note="Manager returns" /><Metric label="High risk" value={highRisk.length} note="Score 70 or above" /></div>
     <div className="manager-dashboard-grid">
       <div>
         <section className="card manager-section"><div className="manager-section-heading"><div><h2>Pending expense requests</h2><p>Highest risk items appear first.</p></div><Link to="/manager/expenses">View all</Link></div>

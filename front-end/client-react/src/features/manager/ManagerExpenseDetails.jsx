@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../../components/OperationalStates";
 import { notify } from "../../components/ToastHost";
 import { managerApi } from "./managerApi";
-import { useGetFinanceOfficersQuery, useGetManagerHistoryQuery, useGetManagerQueueQuery } from "./managerApiSlice.js";
+import { useApproveExpenseMutation, useEscalateExpenseMutation, useGetFinanceOfficersQuery, useGetManagerHistoryQuery, useGetManagerQueueQuery, useRejectExpenseMutation, useReturnExpenseMutation } from "./managerApiSlice.js";
 import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { createConfirmedAction } from "../../components/confirmedAction";
@@ -15,6 +15,10 @@ export function ManagerExpenseDetails() {
   const queueQuery = useGetManagerQueueQuery();
   const historyQuery = useGetManagerHistoryQuery();
   const officersQuery = useGetFinanceOfficersQuery();
+  const [approveExpense] = useApproveExpenseMutation();
+  const [rejectExpense] = useRejectExpenseMutation();
+  const [returnExpense] = useReturnExpenseMutation();
+  const [escalateExpense] = useEscalateExpenseMutation();
   const queue = queueQuery.data || [];
   const history = historyQuery.data || [];
   const officers = officersQuery.data || [];
@@ -54,14 +58,14 @@ export function ManagerExpenseDetails() {
     const ran = await runConfirmedDecision(async () => {
       setSaving(true);
       try {
-        if (action === "approve") await managerApi.approve(expense.id, { financeOfficerId: officerId, ...(note.trim() ? { note: note.trim() } : {}) });
-        if (action === "return") await managerApi.returnForCorrection(expense.id, note.trim());
-        if (action === "reject") await managerApi.reject(expense.id, note.trim());
-        if (action === "escalate") await managerApi.escalate(expense.id, note.trim());
+        if (action === "approve") await approveExpense({ id: expense.id, body: { financeOfficerId: officerId, ...(note.trim() ? { note: note.trim() } : {}) } }).unwrap();
+        if (action === "return") await returnExpense({ id: expense.id, note: note.trim() }).unwrap();
+        if (action === "reject") await rejectExpense({ id: expense.id, note: note.trim() }).unwrap();
+        if (action === "escalate") await escalateExpense({ id: expense.id, note: note.trim() }).unwrap();
         notify("The expense decision was saved.", "success");
         navigate("/manager/history");
       } catch (caught) {
-        notify(caught instanceof Error ? caught.message : "The decision could not be saved.", "error");
+        notify(caught instanceof Error ? caught.message : caught?.data?.message || "The decision could not be saved.", "error");
       } finally { setSaving(false); }
     }, { confirmed: Boolean(action), busy: saving });
     if (ran) setPendingAction(null);
