@@ -87,12 +87,17 @@ export function clearSession() {
   window.dispatchEvent(new Event(SESSION_EVENT));
 }
 export class ApiError extends Error {
+  public status: number;
+  public code?: string;
+
   constructor(
     message: string,
-    public status: number,
-    public code?: string,
+    status: number,
+    code?: string,
   ) {
     super(message);
+    this.status = status;
+    this.code = code;
   }
 }
 export async function request<T = any>(
@@ -102,6 +107,7 @@ export async function request<T = any>(
     body?: unknown;
     signal?: AbortSignal;
     authenticated?: boolean;
+    suppressLocalRefresh?: boolean;
   } = {},
 ): Promise<T> {
   const multipart = typeof FormData !== "undefined" && options.body instanceof FormData;
@@ -145,7 +151,9 @@ export async function request<T = any>(
   const method = (options.method || "GET").toUpperCase();
   if (sessionStillCurrent && path.startsWith("/api/v1/tenant/") &&
       !["GET", "HEAD", "OPTIONS"].includes(method)) {
-    announceLiveRefresh();
+    if (options.suppressLocalRefresh)
+      announceLiveRefresh(window, { dispatchLocal: false });
+    else announceLiveRefresh();
   }
   return payload?.data ?? payload;
 }
