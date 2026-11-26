@@ -38,8 +38,11 @@ test("Finance and Compliance keep the shared shell and automatically refresh bad
   assert.match(compliance, /useLiveRefresh/);
   assert.match(compliance, /refreshImmediately:\s*false/);
   assert.match(compliance, /refreshNow\(\)\?\.catch/);
-  assert.equal((compliance.match(/complianceApi\.getUnreadNotificationCount\(\)/g) || []).length, 1);
-  assert.equal((compliance.match(/complianceApi\.getComplianceQueue\(\)/g) || []).length, 1);
+  assert.match(compliance, /ComplianceProvider/);
+  assert.match(compliance, /useSelector\(selectUnreadCount\)/);
+  assert.match(compliance, /useSelector\(selectQueue\)/);
+  assert.match(compliance, /dispatch\(refreshWorkspace/);
+  assert.doesNotMatch(compliance, /complianceApi|setUnreadCount|setQueueCount/);
   assert.match(compliance, /withNavigationBadge\(\s*withNavigationBadge\(complianceNavigation,\s*"\/compliance\/queue",\s*queueCount\)/);
   assert.match(compliance, /"\/compliance\/notifications",\s*unreadCount/);
 });
@@ -140,7 +143,10 @@ test("shared shell covers drawer dismissal, long employee IDs, modal stacking, a
 test("Manager decisions confirm before API mutation and retain role-specific routes", async () => {
   const details = await source("features/manager/ManagerExpenseDetails.jsx");
   assert.match(details, /<ConfirmDialog/);
-  assert.match(details, /managerApi\.(approve|reject|escalate|returnForCorrection)/);
+  assert.match(details, /useApproveExpenseMutation/);
+  assert.match(details, /useRejectExpenseMutation/);
+  assert.match(details, /useReturnExpenseMutation/);
+  assert.match(details, /useEscalateExpenseMutation/);
   assert.doesNotMatch(details, /window\.confirm|window\.alert/);
   for (const route of ["dashboard", "expenses", "history", "notifications", "profile-settings"])
     assert.ok(managerNavigation.some((item) => item.to === `/manager/${route}`), `missing manager ${route} navigation`);

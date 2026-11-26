@@ -142,7 +142,7 @@ async function actorRoutes() {
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await page.locator('button[aria-controls="tenant-account-menu"]').click();
     await page.locator('#tenant-account-menu').getByRole('button', { name: 'Log out', exact: true }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Log out', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Log out of FinStack?' }).getByRole('button', { name: 'Log out', exact: true }).click();
     await page.waitForURL(`${base}/login`); await idle();
     assert.equal(new URL(page.url()).pathname, '/login');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
@@ -363,6 +363,11 @@ async function reduxRegression() {
   reset();
   notifications = Array.from({ length: 32 }, (_, i) => ({ id: `NOTICE-${i}`, title: `Paged notice ${i}`, message: 'Pagination fixture', unread: true }));
   await goto('/finance/notifications');
+  const bell = page.getByRole('button', { name: 'Notifications', exact: true });
+  await bell.locator('span').filter({ hasText: '9+' }).waitFor();
+  await bell.click();
+  await page.locator('#tenant-notification-panel').getByText('32 unread', { exact: true }).waitFor();
+  await bell.click();
   await page.getByRole('button', { name: 'Next', exact: true }).click(); await idle();
   await textIncludes('Showing 16–30 of 32 notifications');
   await page.locator('main select').selectOption('unread'); await idle();
@@ -370,6 +375,10 @@ async function reduxRegression() {
   await page.getByRole('button', { name: 'Mark All as Read', exact: true }).click(); await idle();
   await textIncludes('No Notifications');
   await page.getByRole('button', { name: 'Mark All as Read', exact: true }).waitFor({ state: 'hidden' });
+  await bell.locator('span').waitFor({ state: 'hidden' });
+  await bell.click();
+  await page.locator('#tenant-notification-panel').getByText('0 unread', { exact: true }).waitFor();
+  await bell.click();
   check('finance Redux: paginated notification query keys, filter reset and badge invalidation');
 }
 

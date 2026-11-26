@@ -1,5 +1,5 @@
 import { formatExpenseAmount } from '../shared/expensePresentation.js'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { Icon } from '../../components/Icon'
 import { complianceApi } from './complianceApi'
@@ -8,12 +8,15 @@ export function ComplianceCaseModal({ open, expense, onClose, onAction }) {
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
   const [receiptUrl, setReceiptUrl] = useState(null)
   const [receiptError, setReceiptError] = useState('')
+  const receiptRequest = useRef(null)
 
   useEffect(() => {
     // Reset receipt on expense change
     setReceiptUrl(null)
     setReceiptError('')
-  }, [expense?.id])
+    setDownloadingReceipt(false)
+    return () => receiptRequest.current?.abort()
+  }, [open, expense?.id])
 
   // Clean up object URL when modal unmounts or closes
   useEffect(() => {
@@ -25,10 +28,14 @@ export function ComplianceCaseModal({ open, expense, onClose, onAction }) {
   if (!open || !expense) return null
 
   async function handleViewReceipt() {
+    if (receiptRequest.current && !receiptRequest.current.signal.aborted) return
+    const controller = new AbortController()
+    receiptRequest.current = controller
     try {
       setDownloadingReceipt(true)
       setReceiptError('')
-      const { blob, contentType } = await complianceApi.downloadReceipt(expense.id)
+      const { blob, contentType } = await complianceApi.downloadReceipt(expense.id, controller.signal)
+      if (controller.signal.aborted) return
 
       if (contentType.startsWith('image/')) {
         const url = URL.createObjectURL(blob)
@@ -37,17 +44,21 @@ export function ComplianceCaseModal({ open, expense, onClose, onAction }) {
         // Download for PDFs or other documents
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.href = url
-        a.download = expense.receiptFileName || `receipt-${expense.id}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        URL.revokeObjectURL(url)
+        try {
+          a.href = url
+          a.download = expense.receiptFileName || `receipt-${expense.id}.pdf`
+          document.body.appendChild(a)
+          a.click()
+        } finally {
+          a.remove()
+          URL.revokeObjectURL(url)
+        }
       }
     } catch (err) {
-      setReceiptError(err?.message || 'Receipt could not be loaded.')
+      if (!controller.signal.aborted) setReceiptError(err?.message || 'Receipt could not be loaded.')
     } finally {
-      setDownloadingReceipt(false)
+      if (!controller.signal.aborted) setDownloadingReceipt(false)
+      if (receiptRequest.current === controller) receiptRequest.current = null
     }
   }
 

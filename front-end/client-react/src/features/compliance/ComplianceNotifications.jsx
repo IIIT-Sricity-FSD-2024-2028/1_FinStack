@@ -1,69 +1,44 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
-import { complianceApi } from './complianceApi'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useDispatch, useSelector } from 'react-redux'
+import { markNotificationsRead, selectUnreadCount } from './store/complianceSlice.js'
+import { useCompliancePage } from './store/useComplianceData.js'
 
 export function ComplianceNotifications() {
-  const [notifications, setNotifications] = useState([])
-  const [total, setTotal] = useState(0)
+  const dispatch = useDispatch()
+  const unreadCount = useSelector(selectUnreadCount)
+  const markingRead = useSelector((state) => state.compliance.markingRead)
+  const [mutationError, setMutationError] = useState('')
   const [filterState, setFilterState] = useState('all') // 'all' | 'unread'
   const [page, setPage] = useState(1)
   const pageSize = 20
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  async function loadNotifications({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const data = await complianceApi.getNotifications({
-        page,
-        pageSize,
-        state: filterState === 'unread' ? 'unread' : undefined,
-      })
-      if (Array.isArray(data)) {
-        setNotifications(data)
-        setTotal(data.length)
-      } else {
-        setNotifications(Array.isArray(data?.items) ? data.items : [])
-        setTotal(data?.total || 0)
-      }
-    } catch (err) {
-      if (background) throw err
-      setError(err?.message || 'Failed to load notifications.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadNotifications)
-
-  useEffect(() => {
-    if (!loading) refreshNow()
-  }, [page, filterState, refreshNow])
+  const { data, loading, error, refreshError, retryNow } = useCompliancePage('notifications', {
+    page, pageSize, state: filterState === 'unread' ? 'unread' : undefined,
+  })
+  const { items: notifications, total } = data
 
   async function handleMarkRead(id) {
+    setMutationError('')
     try {
-      await complianceApi.markNotificationRead(id)
-      announceLiveRefresh()
+      await dispatch(markNotificationsRead({ id }))
     } catch (err) {
-      setError(err?.message || 'Failed to mark notification read.')
+      setMutationError(err?.message || 'Failed to mark notification read.')
     }
   }
 
   async function handleMarkAllRead() {
+    setMutationError('')
     try {
-      await complianceApi.markAllNotificationsRead()
-      announceLiveRefresh()
+      await dispatch(markNotificationsRead())
     } catch (err) {
-      setError(err?.message || 'Failed to mark all as read.')
+      setMutationError(err?.message || 'Failed to mark all as read.')
     }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  useEffect(() => {
+    if (!loading && !error) setPage((current) => Math.min(current, totalPages))
+  }, [loading, error, totalPages])
 
   function renderTypeIcon(type) {
     if (type === 'danger') return <span style={{ color: '#ef4444' }}>⚠</span>
@@ -74,6 +49,7 @@ export function ComplianceNotifications() {
 
   return (
     <div>
+      {mutationError && <p role="alert" className="compliance-error-banner">{mutationError}</p>}
       {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh notifications. Showing the last loaded results.</p>}
       {/* Header Info */}
       <div
@@ -99,7 +75,7 @@ export function ComplianceNotifications() {
           type="button"
           className="compliance-btn compliance-btn-secondary"
           onClick={handleMarkAllRead}
-          disabled={loading || notifications.every((n) => !n.unread)}
+          disabled={loading || Boolean(markingRead) || unreadCount === 0}
         >
           <Icon name="check" size={16} />
           <span>Mark All Read</span>
@@ -188,7 +164,7 @@ export function ComplianceNotifications() {
                   </div>
                   {isUnread && <div className="compliance-notif-dot" title="Unread" />}
                   {isUnread && (
-                    <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" onClick={() => handleMarkRead(n.id)}>
+                    <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" disabled={Boolean(markingRead)} onClick={() => handleMarkRead(n.id)}>
                       Mark Read
                     </button>
                   )}

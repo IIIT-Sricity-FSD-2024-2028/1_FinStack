@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { TenantAppShell } from "../../layouts/TenantAppShell";
 import { complianceNavigation, titleForRoute, withNavigationBadge } from "../../layouts/tenantNavigation";
 import { useLiveRefresh } from "../../hooks/useLiveRefresh.js";
-import { complianceApi } from "./complianceApi";
+import { ComplianceProvider } from "./store/ComplianceProvider";
+import { refreshResources, refreshWorkspace, selectQueue, selectUnreadCount } from "./store/complianceSlice.js";
 import "./compliance.css";
 
 const titles = {
@@ -17,30 +19,30 @@ const titles = {
 };
 
 export function ComplianceLayout() {
+  return <ComplianceProvider><ComplianceWorkspace /></ComplianceProvider>;
+}
+
+function ComplianceWorkspace() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [queueCount, setQueueCount] = useState(0);
+  const dispatch = useDispatch();
+  const unreadCount = useSelector(selectUnreadCount);
+  const queueCount = useSelector(selectQueue).length;
+  const generation = useSelector((state) => state.compliance.session.generation);
   const title = titleForRoute(titles, location.pathname, "Compliance Officer Workspace");
 
-  const refreshWorkspaceBadges = async () => {
-    const [unreadResult, queueResult] = await Promise.allSettled([
-      complianceApi.getUnreadNotificationCount(),
-      complianceApi.getComplianceQueue(),
-    ]);
-    if (unreadResult.status === "fulfilled") {
-      const unread = unreadResult.value;
-      setUnreadCount(typeof unread === "number" ? unread : unread?.count || 0);
-    }
-    if (queueResult.status === "fulfilled" && Array.isArray(queueResult.value)) {
-      setQueueCount(queueResult.value.length);
-    }
-  };
+  const refreshWorkspaceBadges = () => dispatch(refreshWorkspace(location.pathname === "/compliance/notifications"));
   const { refreshNow } = useLiveRefresh(refreshWorkspaceBadges, { refreshImmediately: false });
+  useLiveRefresh(() => {
+    const resources = location.pathname === "/compliance/audit" ? ["audit"]
+      : ["/compliance/dashboard", "/compliance/policies"].includes(location.pathname) ? ["policies", "categories"]
+        : location.pathname === "/compliance/queue" ? ["categories"] : [];
+    return dispatch(refreshResources(resources));
+  }, { pollIntervalMs: 30_000, refreshImmediately: false });
 
   useEffect(() => {
     refreshNow()?.catch(() => {});
-  }, [location.pathname, refreshNow]);
+  }, [location.pathname, refreshNow, generation]);
   useEffect(() => { document.title = `${title} · FinStack`; }, [title]);
 
   const navItems = withNavigationBadge(

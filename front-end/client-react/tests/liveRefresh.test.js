@@ -176,7 +176,7 @@ test('manual refresh and initial-error retry share serialization without losing 
   controller.stop()
 })
 
-test('Compliance live loaders are async and only enter full loading state initially', async () => {
+test('Compliance consumers delegate loading and refresh errors to shared Redux resources', async () => {
   const files = [
     'ComplianceDashboard.jsx',
     'ComplianceReviewQueue.jsx',
@@ -187,17 +187,16 @@ test('Compliance live loaders are async and only enter full loading state initia
 
   for (const file of files) {
     const source = await readFile(new URL(`../src/features/compliance/${file}`, import.meta.url), 'utf8')
-    assert.match(source, /async function load(?:DashboardData|Notifications|Data|Logs)\(\{ background = false \} = \{\}\)/)
-    assert.match(source, /if \(!background\) \{\s*setLoading\(true\)/)
-    assert.match(source, /if \(background\) throw err/)
-    assert.match(source, /useLiveRefresh\(/)
+    assert.match(source, /useCompliance(?:Data|Page)\(/)
+    assert.doesNotMatch(source, /setLoading|setQueue|setNotifications|setLogs/)
+    assert.match(source, /refreshError/)
   }
 
   const queue = await readFile(new URL('../src/features/compliance/ComplianceReviewQueue.jsx', import.meta.url), 'utf8')
   assert.match(queue, /refreshError[\s\S]*<ComplianceDecisionDialog/)
 })
 
-test('Finance and Compliance reload handlers avoid direct unmanaged requests', async () => {
+test('Finance and Compliance reload handlers use the serialized controller', async () => {
   const files = [
     '../src/features/finance/FinanceDashboard.jsx',
     '../src/features/finance/FinanceReviewQueue.jsx',
@@ -217,13 +216,14 @@ test('Finance and Compliance reload handlers avoid direct unmanaged requests', a
     assert.doesNotMatch(source, /onRetry=\{load(?:DashboardData|Dashboard|Notifications|Data|Logs)\}/)
   }
 
-  for (const path of [
-    '../src/features/compliance/ComplianceNotifications.jsx',
-    '../src/features/compliance/ComplianceAuditView.jsx',
-  ]) {
-    const source = await readFile(new URL(path, import.meta.url), 'utf8')
-    assert.match(source, /useEffect\(\(\) => \{\s*if \(!loading\) refreshNow\(\)/)
-  }
+  const finance = await readFile(new URL('../src/features/finance/FinanceNotifications.jsx', import.meta.url), 'utf8')
+  assert.match(finance, /useFinanceNotificationsQuery/)
+  assert.doesNotMatch(finance, /financeApi\.getNotifications/)
+  const hooks = await readFile(new URL('../src/features/compliance/store/useComplianceData.js', import.meta.url), 'utf8')
+  assert.match(hooks, /dispatch\(fetchComplianceResource/)
+  assert.match(hooks, /pageQueryChanged/)
+  assert.match(hooks, /queryKey\(query\)/)
+  assert.doesNotMatch(hooks, /if \(!loading\)/)
 })
 
 test('stops polling and removes all listeners on cleanup', async () => {

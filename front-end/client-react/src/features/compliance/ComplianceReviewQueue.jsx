@@ -1,16 +1,16 @@
 import { formatExpenseAmount, formatCurrencyTotals } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
-import { complianceApi } from './complianceApi'
 import { ComplianceCaseModal } from './ComplianceCaseModal'
 import { ComplianceDecisionDialog } from './ComplianceDecisionDialog'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useSelector } from 'react-redux'
+import { selectQueue, selectCategories } from './store/complianceSlice.js'
+import { useComplianceData } from './store/useComplianceData.js'
 
 export function ComplianceReviewQueue() {
-  const [queue, setQueue] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const queue = useSelector(selectQueue)
+  const categories = useSelector(selectCategories)
+  const { loading, error, optionalError, refreshError, refreshNow, retryNow } = useComplianceData(['queue', 'categories'], ['categories'])
 
   // Filters & search
   const [search, setSearch] = useState('')
@@ -27,28 +27,6 @@ export function ComplianceReviewQueue() {
   const [inspectExpense, setInspectExpense] = useState(null)
   const [decisionState, setDecisionState] = useState({ open: false, type: 'approve', expense: null })
   const [toastMessage, setToastMessage] = useState(null)
-
-  async function loadData({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [qData, cData] = await Promise.all([
-        complianceApi.getComplianceQueue(),
-        complianceApi.getCategories().catch(() => []),
-      ])
-      setQueue(Array.isArray(qData) ? qData : [])
-      setCategories(Array.isArray(cData) ? cData : [])
-    } catch (err) {
-      if (background) throw err
-      setError(err?.message || 'Failed to load compliance review queue.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadData)
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -101,7 +79,9 @@ export function ComplianceReviewQueue() {
 
   // Pagination slicing
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
-  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize)
+  const currentPage = Math.min(page, totalPages)
+  const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  useEffect(() => { setPage((current) => Math.min(current, totalPages)) }, [totalPages])
 
   function openDecision(type, exp) {
     setInspectExpense(null)
@@ -132,6 +112,7 @@ export function ComplianceReviewQueue() {
 
   return (
     <div>
+      {optionalError && <p role="alert" className="compliance-error-banner">{optionalError} <button type="button" className="compliance-btn compliance-btn-secondary compliance-btn-sm" onClick={retryNow}>Retry categories</button></p>}
       {refreshError && <p role="alert" className="compliance-error-banner">Unable to refresh the review queue. Showing the last loaded results.</p>}
       {/* Toast Notification */}
       {toastMessage && (
@@ -412,13 +393,13 @@ export function ComplianceReviewQueue() {
                 }}
               >
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted, #9ca3af)' }}>
-                  Page {page} of {totalPages}
+                  Page {currentPage} of {totalPages}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
                     className="compliance-btn compliance-btn-secondary compliance-btn-sm"
-                    disabled={page <= 1}
+                    disabled={currentPage <= 1}
                     onClick={() => setPage((p) => p - 1)}
                   >
                     Previous
@@ -426,7 +407,7 @@ export function ComplianceReviewQueue() {
                   <button
                     type="button"
                     className="compliance-btn compliance-btn-secondary compliance-btn-sm"
-                    disabled={page >= totalPages}
+                    disabled={currentPage >= totalPages}
                     onClick={() => setPage((p) => p + 1)}
                   >
                     Next

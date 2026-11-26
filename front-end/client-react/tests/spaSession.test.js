@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import ts from "typescript";
 import { registrationErrors } from "../src/features/shared/registrationValidation.js";
+import { LIVE_REFRESH_EVENT } from "../src/hooks/liveRefreshController.js";
 const source = await readFile(
   new URL("../src/services/session.ts", import.meta.url),
   "utf8",
@@ -104,6 +105,46 @@ test("SPA authentication errors clear all session keys; permission errors preser
     (error) => error.status === 401,
   );
   assert.equal(runtime.currentSession(), null);
+});
+
+test("a delayed authenticated 401 cannot sign out a replacement session", async () => {
+  setup();
+  runtime.saveSession(session);
+  let finishResponse;
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 401,
+    json: () => new Promise((resolve) => { finishResponse = resolve; }),
+  });
+  const pending = runtime.request("/api/v1/tenant/expenses/compliance/queue");
+  await Promise.resolve();
+  const replacement = { ...session, accessToken: "replacement-token" };
+  runtime.saveSession(replacement);
+  finishResponse({ message: "Expired" });
+  await assert.rejects(pending, (error) => error.status === 401);
+  assert.deepEqual(runtime.currentSession(), replacement);
+});
+
+test("a completed write from an old session cannot announce a change for the replacement tenant", async () => {
+  setup();
+  runtime.saveSession(session);
+  let announcements = 0;
+  window.addEventListener(LIVE_REFRESH_EVENT, () => { announcements += 1; });
+  let finishResponse;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: () => new Promise((resolve) => { finishResponse = resolve; }),
+  });
+  const pending = runtime.request("/api/v1/tenant/expenses/expense-1/compliance/approve", { method: "POST" });
+  await Promise.resolve();
+  runtime.saveSession({ accessToken: "replacement-token", organizationId: "org-2", user: { ...session.user, organizationId: "org-2" } });
+  finishResponse({ data: { id: "expense-1" } });
+  await pending;
+  assert.equal(announcements, 0);
+
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ data: {} }) });
+  await runtime.request("/api/v1/tenant/expenses/expense-2/compliance/approve", { method: "POST" });
+  assert.equal(announcements, 1);
 });
 
 test("receipt transport sends bearer identity, abort signal and no-cache without following redirects", async () => {

@@ -1,10 +1,12 @@
 import { formatExpenseAmount } from '../shared/expensePresentation.js'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal'
-import { complianceApi } from './complianceApi'
-import { announceLiveRefresh } from '../../hooks/liveRefreshController.js'
+import { useDispatch, useSelector } from 'react-redux'
+import { decideExpense } from './store/complianceSlice.js'
 
 export function ComplianceDecisionDialog({ open, type, expense, onClose, onSuccess }) {
+  const dispatch = useDispatch()
+  const deciding = useSelector((state) => state.compliance.deciding)
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -39,6 +41,7 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (submitting || deciding) return
     setError('')
 
     const trimmed = note.trim()
@@ -55,17 +58,9 @@ export function ComplianceDecisionDialog({ open, type, expense, onClose, onSucce
     try {
       setSubmitting(true)
 
-      let res
-      if (type === 'approve') {
-        res = await complianceApi.approveClaim(expense.id, trimmed)
-      } else if (type === 'reject') {
-        res = await complianceApi.rejectClaim(expense.id, trimmed)
-      } else if (type === 'correctiveAction') {
-        res = await complianceApi.correctiveAction(expense.id, trimmed)
-      }
+      const res = await dispatch(decideExpense({ expenseId: expense.id, type, note: trimmed }))
 
       setNote('')
-      announceLiveRefresh()
       onSuccess?.(res, type)
       onClose()
     } catch (err) {
