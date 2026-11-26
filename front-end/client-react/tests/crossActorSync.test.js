@@ -88,7 +88,7 @@ test('all actors share automatic live-update hooks and successful tenant writes 
   const files = await Promise.all([
     'services/session.ts',
     'features/manager/useManagerWorkspace.js',
-    'features/submitter/SubmitterContext.jsx',
+    'features/submitter/store/SubmitterReduxProvider.jsx',
     'hooks/useAsyncResource.js',
     'hooks/useEmployeePage.js',
   ].map(path => readFile(new URL(path, root), 'utf8')))
@@ -98,5 +98,5 @@ test('all actors share automatic live-update hooks and successful tenant writes 
     assert.match(file, /useLiveRefresh|LIVE_REFRESH_EVENT/)
   }
   assert.match(files[1], /if \(background\) throw caught/)
-  assert.match(files[2], /if \(background\) throw error/)
+  assert.match(files[2], /store.dispatch\(refreshSubmitter\(\{ background \}\)\)/)
 })

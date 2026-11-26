@@ -9,6 +9,14 @@ export interface TenantUser {
   email: string;
   role: string;
   status: string;
+  department?: string;
+  organizationName?: string;
+  manager?: {
+    id: string;
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 export interface Session {
   accessToken: string;

@@ -1,4 +1,5 @@
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectExpenses, selectExpenseState, fetchExpenses } from "../store/expensesSlice.js";
 import {
   currency,
   date,
@@ -78,7 +79,10 @@ function StatusCard({ expense }) {
   );
 }
 export default function StatusPage() {
-  const { expenses, expenseState, refreshExpenses } = useSubmitter();
+  const dispatch = useDispatch();
+  const expenses = useSelector(selectExpenses);
+  const expenseState = useSelector(selectExpenseState);
+  const refreshExpenses = () => dispatch(fetchExpenses());
   return (
     <>
       <div className="dashboard-head">

@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { submitterApi } from "../api/submitterApi";
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectCategories, selectCategoryState, fetchCategories } from "../store/categoriesSlice.js";
+import { createExpense } from "../store/submitterActions.js";
+import { formatExpenseId } from "../utils";
 import ExpenseForm from "../components/ExpenseForm";
 import ReceiptUpload from "../components/ReceiptUpload";
 import { Toast } from "../components/PageBits";
@@ -17,13 +19,10 @@ const initialForm = {
 };
 
 export default function SubmitExpensePage() {
-  const {
-    categories,
-    categoryState,
-    refreshCategories,
-    refreshExpenses,
-    refreshNotifications,
-  } = useSubmitter();
+  const dispatch = useDispatch();
+  const categories = useSelector(selectCategories);
+  const categoryState = useSelector(selectCategoryState);
+  const refreshCategories = () => dispatch(fetchCategories());
   const [form, setForm] = useState(initialForm);
   const [receipt, setReceipt] = useState(null);
   const [errors, setErrors] = useState({});
@@ -58,7 +57,7 @@ export default function SubmitExpensePage() {
 
     setSubmitting(true);
     try {
-      const expense = await submitterApi.createExpense(
+      const expense = await dispatch(createExpense(
         {
           amount: form.amount,
           currency: "INR",
@@ -69,10 +68,9 @@ export default function SubmitExpensePage() {
           paymentMethod: form.paymentMethod,
         },
         receipt,
-      );
-      await Promise.allSettled([refreshExpenses(), refreshNotifications()]);
+      ));
       resetForm();
-      setToast({ message: `Expense ${expense.id} submitted successfully!` });
+      setToast({ message: `Expense ${formatExpenseId(expense.id)} submitted successfully!` });
     } catch (error) {
       setToast({
         type: "error",

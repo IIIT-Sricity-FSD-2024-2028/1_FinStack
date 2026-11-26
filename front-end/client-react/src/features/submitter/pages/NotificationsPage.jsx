@@ -1,22 +1,24 @@
 import { useState } from "react";
-import { submitterApi } from "../api/submitterApi";
-import { useSubmitter } from "../SubmitterContext";
+import { useDispatch, useSelector } from "react-redux";
+import { selectDisplayNotifications, selectNotificationState, selectUnreadCount, fetchNotifications } from "../store/notificationsSlice.js";
+import { markNotificationRead, markNotificationUnread, markAllNotificationsRead, deleteNotification } from "../store/submitterActions.js";
 import { timeAgo } from "../utils";
 import { Icon } from "../components/Icons";
 import { Toast } from "../components/PageBits";
 import ResourceState from "../components/ResourceState";
 
 export default function NotificationsPage() {
-  const { notifications, notificationState, refreshNotifications } =
-    useSubmitter();
+  const dispatch = useDispatch();
+  const notifications = useSelector(selectDisplayNotifications);
+  const notificationState = useSelector(selectNotificationState);
+  const unreadCount = useSelector(selectUnreadCount);
+  const refreshNotifications = () => dispatch(fetchNotifications());
   const [toast, setToast] = useState(null),
     [busy, setBusy] = useState(false);
-  const unread = notifications.filter((item) => item.unread);
   const act = async (action, message) => {
     setBusy(true);
     try {
       await action();
-      await refreshNotifications();
       if (message) setToast({ message });
     } catch (error) {
       setToast({ type: "error", message: error.message });
@@ -34,14 +36,14 @@ export default function NotificationsPage() {
           </p>
         </div>
         <div className="react-notification-actions">
-          <span>{unread.length} unread</span>
+          <span>{unreadCount} unread</span>
           <button
             className="btn btn-outline"
             type="button"
-            disabled={busy || !unread.length}
+            disabled={busy || !unreadCount}
             onClick={() =>
               act(
-                () => submitterApi.markAllNotificationsRead(),
+                () => dispatch(markAllNotificationsRead()),
                 "All notifications marked read.",
               )
             }
@@ -88,8 +90,8 @@ export default function NotificationsPage() {
                     onClick={() =>
                       act(() =>
                         item.unread
-                          ? submitterApi.markNotificationRead(item.id)
-                          : submitterApi.markNotificationUnread(item.id),
+                          ? dispatch(markNotificationRead(item.id))
+                          : dispatch(markNotificationUnread(item.id)),
                       )
                     }
                   >
@@ -100,7 +102,7 @@ export default function NotificationsPage() {
                     disabled={busy}
                     onClick={() =>
                       act(
-                        () => submitterApi.deleteNotification(item.id),
+                        () => dispatch(deleteNotification(item.id)),
                         "Notification dismissed.",
                       )
                     }
