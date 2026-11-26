@@ -65,6 +65,8 @@ enum OrganizationRegistrationStatus {
 }
 
 model Organization {
+  employeePrefix              String                         @unique @default(dbgenerated("''::text")) @db.VarChar(12)
+  nextEmployeeNumber          Int                            @default(1001)
   expenses                    Expense[]
   id                          String                         @id @default(uuid()) @db.Uuid
   name                        String                         @db.VarChar(180)
@@ -143,6 +145,7 @@ model TenantUser {
   id                      String              @id @default(uuid()) @db.Uuid
   organizationId          String              @db.Uuid
   employeeId              String              @unique @db.VarChar(80)
+  canonicalEmployeeId     String              @unique @default(dbgenerated("''::text")) @db.VarChar(20)
   firstName               String              @db.VarChar(100)
   lastName                String              @db.VarChar(100)
   email                   String              @db.VarChar(320)
@@ -849,4 +852,27 @@ model ExpensePayment {
   expense                Expense   @relation(fields: [organizationId, expenseId], references: [organizationId, id], onDelete: Restrict)
 
   @@index([organizationId, status, createdAt])
+}
+
+// Durable allocation reservations have deliberately no cascading relations.
+// PostgreSQL triggers enforce append-only history; application APIs do not expose aliases.
+model EmployeePrefixReservation {
+  prefix         String   @id @db.VarChar(12)
+  organizationId String   @unique @db.Uuid
+  assignedAt     DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model EmployeeIdentityMapping {
+  canonicalEmployeeId String   @id @db.VarChar(20)
+  userId              String   @unique @db.Uuid
+  organizationId      String   @db.Uuid
+  previousEmployeeId  String   @unique @db.VarChar(80)
+  operation           String   @db.VarChar(20)
+  migration           String   @default("organization-prefixed-v1")
+  assignedAt          DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model EmployeeLoginAlias {
+  alias  String @id @db.VarChar(80)
+  userId String @db.Uuid
 }

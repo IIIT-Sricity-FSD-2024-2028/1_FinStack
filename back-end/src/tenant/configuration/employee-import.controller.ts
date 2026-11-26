@@ -1,3 +1,4 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
 import { TenantAuditContextInterceptor } from '../audit/tenant-audit-context';
 import {
   BadRequestException,
@@ -63,6 +64,7 @@ class ActivateEmployeeDto {
 @Controller('configuration/employee-imports')
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
 @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class EmployeeImportController {
   constructor(
     private readonly imports: EmployeeImportService,
@@ -162,6 +164,7 @@ export class EmployeeImportController {
 }
 
 @Controller('employee-activation')
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class EmployeeActivationController {
   constructor(private readonly activation: EmployeeActivationService) {}
   @Public()

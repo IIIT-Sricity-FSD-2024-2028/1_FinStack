@@ -6,6 +6,7 @@ import { currency, date, workflowClass, workflowLabel } from "../utils";
 import { Icon } from "../components/Icons";
 import ResourceState from "../components/ResourceState";
 import { buildExpenseTrend } from "../dashboardAnalytics";
+import { summarizeWorkflow } from "../workflowSummary.js";
 
 const CATEGORY_COLORS = [
   "#7c3aed",
@@ -123,15 +124,7 @@ export default function DashboardPage() {
       (sum, expense) => sum + Number(expense.amount || 0),
       0,
     );
-    const pending = expenses.filter(
-      (expense) =>
-        !["paid", "approved_for_payment", "rejected"].includes(
-          expense.workflowStatus,
-        ),
-    ).length;
-    const approved = expenses.filter((expense) =>
-      ["paid", "approved_for_payment"].includes(expense.workflowStatus),
-    ).length;
+    const workflow = summarizeWorkflow(expenses);
 
     const categories = Object.values(
       expenses.reduce((result, expense) => {
@@ -144,7 +137,7 @@ export default function DashboardPage() {
 
     const trend = buildExpenseTrend(expenses);
 
-    return { total, pending, approved, categories, trend };
+    return { total, ...workflow, categories, trend };
   }, [expenses]);
 
   return (
@@ -191,7 +184,7 @@ export default function DashboardPage() {
           <KpiCard
             label="Approved"
             value={analytics.approved}
-            note="Approved for payment or paid"
+            note={`${analytics.processing} processing; ${analytics.paid} confirmed paid`}
             icon="check"
             color="#a78bfa"
           />

@@ -91,6 +91,17 @@ test('five actor tabs share entity updates and complete the expense handoff whil
           expense = { ...expense, workflowStatus: 'finance_review', complianceDecision: 'Approved' }
           return json(expense)
         }
+        if (path.endsWith('/finance/approve')) {
+          if (role !== 'FINANCE_OFFICER' || expense?.workflowStatus !== 'finance_review') { violations.push('finance clearance'); return json('Invalid clearance', 409) }
+          expense = { ...expense, status: 'approved', workflowStatus: 'approved_for_payment', financeDecision: 'Approved' }
+          return json(expense)
+        }
+        if (path.endsWith('/finance/payment-releases')) {
+          if (role !== 'FINANCE_OFFICER' || expense?.workflowStatus !== 'approved_for_payment') { violations.push('release authority'); return json('Invalid release', 409) }
+          assert.deepEqual(req.postDataJSON().expenseIds, ['EXP-FLOW'])
+          expense = { ...expense, status: 'approved', workflowStatus: 'payment_processing' }
+          return json({ batchId: 'BATCH-FLOW', expenses: [expense], transactions: [] })
+        }
         return json('Unconfigured intercepted route: ' + path, 404)
       })
       await page.goto(base + path)
@@ -146,14 +157,40 @@ test('five actor tabs share entity updates and complete the expense handoff whil
       const store = window.__integrationStore
       return store.getState().submitter.expenses.items[0]?.workflowStatus === 'finance_review'
     })
+    await pages.finance.evaluate(async () => {
+      const store = window.__integrationStore
+      const { financeApiSlice } = await import('/client-react/src/features/finance/financeApiSlice.js')
+      await store.dispatch(financeApiSlice.endpoints.financeApproveExpense.initiate({ expenseId: 'EXP-FLOW', note: 'Final finance clearance' })).unwrap()
+      await store.dispatch(financeApiSlice.endpoints.financeReleasePayment.initiate(['EXP-FLOW'])).unwrap()
+    })
+    await pages.submitter.waitForFunction(() => window.__integrationStore.getState().submitter.expenses.items[0]?.workflowStatus === 'payment_processing')
+    await pages.submitter.goto(base + '/dashboard')
+    const kpi = label => pages.submitter.locator('.kpi-card').filter({ has: pages.submitter.locator('.kpi-label', { hasText: label }) }).locator('.kpi-value')
+    assert.equal(await kpi('Pending').textContent(), '0')
+    assert.equal(await kpi('Approved').textContent(), '1')
+    await pages.submitter.getByText('1 processing; 0 confirmed paid', { exact: true }).waitFor()
+    await pages.submitter.reload()
+    assert.equal(await kpi('Approved').textContent(), '1')
+    await pages.submitter.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')) })
+    await pages.submitter.locator('.badge').filter({ hasText: /^Payment Processing$/ }).first().waitFor()
+    for (const route of ['/expenses', '/status']) {
+      await pages.submitter.goto(base + route)
+      await pages.submitter.locator('.badge').filter({ hasText: /^Payment Processing$/ }).first().waitFor()
+    }
     assert.equal(await pages.other.evaluate(() => window.__tenantRefreshSignals), 0, 'Other tenant must receive no change signal, independently of legitimate polling')
     assert.equal(await pages.other.getByText('Cross-actor Merchant', { exact: true }).count(), 0)
+    // Full document reloads correctly discard test globals; reattach to the actual root store.
+    await pages.submitter.evaluate(async () => {
+      const main = await (await fetch('/client-react/src/main.jsx')).text()
+      const url = main.match(/import \{ store, installReduxRuntime \} from "([^"]+)"/)[1]
+      window.__integrationStore = (await import(url)).store
+    })
     for (const [key, page] of Object.entries(pages)) {
       assert.equal(await page.evaluate(async () => { const store = window.__integrationStore; return JSON.stringify(store.getState()).includes('fictional-') }), false, key + ' must not cache tokens')
     }
     assert.deepEqual(violations, [])
     assert.deepEqual(errors, [])
-    console.log('All five live actor views synchronized over BroadcastChannel: category update, expense submission, confirmed Manager approval, Finance flag, Compliance approval, return to Finance; second tenant ignored every signal. HTTP was intercepted; no database accessed.')
+    console.log('All five live actor views synchronized over BroadcastChannel: category update, expense submission, confirmed Manager approval, Finance flag, Compliance approval, return to Finance, final clearance and payment processing; dashboard, expenses and status agree after reload/focus and the second tenant ignored every signal. HTTP was intercepted; no database accessed.')
   } catch (error) {
     console.error({ errors, violations, recentCalls: calls.slice(-12), managerBody: pages.manager ? (await pages.manager.locator('body').innerText()).slice(-2500) : '' })
     throw error

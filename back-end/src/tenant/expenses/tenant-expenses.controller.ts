@@ -1,3 +1,4 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
 import { Query } from '@nestjs/common';
 import {
   TenantNotificationsService,
@@ -57,6 +58,7 @@ import { contentDisposition } from '../../modules/expenses/receipt-upload/receip
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
 @UseInterceptors(TenantAuditContextInterceptor)
 @Controller('api/v1/tenant/expenses')
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantExpensesController {
   constructor(
     private readonly expenses: TenantExpensesService,

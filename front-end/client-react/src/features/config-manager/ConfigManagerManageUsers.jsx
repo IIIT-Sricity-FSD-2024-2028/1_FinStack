@@ -108,7 +108,7 @@ function AddUserFields({ form, setForm, enabledRoles, errors }) {
           })
         ) : (
           <p>
-            A unique FinStack login ID is generated automatically after
+            A unique organization-prefixed employee code is generated automatically after
             creation.
           </p>
         )}

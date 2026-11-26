@@ -6,6 +6,7 @@ export interface TenantUserIdentity {
   id: string;
   organizationId: string;
   employeeId: string;
+  canonicalEmployeeId?: string;
   firstName: string;
   lastName: string;
   email: string;

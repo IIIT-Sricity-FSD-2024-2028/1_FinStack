@@ -37,6 +37,10 @@ function setup() {
     Promise.resolve({
       ...data,
       id: 'immutable-user-uuid',
+      employeeId: String(data.employeeId).startsWith('__allocate__:')
+        ? 'ACM-1001'
+        : data.employeeId,
+      canonicalEmployeeId: 'ACM-1001',
       status: 'ACTIVE',
       credentialSetupRequired: false,
       manager: {
@@ -93,9 +97,7 @@ describe('tenant-safe individual provisioning', () => {
     });
     expect(result).toMatchObject({
       id: 'immutable-user-uuid',
-      employeeId: expect.stringMatching(
-        /^ACM-10000000000040008000000000000001-[A-F0-9]{20}$/,
-      ) as unknown,
+      employeeId: 'ACM-1001',
       managerId,
       role: TenantRole.EXPENSE_SUBMITTER,
       credentialSetupRequired: false,

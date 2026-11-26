@@ -1,3 +1,4 @@
+import { employeeLoginWhere } from '../identity/tenant-login-id';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { TenantUserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -22,8 +23,8 @@ export class TenantAuthService {
   ) {}
 
   async login(dto: TenantLoginDto): Promise<TenantAuthResponse> {
-    const user = await this.prisma.tenantUser.findUnique({
-      where: { employeeId: dto.employeeId.trim() },
+    const user = await this.prisma.tenantUser.findFirst({
+      where: employeeLoginWhere(dto.employeeId.trim()),
       include: { organization: true },
     });
 
@@ -125,6 +126,7 @@ export class TenantAuthService {
     id: string;
     organizationId: string;
     employeeId: string;
+    canonicalEmployeeId?: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -135,6 +137,9 @@ export class TenantAuthService {
       id: user.id,
       organizationId: user.organizationId,
       employeeId: user.employeeId,
+      ...(user.canonicalEmployeeId
+        ? { canonicalEmployeeId: user.canonicalEmployeeId }
+        : {}),
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,

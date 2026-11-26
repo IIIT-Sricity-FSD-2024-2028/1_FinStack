@@ -551,6 +551,8 @@ export class TenantExpensesService {
 
     return this.toExpenseDto(expense, category.name, {
       employeeId: submitter.employeeId,
+      canonicalEmployeeId: submitter.canonicalEmployeeId,
+      managerCanonicalEmployeeId: manager.canonicalEmployeeId,
       fullName: this.fullName(submitter),
     });
   }
@@ -888,7 +890,12 @@ export class TenantExpensesService {
         organizationId: actor.organizationId,
         managerId: actor.user.id,
       },
-      select: { employeeId: true, firstName: true, lastName: true },
+      select: {
+        employeeId: true,
+        canonicalEmployeeId: true,
+        firstName: true,
+        lastName: true,
+      },
     });
     const directReportIds = new Set(
       directReports.map((report) => report.employeeId),
@@ -901,6 +908,12 @@ export class TenantExpensesService {
         expense.managerEmployeeId === actor.user.employeeId &&
         expense.workflowStatus === 'manager_review' &&
         directReportIds.has(expense.employeeId),
+    );
+    const displayCodes = new Map(
+      directReports.map((report) => [
+        report.employeeId,
+        report.canonicalEmployeeId,
+      ]),
     );
     const displayNames = new Map(
       directReports.map((report) => [
@@ -918,6 +931,8 @@ export class TenantExpensesService {
       this.toExpenseDto(expense, categories.get(expense.categoryId), {
         employeeId: expense.employeeId,
         fullName: displayNames.get(expense.employeeId) || expense.employeeId,
+        canonicalEmployeeId: displayCodes.get(expense.employeeId),
+        managerCanonicalEmployeeId: actor.user.canonicalEmployeeId,
       }),
     );
   }
@@ -929,12 +944,19 @@ export class TenantExpensesService {
         role: TenantRole.FINANCE_OFFICER,
         status: TenantUserStatus.ACTIVE,
       },
-      select: { id: true, employeeId: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        employeeId: true,
+        canonicalEmployeeId: true,
+        firstName: true,
+        lastName: true,
+      },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     });
     return officers.map((officer) => ({
       id: officer.id,
       employeeId: officer.employeeId,
+      canonicalEmployeeId: officer.canonicalEmployeeId,
       fullName: this.fullName(officer),
     }));
   }
@@ -1182,7 +1204,10 @@ export class TenantExpensesService {
     );
     return {
       expenses: await this.mapExpenses(actor.organizationId, expenses),
-      transactions,
+      transactions: await this.mapTransactionIdentities(
+        actor.organizationId,
+        transactions,
+      ),
     };
   }
 
@@ -1505,7 +1530,7 @@ export class TenantExpensesService {
       expense.complianceDecision === 'Corrective Action' &&
       expense.complianceDecisionNote === message
     )
-      return this.toExpenseDto(expense);
+      return (await this.mapExpenses(expense.organizationId, [expense]))[0];
     return this.transition(
       expense,
       {
@@ -1588,9 +1613,36 @@ export class TenantExpensesService {
     }
     return {
       batchId: created ? batchId : (existingBatchId ?? batchId),
-      expenses,
-      transactions,
+      expenses: await this.mapExpenses(actor.organizationId, expenses),
+      transactions: await this.mapTransactionIdentities(
+        actor.organizationId,
+        transactions,
+      ),
     };
+  }
+
+  // Presentation metadata only; payment and expense relationship keys stay unchanged.
+  private async mapTransactionIdentities(
+    organizationId: string,
+    transactions: TransactionRecord[],
+  ) {
+    if (!transactions.length) return [];
+    const users = await this.db.tenantUser.findMany({
+      where: {
+        organizationId,
+        employeeId: {
+          in: [...new Set(transactions.map((row) => row.employeeId))],
+        },
+      },
+      select: { employeeId: true, canonicalEmployeeId: true },
+    });
+    const identities = new Map(
+      users.map((user) => [user.employeeId, user.canonicalEmployeeId]),
+    );
+    return transactions.map((row) => ({
+      ...row,
+      canonicalEmployeeId: identities.get(row.employeeId),
+    }));
   }
 
   private paymentDto(
@@ -1859,7 +1911,9 @@ export class TenantExpensesService {
       payment.expenseId,
     );
     const transaction = this.paymentDto(payment, expense);
-    return transaction;
+    return (
+      await this.mapTransactionIdentities(actor.organizationId, [transaction])
+    )[0];
   }
 
   private async requireCategory(
@@ -1895,13 +1949,25 @@ export class TenantExpensesService {
   }
 
   private async mapExpenses(organizationId: string, expenses: ExpenseRecord[]) {
-    const employeeIds = [...new Set(expenses.map((item) => item.employeeId))];
+    const employeeIds = [
+      ...new Set(
+        expenses.flatMap((item) => [item.employeeId, item.managerEmployeeId]),
+      ),
+    ];
     const users = employeeIds.length
       ? await this.db.tenantUser.findMany({
           where: { organizationId, employeeId: { in: employeeIds } },
-          select: { employeeId: true, firstName: true, lastName: true },
+          select: {
+            employeeId: true,
+            canonicalEmployeeId: true,
+            firstName: true,
+            lastName: true,
+          },
         })
       : [];
+    const codes = new Map(
+      users.map((user) => [user.employeeId, user.canonicalEmployeeId]),
+    );
     const names = new Map(
       users.map((user) => [user.employeeId, this.fullName(user)]),
     );
@@ -1914,6 +1980,8 @@ export class TenantExpensesService {
       this.toExpenseDto(expense, categories.get(expense.categoryId), {
         employeeId: expense.employeeId,
         fullName: names.get(expense.employeeId) || expense.employeeId,
+        canonicalEmployeeId: codes.get(expense.employeeId),
+        managerCanonicalEmployeeId: codes.get(expense.managerEmployeeId),
       }),
     );
   }
@@ -2029,19 +2097,30 @@ export class TenantExpensesService {
         message: 'Expense not found.',
       });
     }
-    return this.toExpenseDto(updated);
+    return (await this.mapExpenses(updated.organizationId, [updated]))[0];
   }
 
   private toExpenseDto(
     expense: ExpenseRecord,
     categoryName?: string,
-    employee?: { employeeId: string; fullName: string },
+    employee?: {
+      employeeId: string;
+      fullName: string;
+      canonicalEmployeeId?: string;
+      managerCanonicalEmployeeId?: string;
+    },
   ) {
     return {
       id: expense.id,
       organizationId: expense.organizationId,
       employeeId: expense.employeeId,
       employee: employee ?? null,
+      ...(employee?.canonicalEmployeeId
+        ? { canonicalEmployeeId: employee.canonicalEmployeeId }
+        : {}),
+      ...(employee?.managerCanonicalEmployeeId
+        ? { managerCanonicalEmployeeId: employee.managerCanonicalEmployeeId }
+        : {}),
       managerEmployeeId: expense.managerEmployeeId,
       assignedFinanceOfficerId: expense.assignedFinanceOfficerId,
       amount: expense.amount,

@@ -12,6 +12,7 @@ export const hierarchySelect = (organizationId: string) =>
   ({
     id: true,
     employeeId: true,
+    canonicalEmployeeId: true,
     firstName: true,
     lastName: true,
     email: true,
@@ -24,6 +25,7 @@ export const hierarchySelect = (organizationId: string) =>
       select: {
         id: true,
         employeeId: true,
+        canonicalEmployeeId: true,
         firstName: true,
         lastName: true,
         status: true,
@@ -42,6 +44,7 @@ const dto = ({ firstName, lastName, _count, manager, ...row }: Row) => ({
     ? {
         id: manager.id,
         employeeId: manager.employeeId,
+        canonicalEmployeeId: manager.canonicalEmployeeId,
         fullName: `${manager.firstName} ${manager.lastName}`,
         status: manager.status,
       }
@@ -114,7 +117,13 @@ export class TenantHierarchyService {
           ? { status: query.status }
           : {}),
       AND: terms.map((term) => ({
-        OR: ['employeeId', 'firstName', 'lastName', 'email'].map((field) => ({
+        OR: [
+          'employeeId',
+          'canonicalEmployeeId',
+          'firstName',
+          'lastName',
+          'email',
+        ].map((field) => ({
           [field]: { contains: literal(term), mode: 'insensitive' },
         })),
       })),
@@ -160,19 +169,20 @@ export class TenantHierarchyService {
             id: string;
             fullName: string;
             employeeId: string;
+            canonicalEmployeeId: string;
             managerId: string | null;
             depth: number;
             cycle: boolean;
           }[]
         >`
         WITH RECURSIVE chain AS (
-          SELECT id, "firstName" || ' ' || "lastName" AS "fullName", "employeeId", "managerId", 0 AS depth, ARRAY[id] AS visited, false AS cycle
+          SELECT id, "firstName" || ' ' || "lastName" AS "fullName", "employeeId", "canonicalEmployeeId", "managerId", 0 AS depth, ARRAY[id] AS visited, false AS cycle
           FROM "TenantUser" WHERE id=${id}::uuid AND "organizationId"=${organizationId}::uuid
           UNION ALL
-          SELECT u.id, u."firstName" || ' ' || u."lastName", u."employeeId", u."managerId", c.depth+1, c.visited || u.id, u.id=ANY(c.visited)
+          SELECT u.id, u."firstName" || ' ' || u."lastName", u."employeeId", u."canonicalEmployeeId", u."managerId", c.depth+1, c.visited || u.id, u.id=ANY(c.visited)
           FROM "TenantUser" u JOIN chain c ON u.id=c."managerId"
           WHERE u."organizationId"=${organizationId}::uuid AND NOT c.cycle AND c.depth<100
-        ) SELECT id,"fullName","employeeId","managerId",depth,cycle FROM chain ORDER BY depth DESC`;
+        ) SELECT id,"fullName","employeeId","canonicalEmployeeId","managerId",depth,cycle FROM chain ORDER BY depth DESC`;
         return {
           ...dto(user),
           ancestors: ancestors.filter((a) => a.id !== id && !a.cycle),

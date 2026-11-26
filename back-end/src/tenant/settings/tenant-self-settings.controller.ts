@@ -1,3 +1,5 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
+import { UseInterceptors } from '@nestjs/common';
 import {
   Body,
   Controller,
@@ -25,6 +27,7 @@ export class RevokeOwnSessionsDto {}
 @Controller('me/settings')
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
 @TenantRoles(TenantRole.MANAGER)
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantSelfSettingsController {
   constructor(private readonly settings: TenantSettingsService) {}
 

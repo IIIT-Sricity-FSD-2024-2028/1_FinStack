@@ -1,3 +1,5 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
+import { UseInterceptors } from '@nestjs/common';
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -10,6 +12,7 @@ import { TenantAuthService } from './tenant-auth.service';
 
 @ApiTags('Tenant authentication')
 @Controller('auth')
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantAuthController {
   constructor(private readonly auth: TenantAuthService) {}
 

@@ -1,3 +1,4 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
 import { UseInterceptors } from '@nestjs/common';
 import { TenantAuditContextInterceptor } from '../audit/tenant-audit-context';
 import { ListHierarchyDto } from './dto/list-hierarchy.dto';
@@ -32,6 +33,7 @@ import { TenantConfigurationService } from './tenant-configuration.service';
 @UseInterceptors(TenantAuditContextInterceptor)
 @Controller('configuration')
 @UseGuards(TenantAuthenticationGuard)
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantConfigurationController {
   constructor(
     private readonly configuration: TenantConfigurationService,

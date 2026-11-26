@@ -3,7 +3,9 @@ import { Prisma } from '@prisma/client';
 import {
   createWithGeneratedLoginId,
   generateTenantLoginId,
+  employeeLoginWhere,
   isGeneratedLoginIdCollision,
+  retryCanonicalAllocation,
 } from './tenant-login-id';
 
 const organization = {
@@ -18,54 +20,48 @@ function collision(target: string | string[], modelName = 'TenantUser') {
   });
 }
 describe('server-generated tenant login IDs', () => {
-  it('uses a stable full tenant UUID, readable hint and 80 random bits within the legacy limit', () => {
-    const id = generateTenantLoginId(organization);
-    expect(id).toMatch(/^ACM-10000000000040008000000000000001-[A-F0-9]{20}$/);
-    expect(id.length).toBeLessThanOrEqual(80);
-    expect(
-      generateTenantLoginId({ ...organization, name: '\u00c5cme' }),
-    ).toMatch(/^ACM-/);
-    expect(
-      generateTenantLoginId({
-        ...organization,
-        name: '\u00c5cme updated',
-      }).split('-')[1],
-    ).toBe(id.split('-')[1]);
-    expect(
-      generateTenantLoginId({ ...organization, name: '\u7814\u53d1' }),
-    ).toMatch(/^ORG-/);
+  it('creates private insertion markers; PostgreSQL assigns the canonical ID', () => {
+    for (let i = 0; i < 100; i++)
+      expect(generateTenantLoginId(organization)).toMatch(
+        /^__allocate__:[a-f0-9-]{36}$/,
+      );
     expect(() =>
       generateTenantLoginId({ ...organization, id: 'untrusted-name' }),
     ).toThrow('stored organization UUID');
   });
-  it('distinguishes tenants even with the same name hint', () => {
-    const first = generateTenantLoginId(organization);
-    const second = generateTenantLoginId({
-      ...organization,
-      id: '20000000-0000-4000-8000-000000000001',
+  it('looks up both canonical and legacy aliases without accepting client tenant context', () => {
+    expect(employeeLoginWhere('FIC-1029')).toEqual({
+      OR: [{ canonicalEmployeeId: 'FIC-1029' }, { employeeId: 'FIC-1029' }],
     });
-    expect(first.split('-')[0]).toBe(second.split('-')[0]);
-    expect(first.split('-')[1]).not.toBe(second.split('-')[1]);
+    expect(employeeLoginWhere('OLD-LONG')).toEqual({
+      OR: [{ canonicalEmployeeId: 'OLD-LONG' }, { employeeId: 'OLD-LONG' }],
+    });
   });
   it('allocates independent IDs across concurrent creation requests', async () => {
-    const create = jest.fn((id: string) => Promise.resolve(id));
+    const allocated = new Set<string>();
+    const create = jest.fn((id: string) => {
+      if (allocated.has(id)) throw collision(['canonicalEmployeeId']);
+      allocated.add(id);
+      return Promise.resolve(id);
+    });
     const ids = await Promise.all(
       Array.from({ length: 200 }, () =>
         createWithGeneratedLoginId(organization, create),
       ),
     );
     expect(new Set(ids).size).toBe(200);
-    expect(create).toHaveBeenCalledTimes(200);
+    expect(create.mock.calls.length).toBeGreaterThanOrEqual(200);
   });
   it('retries only a recognized global TenantUser employeeId unique violation', async () => {
     const create = jest
       .fn((id: string) => Promise.resolve(id))
       .mockRejectedValueOnce(collision(['employeeId']))
-      .mockRejectedValueOnce(collision('TenantUser_employeeId_key'));
+      .mockRejectedValueOnce(collision('TenantUser_employeeId_key'))
+      .mockRejectedValueOnce(collision(['canonicalEmployeeId']));
     const id = await createWithGeneratedLoginId(organization, create);
-    expect(create).toHaveBeenCalledTimes(3);
-    expect(id).toBe(create.mock.calls[2][0]);
-    expect(new Set(create.mock.calls.map(([value]) => value)).size).toBe(3);
+    expect(create).toHaveBeenCalledTimes(4);
+    expect(id).toBe(create.mock.calls[3][0]);
+    expect(id).toMatch(/^__allocate__:[a-f0-9-]{36}$/);
   });
   it.each([
     collision(['organizationId', 'email']),
@@ -93,5 +89,42 @@ describe('server-generated tenant login IDs', () => {
       'A login ID could not be allocated. Try again later.',
     );
     expect(create).toHaveBeenCalledTimes(5);
+  });
+  it('retries code allocation collisions for legacy provisioning without changing its primary ID', async () => {
+    const create = jest
+      .fn()
+      .mockRejectedValueOnce(collision(['canonicalEmployeeId']))
+      .mockResolvedValue({
+        employeeId: 'LEGACY-ID',
+        canonicalEmployeeId: 'FIC-1029',
+      });
+    await expect(retryCanonicalAllocation(create)).resolves.toEqual({
+      employeeId: 'LEGACY-ID',
+      canonicalEmployeeId: 'FIC-1029',
+    });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+  it('does not retry a duplicate legacy login when allocating a code', async () => {
+    const error = collision(['employeeId']);
+    const create = jest.fn().mockRejectedValue(error);
+    await expect(retryCanonicalAllocation(create)).rejects.toBe(error);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+  it('reports finite-range exhaustion as a domain conflict without retrying or wrapping', async () => {
+    const databaseError = new Prisma.PrismaClientUnknownRequestError(
+      'ERROR: Employee ID range exhausted for this organization (1001-9999).',
+      { clientVersion: '6.19.1' },
+    );
+    const create = jest.fn().mockRejectedValue(databaseError);
+    try {
+      await createWithGeneratedLoginId(organization, create);
+      throw new Error('Expected capacity refusal');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toMatchObject({
+        code: 'EMPLOYEE_ID_RANGE_EXHAUSTED',
+      });
+    }
+    expect(create).toHaveBeenCalledTimes(1);
   });
 });

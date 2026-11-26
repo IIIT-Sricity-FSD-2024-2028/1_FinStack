@@ -1,14 +1,15 @@
 import { ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 export interface LoginIdOrganization {
   id: string;
   name: string;
 }
 
-// The full server-owned UUID is the stable organization code, not an authority
-// inferred from a user-supplied name, slug or prefix. Existing IDs are immutable.
+// Internal insert marker only. PostgreSQL atomically replaces this with the
+// persisted organization-prefixed Employee ID before inserting a new user.
+// Existing employeeId relationship keys are never rewritten.
 export function generateTenantLoginId(
   organization: LoginIdOrganization,
 ): string {
@@ -16,14 +17,26 @@ export function generateTenantLoginId(
     throw new Error(
       'A stored organization UUID is required for login ID generation.',
     );
-  const hint =
-    organization.name
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .slice(0, 3) || 'ORG';
-  return `${hint}-${organization.id.replaceAll('-', '').toUpperCase()}-${randomBytes(10).toString('hex').toUpperCase()}`;
+  return '__allocate__:' + randomUUID();
+}
+
+export const employeeLoginWhere = (login: string) => ({
+  OR: [{ canonicalEmployeeId: login }, { employeeId: login }],
+});
+
+// PostgreSQL deliberately refuses wraparound; expose a domain conflict instead of a 500.
+function assertEmployeeIdCapacity(error: unknown): void {
+  if (
+    (error instanceof Prisma.PrismaClientKnownRequestError ||
+      error instanceof Prisma.PrismaClientUnknownRequestError) &&
+    error.message.includes('Employee ID range exhausted for this organization')
+  ) {
+    throw new ConflictException({
+      code: 'EMPLOYEE_ID_RANGE_EXHAUSTED',
+      message:
+        'This organization has used its available Employee IDs (1001-9999). Contact support before adding employees.',
+    });
+  }
 }
 
 export function isGeneratedLoginIdCollision(error: unknown): boolean {
@@ -36,8 +49,13 @@ export function isGeneratedLoginIdCollision(error: unknown): boolean {
     return false;
   const target = error.meta?.target;
   return Array.isArray(target)
-    ? target.length === 1 && target[0] === 'employeeId'
-    : target === 'TenantUser_employeeId_key';
+    ? target.length === 1 &&
+        typeof target[0] === 'string' &&
+        ['employeeId', 'canonicalEmployeeId'].includes(target[0])
+    : [
+        'TenantUser_employeeId_key',
+        'TenantUser_canonicalEmployeeId_key',
+      ].includes(String(target));
 }
 
 // Each attempt must open its OWN transaction. A PostgreSQL unique violation
@@ -50,6 +68,7 @@ export async function createWithGeneratedLoginId<T>(
     try {
       return await create(generateTenantLoginId(organization));
     } catch (error) {
+      assertEmployeeIdCapacity(error);
       if (!isGeneratedLoginIdCollision(error)) throw error;
     }
   }
@@ -57,4 +76,31 @@ export async function createWithGeneratedLoginId<T>(
     code: 'TENANT_LOGIN_ID_UNAVAILABLE',
     message: 'A login ID could not be allocated. Try again later.',
   });
+}
+
+// Legacy import identifiers stay hidden aliases. Retry only a recognized
+// canonical identity conflict, never duplicate legacy IDs or emails.
+export async function retryCanonicalAllocation<T>(
+  create: () => Promise<T>,
+): Promise<T> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await create();
+    } catch (error) {
+      assertEmployeeIdCapacity(error);
+      const target =
+        error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.meta?.target
+          : undefined;
+      const codeCollision =
+        isGeneratedLoginIdCollision(error) &&
+        (Array.isArray(target)
+          ? target.length === 1 && target[0] === 'canonicalEmployeeId'
+          : target === 'TenantUser_canonicalEmployeeId_key');
+      if (!codeCollision || attempt === 4) throw error;
+    }
+  }
+  throw new ConflictException(
+    'Employee code could not be allocated. Retry the request.',
+  );
 }

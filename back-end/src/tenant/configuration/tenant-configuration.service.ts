@@ -4,7 +4,10 @@ import {
   auditedMutation,
 } from '../audit/tenant-audit-write';
 import { lockReporting } from './reporting-lock';
-import { createWithGeneratedLoginId } from '../identity/tenant-login-id';
+import {
+  createWithGeneratedLoginId,
+  retryCanonicalAllocation,
+} from '../identity/tenant-login-id';
 import { ListEmployeesDto } from './dto/list-employees.dto';
 import {
   ConflictException,
@@ -23,6 +26,7 @@ const safeUserSelect = {
   id: true,
   organizationId: true,
   employeeId: true,
+  canonicalEmployeeId: true,
   firstName: true,
   lastName: true,
   email: true,
@@ -34,7 +38,13 @@ const safeUserSelect = {
   createdAt: true,
   updatedAt: true,
   manager: {
-    select: { id: true, firstName: true, lastName: true, employeeId: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      employeeId: true,
+      canonicalEmployeeId: true,
+    },
   },
   _count: { select: { directReports: true } },
 } satisfies Prisma.TenantUserSelect;
@@ -69,7 +79,13 @@ export class TenantConfigurationService {
           }
         : {}),
       AND: terms.map((term) => ({
-        OR: ['employeeId', 'firstName', 'lastName', 'email'].map((field) => ({
+        OR: [
+          'employeeId',
+          'canonicalEmployeeId',
+          'firstName',
+          'lastName',
+          'email',
+        ].map((field) => ({
           [field]: { contains: literal(term), mode: 'insensitive' },
         })),
       })),
@@ -77,6 +93,7 @@ export class TenantConfigurationService {
     const select = {
       id: true,
       employeeId: true,
+      canonicalEmployeeId: true,
       firstName: true,
       lastName: true,
       email: true,
@@ -86,7 +103,13 @@ export class TenantConfigurationService {
       credentialSetupRequired: true,
       manager: {
         where: { organizationId },
-        select: { id: true, employeeId: true, firstName: true, lastName: true },
+        select: {
+          id: true,
+          employeeId: true,
+          canonicalEmployeeId: true,
+          firstName: true,
+          lastName: true,
+        },
       },
     } satisfies Prisma.TenantUserSelect;
     // One consistent snapshot for count and page; no full list or N+1 loop.
@@ -111,6 +134,7 @@ export class TenantConfigurationService {
           ? {
               id: manager.id,
               employeeId: manager.employeeId,
+              canonicalEmployeeId: manager.canonicalEmployeeId,
               fullName: `${manager.firstName} ${manager.lastName}`,
             }
           : null,
@@ -159,7 +183,9 @@ export class TenantConfigurationService {
         });
       // Retain explicit legacy IDs for published clients; the new form omits it.
       if (dto.employeeId !== undefined)
-        return await create(dto.employeeId.trim());
+        return await retryCanonicalAllocation(() =>
+          create(dto.employeeId!.trim()),
+        );
       const organization = await this.prisma.organization.findUnique({
         where: { id: organizationId },
         select: { id: true, name: true },
@@ -476,6 +502,9 @@ export class TenantConfigurationService {
     return {
       id: user.id,
       employeeId: user.employeeId,
+      ...(user.canonicalEmployeeId
+        ? { canonicalEmployeeId: user.canonicalEmployeeId }
+        : {}),
       firstName: user.firstName,
       lastName: user.lastName,
       fullName: `${user.firstName} ${user.lastName}`,
@@ -489,6 +518,7 @@ export class TenantConfigurationService {
         ? {
             id: user.manager.id,
             employeeId: user.manager.employeeId,
+            canonicalEmployeeId: user.manager.canonicalEmployeeId,
             fullName: `${user.manager.firstName} ${user.manager.lastName}`,
           }
         : null,

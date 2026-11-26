@@ -72,7 +72,12 @@ describe('legacy bulk account activation isolation', () => {
         credentialSetupRequired: true,
         status: 'INACTIVE',
       },
-      select: { id: true, employeeId: true, email: true },
+      select: {
+        id: true,
+        employeeId: true,
+        canonicalEmployeeId: true,
+        email: true,
+      },
     });
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
@@ -115,7 +120,10 @@ describe('legacy bulk account activation isolation', () => {
     const hash = createHash('sha256').update(token).digest('hex');
     expect(prisma.tenantUser.findFirst).toHaveBeenCalledWith({
       where: {
-        employeeId: user.employeeId,
+        OR: [
+          { employeeId: user.employeeId },
+          { canonicalEmployeeId: user.employeeId },
+        ],
         activationTokenHash: hash,
         activationExpiresAt: { gt: expect.any(Date) as unknown },
         credentialSetupRequired: true,

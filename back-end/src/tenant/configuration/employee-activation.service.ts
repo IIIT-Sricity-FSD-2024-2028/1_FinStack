@@ -37,7 +37,12 @@ export class EmployeeActivationService {
           credentialSetupRequired: true,
           status: 'INACTIVE',
         },
-        select: { id: true, employeeId: true, email: true },
+        select: {
+          id: true,
+          employeeId: true,
+          canonicalEmployeeId: true,
+          email: true,
+        },
       });
       if (!users.length) continue;
       const issued = users.map((user) => {
@@ -70,8 +75,8 @@ export class EmployeeActivationService {
       items.push(
         ...issued
           .filter((item) => ids.has(item.id))
-          .map(({ employeeId, email, token }) => ({
-            employeeId,
+          .map(({ employeeId, canonicalEmployeeId, email, token }) => ({
+            employeeId: canonicalEmployeeId || employeeId,
             email,
             token,
           })),
@@ -83,7 +88,7 @@ export class EmployeeActivationService {
     const hash = createHash('sha256').update(token).digest('hex');
     const user = await this.prisma.tenantUser.findFirst({
       where: {
-        employeeId,
+        OR: [{ employeeId }, { canonicalEmployeeId: employeeId }],
         activationTokenHash: hash,
         activationExpiresAt: { gt: new Date() },
         credentialSetupRequired: true,

@@ -17,7 +17,7 @@ export const workflowLabel = (expense) => String(expense.workflowStatus || expen
 export const workflowClass = (expense) => {
   const state = String(expense.workflowStatus || expense.status || '').toLowerCase()
   if (state.includes('reject')) return 'badge-danger'
-  if (['paid', 'approved_for_payment', 'finance_approved', 'compliance_approved'].includes(state)) return 'badge-success'
+  if (['paid', 'approved_for_payment'].includes(state)) return 'badge-success'
   if (state.includes('return') || state.includes('review') || state.includes('processing')) return 'badge-warning'
   return 'badge-info'
 }

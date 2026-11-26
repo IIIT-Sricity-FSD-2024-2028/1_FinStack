@@ -28,6 +28,7 @@ const profileSelect = {
   id: true,
   organizationId: true,
   employeeId: true,
+  canonicalEmployeeId: true,
   firstName: true,
   lastName: true,
   email: true,

@@ -1,3 +1,5 @@
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
+import { UseInterceptors } from '@nestjs/common';
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -8,6 +10,7 @@ import { TenantOnboardingService } from './tenant-onboarding.service';
 
 @ApiTags('Tenant onboarding')
 @Controller('onboarding')
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantOnboardingController {
   constructor(private readonly onboarding: TenantOnboardingService) {}
   @Public()
@@ -32,6 +35,7 @@ export class TenantOnboardingController {
 
 @ApiTags('Tenant registration')
 @Controller('registrations')
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantRegistrationController {
   constructor(private readonly onboarding: TenantOnboardingService) {}
   @Public()

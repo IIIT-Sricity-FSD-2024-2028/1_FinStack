@@ -39,6 +39,8 @@ function setup() {
         Promise.resolve({
           ...data,
           id: 'immutable-cm-uuid',
+          employeeId: 'ACM-1001',
+          canonicalEmployeeId: 'ACM-1001',
         }),
       ),
     },
@@ -66,11 +68,7 @@ describe('registration-generated Configuration Manager identity', () => {
     const { service, tx } = setup();
     const result = await service.register(dto);
     expect(result.organizationId).toMatch(/^[a-f0-9-]{36}$/);
-    expect(result.employeeId).toMatch(
-      new RegExp(
-        `^ACM-${result.organizationId.replaceAll('-', '').toUpperCase()}-[A-F0-9]{20}$`,
-      ),
-    );
+    expect(result.employeeId).toBe('ACM-1001');
     expect(tx.tenantUser.create.mock.calls[0][0].data).toMatchObject({
       organizationId: result.organizationId,
       role: TenantRole.CONFIGURATION_MANAGER,

@@ -1,3 +1,5 @@
+import { UseInterceptors } from '@nestjs/common';
+import { TenantEmployeeIdentityInterceptor } from '../identity/tenant-employee-identity.interceptor';
 import {
   Body,
   Controller,
@@ -23,6 +25,7 @@ import {
 @Controller('configuration/settings')
 @UseGuards(TenantAuthenticationGuard, TenantRoleGuard)
 @TenantRoles(TenantRole.CONFIGURATION_MANAGER)
+@UseInterceptors(TenantEmployeeIdentityInterceptor)
 export class TenantSettingsController {
   constructor(private readonly settings: TenantSettingsService) {}
   @Get('organization') organization(@Req() req: TenantRequest) {

@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { TenantRole, TenantUserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { TenantAuthService } from './tenant-auth.service';
-import { generateTenantLoginId } from '../identity/tenant-login-id';
+import { employeeLoginWhere } from '../identity/tenant-login-id';
 import { TENANT_WORKSPACES } from './tenant-workspace';
 
 jest.mock('argon2');
@@ -21,7 +21,7 @@ describe('TenantAuthService', () => {
     organization: { registrationStatus: 'LEGACY_APPROVED', status: 'ACTIVE' },
   };
   const prisma = {
-    tenantUser: { findUnique: jest.fn() },
+    tenantUser: { findFirst: jest.fn(), findUnique: jest.fn() },
   };
   const tokens = {
     sign: jest.fn().mockResolvedValue('token'),
@@ -33,6 +33,7 @@ describe('TenantAuthService', () => {
     jest.clearAllMocks();
     (argon2.hash as jest.Mock).mockResolvedValue('dummy-hash');
     (argon2.verify as jest.Mock).mockResolvedValue(true);
+    prisma.tenantUser.findFirst = jest.fn().mockResolvedValue(user);
     prisma.tenantUser.findUnique = jest.fn().mockResolvedValue(user);
     service = new TenantAuthService(
       prisma as unknown as ConstructorParameters<typeof TenantAuthService>[0],
@@ -42,15 +43,15 @@ describe('TenantAuthService', () => {
 
   it('resolves every active tenant role and its default workspace by global employee ID', async () => {
     for (const role of Object.values(TenantRole)) {
-      prisma.tenantUser.findUnique = jest
+      prisma.tenantUser.findFirst = jest
         .fn()
         .mockResolvedValue({ ...user, role });
       const result = await service.login({
         employeeId: ' CFG-1234 ',
         password: 'Old!7',
       });
-      expect(prisma.tenantUser.findUnique).toHaveBeenCalledWith({
-        where: { employeeId: 'CFG-1234' },
+      expect(prisma.tenantUser.findFirst).toHaveBeenCalledWith({
+        where: employeeLoginWhere('CFG-1234'),
         include: { organization: true },
       });
       expect(result).toMatchObject({
@@ -69,10 +70,9 @@ describe('TenantAuthService', () => {
       '10000000-0000-4000-8000-000000000001',
       '20000000-0000-4000-8000-000000000001',
     ]) {
-      const employeeId = generateTenantLoginId({
-        id: organizationId,
-        name: 'Acme',
-      });
+      const employeeId = organizationId.startsWith('1')
+        ? 'ACM-1001'
+        : 'ACM1-1001';
       const candidate = {
         ...user,
         id: 'user-' + organizationId,
@@ -80,13 +80,13 @@ describe('TenantAuthService', () => {
         employeeId,
         credentialVersion: 3,
       };
-      prisma.tenantUser.findUnique.mockResolvedValueOnce(candidate);
+      prisma.tenantUser.findFirst.mockResolvedValueOnce(candidate);
       const result = await service.login({
         employeeId,
         password: 'fixture-password',
       });
-      expect(prisma.tenantUser.findUnique).toHaveBeenLastCalledWith({
-        where: { employeeId },
+      expect(prisma.tenantUser.findFirst).toHaveBeenLastCalledWith({
+        where: employeeLoginWhere(employeeId),
         include: { organization: true },
       });
       expect(result).toMatchObject({
@@ -108,7 +108,7 @@ describe('TenantAuthService', () => {
       { registrationStatus: 'REJECTED', status: 'ACTIVE' },
       { registrationStatus: 'APPROVED', status: 'SUSPENDED' },
     ]) {
-      prisma.tenantUser.findUnique = jest
+      prisma.tenantUser.findFirst = jest
         .fn()
         .mockResolvedValue({ ...user, organization });
       await expect(
@@ -124,7 +124,7 @@ describe('TenantAuthService', () => {
       { ...user, status: TenantUserStatus.INACTIVE },
       user,
     ]) {
-      prisma.tenantUser.findUnique = jest.fn().mockResolvedValue(candidate);
+      prisma.tenantUser.findFirst = jest.fn().mockResolvedValue(candidate);
       (argon2.verify as jest.Mock).mockResolvedValue(false);
       try {
         await service.login({ employeeId: user.employeeId, password: 'wrong' });
@@ -142,7 +142,7 @@ describe('TenantAuthService', () => {
   });
 
   it('rejects inactive accounts even with a correct password', async () => {
-    prisma.tenantUser.findUnique = jest
+    prisma.tenantUser.findFirst = jest
       .fn()
       .mockResolvedValue({ ...user, status: TenantUserStatus.INACTIVE });
     await expect(
@@ -156,7 +156,7 @@ describe('TenantAuthService', () => {
       service.login({ employeeId: user.employeeId, password: 'valid' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     (argon2.verify as jest.Mock).mockResolvedValue(true);
-    prisma.tenantUser.findUnique = jest
+    prisma.tenantUser.findFirst = jest
       .fn()
       .mockResolvedValue({ ...user, role: 'UNSUPPORTED' });
     await expect(
@@ -205,4 +205,36 @@ describe('TenantAuthService', () => {
       UnauthorizedException,
     );
   });
+  it.each(['FIC-1029', 'LEGACY-EMPLOYEE-42'])(
+    'authenticates %s to the same stored UUID and tenant',
+    async (login) => {
+      const account = {
+        ...user,
+        employeeId: 'LEGACY-EMPLOYEE-42',
+        canonicalEmployeeId: 'FIC-1029',
+      };
+      prisma.tenantUser.findFirst = jest.fn().mockResolvedValue(account);
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+      const result = await service.login({
+        employeeId: login,
+        password: 'fixture-password',
+      });
+      expect(prisma.tenantUser.findFirst).toHaveBeenCalledWith({
+        where: employeeLoginWhere(login),
+        include: { organization: true },
+      });
+      expect(result.user).toMatchObject({
+        id: user.id,
+        organizationId: user.organizationId,
+        employeeId: 'LEGACY-EMPLOYEE-42',
+        canonicalEmployeeId: 'FIC-1029',
+      });
+      expect(tokens.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: user.id,
+          organizationId: user.organizationId,
+        }),
+      );
+    },
+  );
 });

@@ -87,7 +87,7 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
   }
   async rows(organizationId: string, id: string, page: number) {
     await this.get(organizationId, id);
-    return this.prisma.employeeImportRow.findMany({
+    const rows = await this.prisma.employeeImportRow.findMany({
       where: { jobId: id },
       orderBy: { rowNumber: 'asc' },
       skip: (page - 1) * 100,
@@ -95,12 +95,29 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
       select: {
         rowNumber: true,
         employeeId: true,
+        userId: true,
         email: true,
         status: true,
         errors: true,
         payload: true,
       },
     });
+    const ids = rows
+      .filter((row) => row.status === 'SUCCEEDED')
+      .map((row) => row.userId);
+    const users = ids.length
+      ? await this.prisma.tenantUser.findMany({
+          where: { organizationId, id: { in: ids } },
+          select: { id: true, canonicalEmployeeId: true },
+        })
+      : [];
+    const codes = new Map(
+      users.map((user) => [user.id, user.canonicalEmployeeId]),
+    );
+    return rows.map(({ userId, ...row }) => ({
+      ...row,
+      ...(codes.has(userId) ? { canonicalEmployeeId: codes.get(userId) } : {}),
+    }));
   }
 
   async upload(
@@ -179,6 +196,11 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
             OR: [
               { employeeId: { in: buffer.map((row) => row.employeeId) } },
               {
+                canonicalEmployeeId: {
+                  in: buffer.map((row) => row.employeeId),
+                },
+              },
+              {
                 organizationId: actor.organizationId,
                 OR: buffer.map((row) => ({
                   email: { equals: row.email, mode: 'insensitive' as const },
@@ -186,9 +208,19 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
               },
             ],
           },
-          select: { employeeId: true, email: true, organizationId: true },
+          select: {
+            employeeId: true,
+            canonicalEmployeeId: true,
+            email: true,
+            organizationId: true,
+          },
         });
-        const ids = new Set(existing.map((row) => row.employeeId)),
+        const ids = new Set(
+            existing.flatMap((row) => [
+              row.employeeId,
+              row.canonicalEmployeeId,
+            ]),
+          ),
           emails = new Set(
             existing
               .filter((row) => row.organizationId === actor.organizationId)
@@ -204,14 +236,19 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
         const managers = await this.prisma.tenantUser.findMany({
           where: {
             organizationId: actor.organizationId,
-            employeeId: { in: managerIds },
+            OR: [
+              { employeeId: { in: managerIds } },
+              { canonicalEmployeeId: { in: managerIds } },
+            ],
             role: TenantRole.MANAGER,
             status: 'ACTIVE',
             credentialSetupRequired: false,
           },
-          select: { employeeId: true },
+          select: { employeeId: true, canonicalEmployeeId: true },
         });
-        const validManagers = new Set(managers.map((row) => row.employeeId));
+        const validManagers = new Set(
+          managers.flatMap((row) => [row.employeeId, row.canonicalEmployeeId]),
+        );
         for (const row of buffer) {
           const errors = row.errors as string[];
           if (ids.has(row.employeeId))
@@ -499,15 +536,26 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
           const managers = await tx.tenantUser.findMany({
             where: {
               organizationId: job.organizationId,
-              employeeId: { in: managerIds },
+              OR: [
+                { employeeId: { in: managerIds } },
+                { canonicalEmployeeId: { in: managerIds } },
+              ],
               role: TenantRole.MANAGER,
               status: 'ACTIVE',
               credentialSetupRequired: false,
             },
-            select: { id: true, employeeId: true },
+            select: { id: true, employeeId: true, canonicalEmployeeId: true },
           });
           const managerMap = new Map(
-            managers.map((row) => [row.employeeId, row.id]),
+            managers.flatMap(
+              (row) =>
+                [
+                  [row.employeeId, row.id],
+                  ...(row.canonicalEmployeeId
+                    ? [[row.canonicalEmployeeId, row.id]]
+                    : []),
+                ] as [string, string][],
+            ),
           );
           const ready: EmployeeImportRow[] = [];
           for (const row of rows) {
@@ -528,33 +576,41 @@ export class EmployeeImportService implements OnModuleInit, OnModuleDestroy {
             managerId: string | null;
           }[] = [];
           if (ready.length) {
-            await tx.tenantUser.createMany({
-              data: ready.map((row) => {
-                const payload = row.payload as ImportPayload;
-                return {
-                  id: row.userId,
-                  organizationId: job.organizationId,
-                  employeeId: row.employeeId,
-                  email: row.email,
-                  firstName: payload.firstName,
-                  lastName: payload.lastName,
-                  department: payload.department,
-                  managerId: managerMap.get(payload.managerEmployeeId) || null,
-                  role: TenantRole.EXPENSE_SUBMITTER,
-                  status: 'INACTIVE',
-                  credentialSetupRequired: true,
-                  passwordHash: '!credential-setup-required:' + randomUUID(),
-                };
-              }),
-              skipDuplicates: true,
-            });
-            const created = await tx.tenantUser.findMany({
-              where: {
+            const userData: (Prisma.TenantUserCreateManyInput & {
+              id: string;
+            })[] = ready.map((row) => {
+              const payload = row.payload as ImportPayload;
+              return {
+                id: row.userId,
                 organizationId: job.organizationId,
-                id: { in: ready.map((row) => row.userId) },
-              },
-              select: { id: true, managerId: true },
+                employeeId: row.employeeId,
+                email: row.email,
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                department: payload.department,
+                managerId: managerMap.get(payload.managerEmployeeId) || null,
+                role: TenantRole.EXPENSE_SUBMITTER,
+                status: 'INACTIVE',
+                credentialSetupRequired: true,
+                passwordHash: '!credential-setup-required:' + randomUUID(),
+              };
             });
+            let created: { id: string; managerId: string | null }[] = [];
+            for (let attempt = 0; attempt < 5; attempt++) {
+              const existingIds = new Set(created.map((user) => user.id));
+              await tx.tenantUser.createMany({
+                data: userData.filter((user) => !existingIds.has(user.id)),
+                skipDuplicates: true,
+              });
+              created = await tx.tenantUser.findMany({
+                where: {
+                  organizationId: job.organizationId,
+                  id: { in: ready.map((row) => row.userId) },
+                },
+                select: { id: true, managerId: true },
+              });
+              if (created.length === ready.length) break;
+            }
             createdUsers = created;
             const createdIds = created.map((row) => row.id);
             createdUserIds = createdIds;
