@@ -49,10 +49,10 @@ export const fetchComplianceResource = createAsyncThunk(
   async ({ resource: name, query = {} }, { extra, getState, signal, rejectWithValue }) => {
     const generation = getState().compliance.session.generation
     try {
-      const result = await extra.session.run(generation, signal, (requestSignal) =>
+      const result = await extra.complianceSession.run(generation, signal, (requestSignal) =>
         ['audit', 'notifications'].includes(name)
-          ? extra.api[readMethods[name]](query, requestSignal)
-          : extra.api[readMethods[name]](requestSignal))
+          ? extra.complianceApi[readMethods[name]](query, requestSignal)
+          : extra.complianceApi[readMethods[name]](requestSignal))
       return normalize(name, result)
     } catch (error) {
       return rejectWithValue(error?.message || 'Unable to load compliance data. Please retry.')
@@ -60,7 +60,7 @@ export const fetchComplianceResource = createAsyncThunk(
   },
   { condition: ({ resource: name, query = {}, force = false }, { getState, extra }) => {
     const state = getState().compliance
-    if (!extra.session.isCurrent(state.session.generation) || !readMethods[name]) return false
+    if (!extra.complianceSession.isCurrent(state.session.generation) || !readMethods[name]) return false
     if ((state.deciding && decisionResources.includes(name)) ||
         (state.markingRead && notificationResources.includes(name))) return false
     if (name === 'unread' && state.notifications.requestId) return false
@@ -78,15 +78,15 @@ const submitDecision = createAsyncThunk(
       const method = { approve: 'approveClaim', reject: 'rejectClaim', correctiveAction: 'correctiveAction' }[type]
       if (!method || !expenseId) throw new Error('Select a supported compliance decision.')
       if (type !== 'approve' && !note.trim()) throw new Error('A decision note is required.')
-      return await extra.session.run(generation, signal,
-        (requestSignal) => extra.api[method](expenseId, note.trim(), requestSignal))
+      return await extra.complianceSession.run(generation, signal,
+        (requestSignal) => extra.complianceApi[method](expenseId, note.trim(), requestSignal))
     } catch (error) {
       return rejectWithValue(error?.message || 'Failed to submit decision. Please retry.')
     }
   },
   { condition: (_, { getState, extra }) => {
     const state = getState().compliance
-    return extra.session.isCurrent(state.session.generation) && !state.deciding
+    return extra.complianceSession.isCurrent(state.session.generation) && !state.deciding
   } },
 )
 
@@ -95,16 +95,16 @@ const submitRead = createAsyncThunk(
   async ({ id }, { extra, getState, signal, rejectWithValue }) => {
     const generation = getState().compliance.session.generation
     try {
-      return await extra.session.run(generation, signal, (requestSignal) => id
-        ? extra.api.markNotificationRead(id, requestSignal)
-        : extra.api.markAllNotificationsRead(requestSignal))
+      return await extra.complianceSession.run(generation, signal, (requestSignal) => id
+        ? extra.complianceApi.markNotificationRead(id, requestSignal)
+        : extra.complianceApi.markAllNotificationsRead(requestSignal))
     } catch (error) {
       return rejectWithValue(error?.message || 'Failed to mark notifications read. Please retry.')
     }
   },
   { condition: (_, { getState, extra }) => {
     const state = getState().compliance
-    return extra.session.isCurrent(state.session.generation) && !state.markingRead
+    return extra.complianceSession.isCurrent(state.session.generation) && !state.markingRead
   } },
 )
 
@@ -200,7 +200,7 @@ export const refreshWorkspace = (notificationsVisible) => (dispatch, getState) =
 async function mutateAndRefresh(dispatch, getState, extra, thunk, names) {
   const generation = getState().compliance.session.generation
   const action = await dispatch(thunk)
-  if (!action.meta.condition && extra.session.isCurrent(generation)) {
+  if (!action.meta.condition && extra.complianceSession.isCurrent(generation)) {
     await dispatch(refreshResources(names))
   }
   if (action.meta.requestStatus === 'rejected') throw new Error(

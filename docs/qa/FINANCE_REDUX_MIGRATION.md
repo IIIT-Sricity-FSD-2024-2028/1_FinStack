@@ -19,17 +19,17 @@ Reviewed the finance React screens, legacy finance routing/adapters, shared JWT/
 
 ## State ownership
 
-- `src/app/store.js` configures Redux, installs RTK Query middleware/listeners, bridges existing live-update events, and aborts pending requests and resets all finance state on `finstack:session`.
-- `src/features/finance/financeApiSlice.js` owns server data and mutation state. Its custom base query reuses `financeApi.js`, keeping the existing bearer transport, response unwrapping, API base URL, 401 handling and cross-tab announcements. JSON requests receive RTK Query's abort signal. Error objects retain status, message and the bank-evidence code without storing Error instances.
+- `src/app/store.js` configures the one shared tenant Redux store for all five actors. The root Provider in `src/main.jsx` installs it once. Shared runtime listeners bridge live-update events, abort pending requests, and reset API caches and actor state on `finstack:session`.
+- `src/features/finance/financeApiSlice.js` owns server data and mutation state. It injects namespaced Finance endpoints into the shared `tenantApi` in `src/app/api.js`. The common base query reuses `financeApi.js`, keeping the existing bearer transport, response unwrapping, API base URL, 401 handling and cross-tab announcements. JSON requests receive RTK Query's abort signal. Error objects retain status, message and the bank-evidence code without storing Error instances.
 - `src/features/finance/financeSlice.js` owns serializable view filters and pagination. Credentials and binary receipts are not stored in Redux or persisted to browser storage.
 - `useFinanceWorkspace.js` supplies the shared query state. Initial failures show Retry; background failures retain the last data and mounted dialogs. Open expense details reuse that workspace cache without starting another workspace request.
 - Receipt Blobs and object URLs remain local to the detail modal and are revoked on cleanup. The existing authenticated receipt adapter remains responsible for binary retrieval. Profile/settings continue to use the existing authentication context and supported capabilities.
 
-## Verification
+## Original FIN-81 verification (historical)
 
 Verified: 161 unit tests passed; lint, TypeScript checking and the production build passed. The complete Finance/Compliance browser suite passed 59 checks against the production preview, including the new Redux regression scenarios.
 
-Additional local QA smoke checks verified real database authentication and dashboard routing for all five tenant roles, plus Finance workspace, category and notification reads. The requester subsequently reported manual workflow checks complete. The Finance sidebar label is shortened to `Transactions`; the page heading remains `Transactions & Reconciliation`, and the label fits expanded, collapsed and mobile navigation.
+Additional local QA smoke checks verified real database authentication and dashboard routing for all five tenant roles, plus Finance workspace, category and notification reads. The requester subsequently reported manual workflow checks complete. The original PR shortened the Finance sidebar label to `Transactions`. The unified integration deliberately retains the existing `Transactions & Reconciliation` label and heading to preserve UI; the original label change is deferred.
 
 From `front-end/client-react`:
 
@@ -54,3 +54,17 @@ The browser fixture covers deep links/reloads, legacy redirects, role boundaries
 Set `FINSTACK_FINANCE_REDUX_ONLY=1` to run only the new Redux browser scenarios. To verify built assets, use `npm run preview -- --port 5583` instead of the development server.
 
 The automated browser suite uses fictional intercepted responses and does not establish live financial mutation persistence or bank settlement. The real database smoke checks above cover login, routing and reads. Local QA configuration, credentials, account setup and database backups are excluded from the source change; no backend contracts or database migration files are changed by FIN-81.
+
+## Unified five-actor integration adaptations
+
+This candidate reuses the validated unified implementation; it does not repeat the Redux migration. The original Finance commit is `8253b462829dfae4977b848399c7fe222badfcd1` (Hari6782, PR #16). Original commits will be preserved by merge commits only after authorization.
+
+- Finance and Manager endpoints inject into one shared RTK Query API; Finance mutation names are namespaced to avoid collisions. Existing exported hooks retain their screen contracts.
+- Submitter and Compliance reducers, Finance filters, Manager filters, RTK Query middleware and session boundaries belong to the same root store. Feature providers no longer create independent stores.
+- Shared guards reject obsolete token, tenant, identity, role and status responses. Server-validated role changes reset state before another protected workspace renders. `setupListeners` uses its documented callback action creators.
+- Refresh coordination avoids duplicate local mutation requests while retaining cross-tab, focus, reconnect and visible polling behavior.
+- The three original `reduxRegression()` browser groups, notification pagination fixture and `FINSTACK_FINANCE_REDUX_ONLY` runner option are restored in this candidate. They retain their original assertions and exercise the final application in Chromium with intercepted fictional APIs. This coverage does not prove bank settlement.
+- The historical test counts above describe PR #16, not the candidate. Current exact results, installed dependency versions and audit findings are recorded in `INTEGRATION-RESULTS.json` and local candidate evidence after verification.
+- PR #15's backend profile projection is intentionally absent: frontend support alone cannot supply organization, department or manager fields missing from `/auth/me`. This enhancement needs a separately approved backend change.
+
+See `docs/qa/UNIFIED_REDUX_INTEGRATION_PLAN.md` for the reconciliation ledger, publication exclusions and history-preserving merge gates.

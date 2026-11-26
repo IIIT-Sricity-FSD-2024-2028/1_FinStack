@@ -4,10 +4,10 @@ import { useAuth } from "../auth/AuthContext";
 import { TenantAppShell } from "./TenantAppShell";
 import { configurationNavigation } from "./tenantNavigation";
 import { workspacePages } from "../routes/paths";
-import { useWorkspacePreferences } from "../services/preferences";
+import { useConfigPreferences } from "../features/config-manager/useConfigPreferences";
 
 export function ConfigurationManagerLayout() {
-  useWorkspacePreferences();
+  useConfigPreferences();
   const { user, logout } = useAuth();
   const location = useLocation();
   const page = workspacePages.find(([key]) => location.pathname === `/configuration/${key}`);

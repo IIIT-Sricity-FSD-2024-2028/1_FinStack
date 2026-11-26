@@ -1,24 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Icon } from "../../components/Icon";
 import { clientApi } from "../../adapters/clientApi";
 import { tenantSession } from "../../adapters/tenantSession";
 import { Link } from "react-router-dom";
-import { tenantAudit } from "../../adapters/tenantAudit";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
-const loadAlerts = async () => {
-  const pages = await Promise.all(
-    ["danger", "warning"].map((type) =>
-      clientApi.request(
-        `/api/v1/tenant/expenses/notifications/page?page=1&pageSize=5&type=${type}`,
-      ),
-    ),
-  );
-  return pages
-    .flatMap((page) => page.items)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, 5);
-};
-const recentEvents = () => tenantAudit.list({ page: 1, pageSize: 5 });
+import { useConfigResource } from "./useConfigResource";
 
 function formatMoney(amount, currency) {
   const numericAmount = Number(amount);
@@ -72,52 +57,24 @@ function MetricCard({ label, value, detail, icon, iconBoxClass }) {
 }
 
 export function ConfigManagerDashboard() {
-  const activity = useAsyncResource(recentEvents);
-  const alerts = useAsyncResource(loadAlerts);
+  const activity = useConfigResource("audit", { page: 1, pageSize: 5 });
+  const alerts = useConfigResource("alerts");
+  const supported = clientApi.supports("tenantSubscription");
+  const authenticated = tenantSession.isAuthenticated();
+  const subscriptionResource = useConfigResource("subscription", undefined, { skip: !supported || !authenticated });
+  const subscription = subscriptionResource.data;
+  const status = !supported ? "unsupported" : !authenticated ? "error"
+    : subscriptionResource.status === "success" && !(subscription?.organization && subscription?.plan)
+      ? "error" : subscriptionResource.status;
   useEffect(() => {
     const refresh = () => {
       activity.refresh();
       alerts.refresh();
-      clientApi
-        .request("/api/v1/tenant/subscription")
-        .then(setSubscription)
-        .catch(() => {});
+      if (supported && authenticated) subscriptionResource.refresh();
     };
     window.addEventListener("finstack:dashboard-refresh", refresh);
-    return () =>
-      window.removeEventListener("finstack:dashboard-refresh", refresh);
-  }, [activity.refresh, alerts.refresh]);
-  const [subscription, setSubscription] = useState(null);
-  const [status, setStatus] = useState("loading");
-
-  useEffect(() => {
-    if (!clientApi.supports("tenantSubscription")) {
-      setStatus("unsupported");
-      return undefined;
-    }
-    if (!tenantSession.isAuthenticated()) {
-      setStatus("error");
-      return undefined;
-    }
-    let mounted = true;
-    clientApi
-      .request("/api/v1/tenant/subscription")
-      .then((payload) => {
-        if (!mounted) return;
-        if (payload?.organization && payload?.plan) {
-          setSubscription(payload);
-          setStatus("success");
-        } else {
-          setStatus("error");
-        }
-      })
-      .catch(() => {
-        if (mounted) setStatus("error");
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    return () => window.removeEventListener("finstack:dashboard-refresh", refresh);
+  }, [activity.refresh, alerts.refresh, subscriptionResource.refresh, supported, authenticated]);
 
   const metrics = useMemo(() => {
     if (!subscription)

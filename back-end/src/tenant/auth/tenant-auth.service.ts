@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { TenantRole, TenantUserStatus } from '@prisma/client';
+import { TenantUserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { TENANT_WORKSPACES } from './tenant-workspace';
@@ -74,18 +74,7 @@ export class TenantAuthService {
 
       const user = await this.prisma.tenantUser.findUnique({
         where: { id: claims.sub },
-        include: {
-          organization: true,
-          manager: {
-            select: {
-              id: true,
-              organizationId: true,
-              employeeId: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
+        include: { organization: true },
       });
 
       if (
@@ -99,25 +88,9 @@ export class TenantAuthService {
         throw new Error('Invalid tenant identity.');
       }
 
-      const identity = this.identity(user);
-      if (user.role === TenantRole.EXPENSE_SUBMITTER) {
-        identity.department = user.department;
-        identity.organizationName = user.organization.name;
-        // A manager relation must never project another tenant's identity.
-        identity.manager = null;
-        if (user.manager?.organizationId === user.organizationId) {
-          identity.manager = {
-            id: user.manager.id,
-            employeeId: user.manager.employeeId,
-            firstName: user.manager.firstName,
-            lastName: user.manager.lastName,
-          };
-        }
-      }
-
       return {
         ...this.workspaceContext(user),
-        user: identity,
+        user: this.identity(user),
         organizationId: user.organizationId,
       };
     } catch {

@@ -17,7 +17,7 @@ export function ManagerExpenseQueue() {
   const filtered = useSelector(selectFilteredManagerQueue);
   const pendingCount = useSelector(selectPendingManagerCount);
   const refresh = useCallback(() => queueQuery.refetch(), [queueQuery.refetch]);
-  const { refreshNow } = useLiveRefresh(refresh);
+  const { refreshNow } = useLiveRefresh(refresh, { refreshImmediately: false, ignoreLocalMutations: true });
   useEffect(() => {
     window.addEventListener("finstack:dashboard-refresh", refreshNow);
     return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);

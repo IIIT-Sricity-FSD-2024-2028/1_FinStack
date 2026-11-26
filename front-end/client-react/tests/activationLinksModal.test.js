@@ -19,7 +19,7 @@ test('activation links are requested only after confirmation; duplicate and pend
   assert.match(source, /onCancel=\{\(\) => setActivationJobId\(null\)\}/);
   assert.match(source, /onConfirm=\{\(\) => \{/);
   assert.match(source, /if \(!activationJobId \|\| lock\.current\) return/);
-  assert.match(source, /employeeImports\.activationLinks\(activationJobId\)/);
+  assert.match(source, /commands\.mutate\("activationLinks", activationJobId\)/);
   assert.match(source, /submitting=\{busy\}/);
   assert.match(source, /Downloading again replaces any outstanding links/);
 });

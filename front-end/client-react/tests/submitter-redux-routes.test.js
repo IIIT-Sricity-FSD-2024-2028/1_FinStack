@@ -7,8 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Provider } from "react-redux";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { createServer } from "vite";
-import { createSubmitterStore } from "../src/features/submitter/store/submitterStore.js";
-import { sessionChanged } from "../src/features/submitter/store/submitterSession.js";
+import { createSubmitterStore, bindSubmitterSession } from "./helpers/submitterStore.js";
 import { refreshSubmitter } from "../src/features/submitter/store/submitterActions.js";
 
 test("all Submitter routes render Redux data inside the shared layout without the old Context", async (t) => {
@@ -38,7 +37,7 @@ test("all Submitter routes render Redux data inside the shared layout without th
     getCategories: async () => [{ id: "travel", name: "Travel" }],
     getNotifications: async () => ({ items: [{ id: "notice", title: "Review update", message: "Your travel expense was reviewed.", unread: true }] }),
   });
-  store.dispatch(sessionChanged("test-identity"));
+  bindSubmitterSession(store, JSON.stringify(["tenant-test", "employee-test"]));
   await store.dispatch(refreshSubmitter());
 
   for (const [path, file, expected] of [

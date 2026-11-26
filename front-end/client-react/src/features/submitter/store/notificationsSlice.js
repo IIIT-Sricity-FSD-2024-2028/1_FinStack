@@ -5,7 +5,7 @@ import { notificationText } from "../notificationPresentation.js";
 
 export const fetchNotifications = createAsyncThunk(
   "notifications/fetch",
-  async (_options, { extra }) => (await extra.api.getNotifications()).items,
+  async (_options, { extra, getState, signal }) => (await extra.submitterSession.run(getState().submitter.session.generation, signal, () => extra.submitterApi.getNotifications())).items,
   { condition: (options, { getState }) => canFetchResource("notifications", getState(), options) },
 );
 
@@ -16,7 +16,7 @@ const notificationsSlice = createSlice({
   extraReducers: (builder) => addResourceCases(builder, fetchNotifications, "Unable to load notifications."),
 });
 
-export const selectNotifications = (state) => state.notifications.items;
+export const selectNotifications = (state) => state.submitter.notifications.items;
 export const selectDisplayNotifications = createSelector(
   [selectNotifications, selectExpenses],
   (notifications, expenses) => {
@@ -31,7 +31,7 @@ export const selectDisplayNotifications = createSelector(
     });
   },
 );
-export const selectNotificationState = (state) => state.notifications;
+export const selectNotificationState = (state) => state.submitter.notifications;
 export const selectUnreadCount = createSelector(
   [selectNotifications],
   (notifications) => notifications.filter((item) => item.unread).length,

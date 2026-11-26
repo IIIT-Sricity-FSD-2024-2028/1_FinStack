@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configManagerResources } from "../../adapters/configManagerResources";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
 import {
   applicableCategory,
   existingTemplate,
@@ -20,7 +19,6 @@ import {
 } from "./policyConfiguration";
 import "./configuration-templates.css";
 
-const loadCatalog = () => configManagerResources.templates.list();
 
 export function ConfigurationTemplatePicker({
   mode,
@@ -31,11 +29,10 @@ export function ConfigurationTemplatePicker({
   onActivated,
   onClose,
 }) {
-  const loader = useCallback(
-    () => (catalogData ? Promise.resolve(catalogData) : loadCatalog()),
-    [catalogData],
-  );
-  const { data: catalog, status, refresh } = useAsyncResource(loader);
+  const configManagerResources = useConfigCommands();
+  const resource = useConfigResource("templates", undefined, { skip: Boolean(catalogData) });
+  const { status, refresh } = catalogData ? { status: "success", refresh: resource.refresh } : resource;
+  const catalog = catalogData || resource.data;
   const [selected, setSelected] = useState({});
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);

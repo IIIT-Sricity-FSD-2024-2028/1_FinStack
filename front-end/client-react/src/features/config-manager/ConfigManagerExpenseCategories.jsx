@@ -1,12 +1,10 @@
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { useEffect, useState } from "react";
 import {
   ConfigurationTemplatePicker,
   TemplateMobileNavigation,
 } from "./ConfigurationTemplatePicker";
-import {
-  configManagerResources,
-  mutateAndRefresh,
-} from "../../adapters/configManagerResources";
+import { mutateAndRefresh } from "../../adapters/configManagerResources";
 import {
   ConfirmDialog,
   CrudModal,
@@ -21,17 +19,12 @@ import {
 } from "../../components/OperationalStates";
 import { Table } from "../../components/Table";
 import { CategorySuccessToast, useCategoryToast } from "./categoryToast";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
 import { filterCategories, paginateCategories } from "./categoryLifecycle";
 import "./category-lifecycle.css";
 
 const DESCRIPTION_LIMIT = 1000;
 const PAGE_SIZE = 10;
 const EMPTY_ADD_FORM = { name: "", description: "", requiresReceipt: true };
-
-async function loadCategories() {
-  return configManagerResources.categories.list();
-}
 
 function CategoryForm({ form, setForm, error, includeStatus = false }) {
   return (
@@ -103,7 +96,8 @@ function CategoryForm({ form, setForm, error, includeStatus = false }) {
 }
 
 export function ConfigManagerExpenseCategories() {
-  const { status, data, refresh } = useAsyncResource(loadCategories);
+  const configManagerResources = useConfigCommands();
+  const { status, data, refresh } = useConfigResource("categories");
   const categories = data || [];
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [search, setSearch] = useState("");

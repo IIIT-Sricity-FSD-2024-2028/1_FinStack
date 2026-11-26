@@ -15,7 +15,7 @@ export function ManagerHistory() {
   const history = useSelector(selectManagerHistory);
   const processed = useSelector(selectFilteredManagerHistory);
   const refresh = useCallback(() => historyQuery.refetch(), [historyQuery.refetch]);
-  const { refreshNow } = useLiveRefresh(refresh);
+  const { refreshNow } = useLiveRefresh(refresh, { refreshImmediately: false, ignoreLocalMutations: true });
   useEffect(() => {
     window.addEventListener("finstack:dashboard-refresh", refreshNow);
     return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);

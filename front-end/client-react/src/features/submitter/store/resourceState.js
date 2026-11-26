@@ -37,5 +37,5 @@ export function addResourceCases(builder, fetchResource, fallbackMessage) {
 }
 
 export function canFetchResource(resource, state, options) {
-  return Boolean(state.session.identity) && (!state[resource].requestId || Boolean(options?.force));
+  return Boolean(state.submitter.session.identity) && (!state.submitter[resource].requestId || Boolean(options?.force));
 }

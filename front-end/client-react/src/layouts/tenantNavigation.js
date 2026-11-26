@@ -20,7 +20,7 @@ export const financeNavigation = [
   { to: "/finance/dashboard", icon: "home", label: "Dashboard", section: "Finance Oversight", end: true },
   { to: "/finance/queue", icon: "folder", label: "Review Queue" },
   { to: "/finance/payments", icon: "receipt", label: "Payment Release" },
-  { to: "/finance/transactions", icon: "calculator", label: "Transactions" },
+  { to: "/finance/transactions", icon: "calculator", label: "Transactions & Reconciliation" },
   { to: "/finance/notifications", icon: "bell", label: "Notifications" },
   { to: "/finance/settings", icon: "settings", label: "Profile & Settings", section: "Account" },
 ];

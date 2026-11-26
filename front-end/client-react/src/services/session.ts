@@ -11,12 +11,7 @@ export interface TenantUser {
   status: string;
   department?: string;
   organizationName?: string;
-  manager?: {
-    id: string;
-    employeeId: string;
-    firstName: string;
-    lastName: string;
-  } | null;
+  manager?: { id: string; employeeId: string; firstName: string; lastName: string } | null;
 }
 export interface Session {
   accessToken: string;
@@ -57,6 +52,12 @@ export function currentSession(): Session | null {
     return null;
   }
 }
+function isCurrentSession(expected: Session) {
+  const current = currentSession();
+  return current?.accessToken === expected.accessToken &&
+    current?.organizationId === expected.organizationId &&
+    current?.user.id === expected.user.id && current?.user.role === expected.user.role;
+}
 export function saveSession(session: Session) {
   if (
     !session.accessToken ||
@@ -89,7 +90,6 @@ export function clearSession() {
 export class ApiError extends Error {
   public status: number;
   public code?: string;
-
   constructor(
     message: string,
     status: number,
@@ -128,8 +128,10 @@ export async function request<T = any>(
     cache: "no-store",
   });
   const payload = await response.json().catch(() => null);
-  const sessionStillCurrent = session && !options.signal?.aborted &&
-    currentSession()?.accessToken === session.accessToken;
+  if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  const sessionStillCurrent = session && isCurrentSession(session);
+  if (session && !sessionStillCurrent)
+    throw new ApiError("Your session changed. Sign in again to continue.", 401, "TENANT_SESSION_CHANGED");
   if (!response.ok) {
     if (response.status === 401 && sessionStillCurrent)
       clearSession();
@@ -151,9 +153,7 @@ export async function request<T = any>(
   const method = (options.method || "GET").toUpperCase();
   if (sessionStillCurrent && path.startsWith("/api/v1/tenant/") &&
       !["GET", "HEAD", "OPTIONS"].includes(method)) {
-    if (options.suppressLocalRefresh)
-      announceLiveRefresh(window, { dispatchLocal: false });
-    else announceLiveRefresh();
+    announceLiveRefresh(window, { dispatchLocal: !options.suppressLocalRefresh });
   }
   return payload?.data ?? payload;
 }
@@ -174,6 +174,12 @@ export async function requestBlob(path: string, options: { signal?: AbortSignal 
     cache: "no-store",
     redirect: "error",
   });
+  const assertReceiptSession = () => {
+    if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    if (!isCurrentSession(session))
+      throw new ApiError("Your session changed. Sign in again to continue.", 401);
+  };
+  assertReceiptSession();
   if (!response.ok) {
     if (response.status === 401) clearSession();
     throw new ApiError(
@@ -188,6 +194,7 @@ export async function requestBlob(path: string, options: { signal?: AbortSignal 
   if (!["application/pdf", "image/jpeg", "image/png"].includes(mimeType))
     throw new ApiError("The file format cannot be displayed safely.", 415);
   const blob = await response.blob();
+  assertReceiptSession();
   return blob.type === mimeType ? blob : blob.slice(0, blob.size, mimeType);
 }
 // Existing feature adapters keep their contracts, using this JWT-only transport.

@@ -1,16 +1,10 @@
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { useEffect, useRef, useState } from "react";
-import { configManagerResources } from "../../adapters/configManagerResources";
-import { useEmployeePage } from "../../hooks/useEmployeePage";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
 import { TemplateMobileNavigation } from "./ConfigurationTemplatePicker";
 import "./user-hierarchy.css";
 import { CategorySuccessToast, useCategoryToast } from "./categoryToast";
 
-const loadBranch = (params) => configManagerResources.hierarchy.branch(params);
-const loadSummary = (params) =>
-  configManagerResources.hierarchy.summary(params);
-const loadEmployee = (params) =>
-  configManagerResources.hierarchy.employee(params);
 const roleLabel = (role) => role.replaceAll("_", " ").toLowerCase();
 
 function Pager({ data, onPage, label }) {
@@ -95,7 +89,7 @@ function Branch({
   label = "Organization employees",
 }) {
   const [page, setPage] = useState(1);
-  const resource = useEmployeePage(loadBranch, {
+  const resource = useConfigResource("branch", {
     ...query,
     page,
     pageSize: 20,
@@ -173,6 +167,7 @@ function Branch({
 }
 
 function ManagerAssignment({ employee, onSaved, onCancel }) {
+  const configManagerResources = useConfigCommands();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState({
     view: "CANDIDATES",
@@ -184,7 +179,7 @@ function ManagerAssignment({ employee, onSaved, onCancel }) {
   const [choice, setChoice] = useState(employee.manager);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const managers = useEmployeePage(loadBranch, query);
+  const managers = useConfigResource("branch", query);
   const mounted = useRef(true);
   useEffect(
     () => () => {
@@ -318,7 +313,7 @@ function ManagerAssignment({ employee, onSaved, onCancel }) {
 }
 
 function EmployeeDetails({ id, onClose, onSelect, onNavigate, onMutation }) {
-  const resource = useEmployeePage(loadEmployee, { id });
+  const resource = useConfigResource("employee", { id });
   const [editing, setEditing] = useState(false);
   const user = resource.status === "success" ? resource.data : null;
   return (
@@ -447,7 +442,7 @@ function EmployeeDetails({ id, onClose, onSelect, onNavigate, onMutation }) {
 
 export function ConfigManagerUserHierarchy() {
   const [departmentPage, setDepartmentPage] = useState(1);
-  const summary = useEmployeePage(loadSummary, {
+  const summary = useConfigResource("hierarchy", {
     page: departmentPage,
     pageSize: 20,
   });

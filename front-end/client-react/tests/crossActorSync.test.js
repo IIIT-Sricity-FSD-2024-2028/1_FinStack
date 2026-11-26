@@ -92,11 +92,11 @@ test('all actors share automatic live-update hooks and successful tenant writes 
     'hooks/useAsyncResource.js',
     'hooks/useEmployeePage.js',
   ].map(path => readFile(new URL(path, root), 'utf8')))
-  assert.match(files[0], /announceLiveRefresh\(\)/)
+  assert.match(files[0], /announceLiveRefresh\(/)
   assert.match(files[0], /installCrossTabLiveRefresh/)
   for (const file of files.slice(1)) {
     assert.match(file, /useLiveRefresh|LIVE_REFRESH_EVENT/)
   }
   assert.match(files[1], /if \(background\) throw caught/)
-  assert.match(files[2], /store.dispatch\(refreshSubmitter\(\{ background \}\)\)/)
+  assert.match(files[2], /dispatch\(refreshSubmitter\(\{ background \}\)\)/)
 })

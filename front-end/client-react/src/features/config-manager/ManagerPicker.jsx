@@ -1,12 +1,10 @@
+import { useConfigResource } from "./useConfigResource";
 import { useEffect, useState } from 'react'
-import { configManagerResources } from '../../adapters/configManagerResources'
-import { useEmployeePage } from '../../hooks/useEmployeePage'
-const loadManagers = params => configManagerResources.users.managers(params)
 export function ManagerPicker({value,onChange}) {
   const [search,setSearch] = useState('')
   const [params,setParams] = useState({page:1,search:''})
   const [selected,setSelected] = useState(null)
-  const resource=useEmployeePage(loadManagers,params)
+  const resource=useConfigResource("managers",params)
   useEffect(()=>{const timer=setTimeout(()=>setParams(current=>current.search===search.trim()?current:{page:1,search:search.trim()}),300);return()=>clearTimeout(timer)},[search])
   const items=resource.status==='success'?resource.data.items:[]
   return <div><label className="form-label" htmlFor="manage-user-manager-search">Find manager</label><input id="manage-user-manager-search" className="form-input" type="search" maxLength={120} value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search active managers" />

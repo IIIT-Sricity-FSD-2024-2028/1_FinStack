@@ -27,7 +27,7 @@ export function submitterIdentity(user) {
 }
 
 export function requireCurrentSession(getState, generation) {
-  const session = getState().session;
+  const session = getState().submitter.session;
   if (!session.identity || session.generation !== generation) {
     throw new Error("Your session changed. Please try again after signing in.");
   }

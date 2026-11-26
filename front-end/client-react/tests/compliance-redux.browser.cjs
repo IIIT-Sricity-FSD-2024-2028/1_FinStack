@@ -33,7 +33,7 @@ test('FIN-84 Compliance Redux workflows, race protection, polling and session bo
   const countCalls = suffix => calls.filter(call => call.endpoint.endsWith(suffix)).length;
   const check = name => { checks.push(name); console.log(`PASS ${name}`); };
   const visible = text => page.getByText(text, { exact: false }).first().waitFor();
-  const idle = () => page.waitForLoadState('networkidle');
+  const idle = async () => { await new Promise(resolve => setTimeout(resolve, 25)); await page.waitForLoadState('networkidle'); };
   const nav = async (route) => {
     await page.locator(`nav a[href="/compliance/${route}"]`).click();
     await page.getByRole('heading', { name: { queue: 'Escalated & Flagged Expenses', dashboard: 'Compliance Overview',
@@ -179,7 +179,7 @@ test('FIN-84 Compliance Redux workflows, race protection, polling and session bo
     await nav('policies'); await visible('Policy Exceptions Awaiting Review (16)');
     check('dashboard, queue and violations share post-decision authoritative state');
 
-    await nav('notifications'); assert.equal(await page.locator('.compliance-notif-item').count(), 20);
+    await nav('notifications'); await page.locator('.compliance-notif-item').nth(19).waitFor(); assert.equal(await page.locator('.compliance-notif-item').count(), 20);
     assert.equal(await badge().innerText(), '43');
     await page.getByRole('button', { name: 'Next', exact: true }).click(); await idle();
     await visible('QA notice 20');
@@ -234,6 +234,7 @@ test('FIN-84 Compliance Redux workflows, race protection, polling and session bo
 
     let beforeAudit = countCalls('/audit-logs');
     await page.clock.runFor(30_001); await idle();
+    for (let attempt = 0; attempt < 50 && countCalls('/audit-logs') <= beforeAudit; attempt++) await new Promise(resolve => setTimeout(resolve, 25));
     assert(countCalls('/audit-logs') > beforeAudit);
     check('30-second audit polling refreshes active server query');
     failAudit = true; await page.clock.runFor(30_001); await idle();

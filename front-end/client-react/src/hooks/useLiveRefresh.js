@@ -7,7 +7,7 @@ export function useLiveRefresh(refresh, options = {}) {
   const [refreshError, setRefreshError] = useState(null)
   refreshRef.current = refresh
 
-  const { enabled = true, pollIntervalMs = 15_000, refreshImmediately = true } = options
+  const { enabled = true, pollIntervalMs = 15_000, refreshImmediately = true, ignoreLocalMutations = false } = options
 
   useEffect(() => {
     if (!enabled) return undefined
@@ -24,6 +24,7 @@ export function useLiveRefresh(refresh, options = {}) {
         }
       },
       pollIntervalMs,
+      ignoreLocalMutations,
     })
     controllerRef.current = controller
     controller.start({ refreshImmediately })
@@ -32,7 +33,7 @@ export function useLiveRefresh(refresh, options = {}) {
       controller.stop()
       if (controllerRef.current === controller) controllerRef.current = null
     }
-  }, [enabled, pollIntervalMs, refreshImmediately])
+  }, [enabled, pollIntervalMs, refreshImmediately, ignoreLocalMutations])
 
   const refreshNow = useCallback(() => controllerRef.current?.refreshNow(), [])
   const retryNow = useCallback(() => controllerRef.current?.retryNow(), [])

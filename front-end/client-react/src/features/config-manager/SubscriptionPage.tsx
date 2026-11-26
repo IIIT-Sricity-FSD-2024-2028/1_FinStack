@@ -1,3 +1,4 @@
+import "./configManagerBillingApi";
 import {
   formatPreferredDate,
   preferredMoney,
@@ -5,12 +6,11 @@ import {
 import { useEffect, useState } from "react";
 import {
   billing,
-  payInvoice,
   type Invoice,
   type Selection,
 } from "../../services/tenantBilling";
 import type { PublicPlan, Quote } from "../../services/contracts";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import {
   LoadingState,
   ErrorState,
@@ -21,7 +21,8 @@ import { Table } from "../../components/Table";
 const money = preferredMoney;
 const date = formatPreferredDate;
 export function SubscriptionPage() {
-  const resource = useAsyncResource(billing.load);
+  const commands = useConfigCommands();
+  const resource = useConfigResource<Awaited<ReturnType<typeof billing.load>>>("billing");
   const [dialog, setDialog] = useState<"change" | "cancel" | null>(null);
   const [plans, setPlans] = useState<PublicPlan[] | null>(null);
   const [selection, setSelection] = useState<Selection>({
@@ -37,8 +38,8 @@ export function SubscriptionPage() {
   useEffect(() => {
     if (dialog !== "change") return;
     let active = true;
-    billing
-      .plans()
+    commands
+      .query<Awaited<ReturnType<typeof billing.plans>>>("plans", undefined, false)
       .then((data) => {
         if (active) setPlans(data.items);
       })
@@ -48,7 +49,7 @@ export function SubscriptionPage() {
     return () => {
       active = false;
     };
-  }, [dialog]);
+  }, [dialog, commands]);
   useEffect(() => {
     setQuote(null);
     if (dialog !== "change" || !selection.planId || selection.employeeCount < 1)
@@ -56,9 +57,9 @@ export function SubscriptionPage() {
     const controller = new AbortController();
     const timer = setTimeout(
       () =>
-        billing
-          .quote(selection, controller.signal)
-          .then(setQuote)
+        commands
+          .query<Quote>("quote", selection, true, controller.signal)
+          .then(value => { if (!controller.signal.aborted) setQuote(value); })
           .catch((error) => {
             if (!controller.signal.aborted) setError(error.message);
           }),
@@ -68,7 +69,7 @@ export function SubscriptionPage() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [dialog, selection]);
+  }, [dialog, selection, commands]);
   async function perform(action: () => Promise<unknown>, message: string) {
     setBusy(true);
     setError("");
@@ -98,7 +99,7 @@ export function SubscriptionPage() {
     setDialog("change");
   }
   const pay = (invoice: Invoice) =>
-    perform(() => payInvoice(invoice), "Payment verified by the backend.");
+    perform(() => commands.mutate("payInvoice", invoice), "Payment verified by the backend.");
   const selectedPlan = plans?.find((plan) => plan.id === selection.planId);
   return (
     <div className="billing-page">
@@ -339,7 +340,7 @@ export function SubscriptionPage() {
           event.preventDefault();
           if (quote)
             void perform(
-              () => billing.change(selection),
+              () => commands.mutate("changePlan", selection),
               "Plan change recorded. Any required invoice is shown below; payment is verified separately.",
             );
         }}
@@ -426,7 +427,7 @@ export function SubscriptionPage() {
         onSubmit={(event: React.FormEvent) => {
           event.preventDefault();
           void perform(
-            () => billing.cancel(reason),
+            () => commands.mutate("cancelPlan", reason),
             "Subscription cancelled. Organization records are preserved.",
           );
         }}

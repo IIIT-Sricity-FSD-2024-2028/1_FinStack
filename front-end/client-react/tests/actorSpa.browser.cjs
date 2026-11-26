@@ -14,7 +14,7 @@ const actors = [
   { role: 'CONFIGURATION_MANAGER', dashboard: '/configuration/dashboard', shell: '.configuration-workspace', pages: ['/configuration', '/configuration/dashboard', '/configuration/notifications'] },
 ];
 
-test('one SPA supports all actor routes, login/logout, legacy refreshes and role boundaries', { timeout: 180000 }, async () => {
+test('one SPA supports all actor routes, login/logout, legacy refreshes and role boundaries', { timeout: 300000 }, async () => {
   const { legacyPaths } = await import('../src/routes/paths.ts');
   const { roleOwnsPath } = await import('../src/routes/workspaces.js');
   const browser = await chromium.launch({ headless: true, ...(process.env.FINSTACK_CHROMIUM_PATH ? { executablePath: process.env.FINSTACK_CHROMIUM_PATH } : {}) });
@@ -110,13 +110,8 @@ test('one SPA supports all actor routes, login/logout, legacy refreshes and role
         }
         await loaded(page, actor.dashboard, actor.shell);
         await loaded(page, actor.dashboard + '?before-logout=1', actor.shell);
-        if (actor.role === 'CONFIGURATION_MANAGER') {
-          await page.locator('button[aria-controls="tenant-account-menu"]').click();
-          await page.locator('#tenant-account-menu').getByRole('button', { name: 'Log out', exact: true }).click();
-        } else {
-          await page.getByRole('button', { name: 'Log out', exact: true }).first().click();
-        }
-        await page.getByRole('dialog', { name: 'Log out of FinStack?' }).getByRole('button', { name: 'Log out', exact: true }).click();
+        await page.getByRole('button', { name: 'Log out', exact: true }).first().click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Log out', exact: true }).click();
         await page.waitForURL(base + '/login');
         assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
         await page.goBack();

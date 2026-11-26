@@ -27,7 +27,7 @@ export function ManagerDashboard() {
   const refresh = useCallback(() => {
     return Promise.all([queueQuery.refetch(), historyQuery.refetch()]);
   }, [queueQuery.refetch, historyQuery.refetch]);
-  const { refreshNow } = useLiveRefresh(refresh);
+  const { refreshNow } = useLiveRefresh(refresh, { refreshImmediately: false, ignoreLocalMutations: true });
   useEffect(() => {
     window.addEventListener("finstack:dashboard-refresh", refreshNow);
     return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);

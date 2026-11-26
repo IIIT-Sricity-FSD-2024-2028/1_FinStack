@@ -2,8 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { submitterProfileDetails } from "../src/features/submitter/profileDetails.js";
 import { notificationText } from "../src/features/submitter/notificationPresentation.js";
-import { createSubmitterStore } from "../src/features/submitter/store/submitterStore.js";
-import { sessionChanged } from "../src/features/submitter/store/submitterSession.js";
+import { createSubmitterStore, bindSubmitterSession } from "./helpers/submitterStore.js";
 import { fetchExpenses } from "../src/features/submitter/store/expensesSlice.js";
 import { fetchNotifications, selectNotifications, selectDisplayNotifications, selectUnreadCount } from "../src/features/submitter/store/notificationsSlice.js";
 import { markNotificationRead, markNotificationUnread, markAllNotificationsRead, deleteNotification } from "../src/features/submitter/store/submitterActions.js";
@@ -57,7 +56,7 @@ test("display selector preserves raw notifications, action IDs and unread behavi
     markAllNotificationsRead: async () => { items[0].unread = false; },
     deleteNotification: async (id) => { actionIds.push(id); items = []; },
   });
-  store.dispatch(sessionChanged("tenant-a/employee-a"));
+  bindSubmitterSession(store, JSON.stringify(["tenant-a", "employee-a"]));
   await Promise.all([store.dispatch(fetchExpenses()), store.dispatch(fetchNotifications())]);
   const raw = selectNotifications(store.getState());
   const display = selectDisplayNotifications(store.getState())[0];

@@ -4,8 +4,8 @@ import {
   clearSession,
   currentSession,
   request,
-} from '../../../services/session'
-import { fetchExpenseReceipt } from './receiptApi'
+} from '../../../services/session.ts'
+import { fetchExpenseReceipt } from './receiptApi.js'
 
 const EXPENSES_BASE = '/api/v1/tenant/expenses'
 

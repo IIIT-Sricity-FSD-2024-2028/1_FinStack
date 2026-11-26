@@ -1,14 +1,11 @@
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { readPreferences } from "../../services/preferences";
-import { useEmployeePage } from "../../hooks/useEmployeePage";
 import { Link } from "react-router-dom";
 import { ManagerPicker } from "./ManagerPicker";
 import { BulkEmployeeImport } from "./BulkEmployeeImport";
 import { TemplateMobileNavigation } from "./ConfigurationTemplatePicker";
 import { useEffect, useState } from "react";
-import {
-  configManagerResources,
-  mutateAndRefresh,
-} from "../../adapters/configManagerResources";
+import { mutateAndRefresh } from "../../adapters/configManagerResources";
 import {
   ConfirmDialog,
   CrudModal,
@@ -17,7 +14,6 @@ import {
 import { Icon } from "../../components/Icon";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
 import { Table } from "../../components/Table";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
 import { employeeErrors, employeeFailure } from "./employeeForm";
 import { CategorySuccessToast, useCategoryToast } from "./categoryToast";
 import "./employee-management.css";
@@ -44,11 +40,6 @@ const EMPTY_FORM = {
   managerId: "",
   password: "",
 };
-
-const loadUsers = (params) => configManagerResources.users.page(params);
-async function loadRoles() {
-  return configManagerResources.roles.list();
-}
 
 function initials(name) {
   return String(name || "")
@@ -198,6 +189,7 @@ function AddUserFields({ form, setForm, enabledRoles, errors }) {
 }
 
 export function ConfigManagerManageUsers() {
+  const configManagerResources = useConfigCommands();
   const [params, setParams] = useState({
     page: 1,
     pageSize: readPreferences().pageSize,
@@ -210,8 +202,8 @@ export function ConfigManagerManageUsers() {
     () => new URLSearchParams(window.location.search).get("employee") || "",
   );
   const [department, setDepartment] = useState("");
-  const userResource = useEmployeePage(loadUsers, params);
-  const roleResource = useAsyncResource(loadRoles);
+  const userResource = useConfigResource("employees", params);
+  const roleResource = useConfigResource("roles");
   const status = userResource.status;
   const refresh = userResource.refresh;
   const users = userResource.data?.items || [];

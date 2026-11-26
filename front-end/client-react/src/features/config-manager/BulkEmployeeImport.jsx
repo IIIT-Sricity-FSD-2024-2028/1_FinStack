@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { employeeImports } from "../../adapters/employeeImports";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
 import { ConfirmDialog } from "../../components/CrudPrimitives";
 import "./employee-import.css";
 
-const loadJobs = () => employeeImports.list();
 export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
-  const history = useAsyncResource(loadJobs);
+  const commands = useConfigCommands();
+  const history = useConfigResource("imports");
   const [job, setJob] = useState(null);
   const [file, setFile] = useState(null);
   const [key, setKey] = useState("");
@@ -21,11 +21,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
   const lock = useRef(false);
   const refreshed = useRef(new Set());
   const initialHistorySelected = useRef(false);
-  const loadRows = useCallback(
-    () => (job ? employeeImports.rows(job.id, page) : Promise.resolve([])),
-    [job?.id, page],
-  );
-  const rows = useAsyncResource(loadRows);
+  const rows = useConfigResource("importRows", { id: job?.id, page }, { skip: !job });
   useEffect(() => {
     if (!initialHistorySelected.current && history.status === "success") {
       initialHistorySelected.current = true;
@@ -38,7 +34,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
     let active = true;
     const timer = setTimeout(async () => {
       try {
-        const updated = await employeeImports.get(job.id);
+        const updated = await commands.query("importJob", job.id);
         if (!active) return;
         setJob(updated);
         if (updated.processedCount !== job.processedCount) rows.refresh();
@@ -67,7 +63,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [job, onUsersChanged, onSuccess, rows.refresh, history.refresh]);
+  }, [job, onUsersChanged, onSuccess, rows.refresh, history.refresh, commands]);
   async function action(operation) {
     if (lock.current) return;
     lock.current = true;
@@ -207,7 +203,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
               disabled={busy || !file}
               onClick={() =>
                 action(async () => {
-                  const result = await employeeImports.upload(file, key);
+                  const result = await commands.mutate("uploadImport", { file, key });
                   selectJob(result);
                   history.refresh();
                 })
@@ -304,7 +300,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
                 disabled={busy || !reviewed}
                 onClick={() =>
                   action(async () => {
-                    setJob(await employeeImports.confirm(job.id));
+                    setJob(await commands.mutate("confirmImport", job.id));
                     setReviewed(false);
                   })
                 }
@@ -342,7 +338,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
               disabled={busy}
               onClick={() =>
                 action(async () => {
-                  setJob(await employeeImports.get(job.id));
+                  setJob(await commands.query("importJob", job.id));
                   rows.refresh();
                 })
               }
@@ -438,7 +434,7 @@ export function BulkEmployeeImport({ onUsersChanged, onClose, onSuccess }) {
         onConfirm={() => {
           if (!activationJobId || lock.current) return;
           void action(async () => {
-            const count = await employeeImports.activationLinks(activationJobId);
+            const count = await commands.mutate("activationLinks", activationJobId);
             setActivationJobId(null);
             onSuccess?.(
               `${count} activation links downloaded. Distribute them securely; no email was sent.`,

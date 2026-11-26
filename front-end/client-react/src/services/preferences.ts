@@ -76,9 +76,12 @@ export async function savePreferences(values: Preferences) {
     "/api/v1/tenant/configuration/settings/preferences",
     { method: "PATCH", body: values },
   );
-  localStorage.setItem(key(), JSON.stringify(saved));
-  window.dispatchEvent(new Event("finstack:preferences"));
+  cachePreferences(saved);
   return saved;
+}
+export function cachePreferences(values: Preferences) {
+  localStorage.setItem(key(), JSON.stringify(values));
+  window.dispatchEvent(new Event("finstack:preferences"));
 }
 function applyTheme(theme: Preferences["theme"]) {
   const root = document.getElementById("finstack-client-root");
@@ -132,7 +135,11 @@ export function preferredMoney(value: string, currency: string) {
     currency,
   }).format(Number(value));
 }
-export function useWorkspacePreferences() {
+type PreferenceTransport = {
+  loadPreferences: () => Promise<Preferences>;
+  loadNotifications: () => Promise<{ items: { id: string; title: string; message: string }[] }>;
+};
+export function useWorkspacePreferences(transport?: PreferenceTransport) {
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
     let active = true;
@@ -152,9 +159,9 @@ export function useWorkspacePreferences() {
           "Notification" in window &&
           Notification.permission === "granted"
         )
-          request<{ items: { id: string; title: string; message: string }[] }>(
+          (transport ? transport.loadNotifications() : request<{ items: { id: string; title: string; message: string }[] }>(
             "/api/v1/tenant/expenses/notifications/page?page=1&pageSize=25&state=unread",
-          )
+          ))
             .then((data) => {
               if (!active) return;
               const ids = new Set(data.items.map((item) => item.id));
@@ -169,11 +176,10 @@ export function useWorkspacePreferences() {
     };
     apply();
     if (currentSession()?.user.role === "CONFIGURATION_MANAGER") {
-      request<Preferences>("/api/v1/tenant/configuration/settings/preferences")
+      (transport ? transport.loadPreferences() : request<Preferences>("/api/v1/tenant/configuration/settings/preferences"))
         .then((prefs) => {
           if (!active) return;
-          localStorage.setItem(key(), JSON.stringify(prefs));
-          window.dispatchEvent(new Event("finstack:preferences"));
+          cachePreferences(prefs);
         })
         .catch(() => {});
     }
@@ -194,5 +200,5 @@ export function useWorkspacePreferences() {
         .getElementById("finstack-client-root")
         ?.classList.remove("compact-workspace", "reduced-workspace-motion");
     };
-  }, []);
+  }, [transport]);
 }

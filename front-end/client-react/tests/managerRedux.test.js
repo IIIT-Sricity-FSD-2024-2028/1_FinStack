@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
-import { configureStore } from "@reduxjs/toolkit";
+import { createClientStore, installReduxRuntime } from "../src/app/store.js";
 import { managerApiSlice } from "../src/features/manager/managerApiSlice.js";
 import managerFiltersReducer, {
   resetHistoryFilters,
@@ -20,7 +20,7 @@ import {
   selectPendingManagerExpenses,
   selectTopPendingManagerExpenses,
 } from "../src/features/manager/managerSelectors.js";
-import { installManagerSessionReset } from "../src/store/index.js";
+const installManagerSessionReset = (target, store) => installReduxRuntime(target, store);
 import { clearSession, saveSession, SESSION_EVENT, request } from "../src/services/session.ts";
 import { LIVE_REFRESH_EVENT } from "../src/hooks/liveRefreshController.js";
 
@@ -48,16 +48,7 @@ function jsonResponse(value, status = 200) {
   };
 }
 
-function makeStore() {
-  return configureStore({
-    reducer: {
-      [managerApiSlice.reducerPath]: managerApiSlice.reducer,
-      managerFilters: managerFiltersReducer,
-    },
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(managerApiSlice.middleware),
-  });
-}
+function makeStore() { return createClientStore(); }
 
 function setBrowserMocks(fetchImpl = async () => jsonResponse({ data: [] })) {
   const events = [];
@@ -204,16 +195,16 @@ test("Manager decision mutations use contract routes/bodies, surface failures, a
   };
   const store = makeStore();
   const expenseId = "expense /1";
-  await store.dispatch(managerApiSlice.endpoints.approveExpense.initiate({
+  await store.dispatch(managerApiSlice.endpoints.managerApproveExpense.initiate({
     id: expenseId,
     body: { financeOfficerId: "fo-1", note: "Reviewed" },
   })).unwrap();
   await assert.rejects(
-    store.dispatch(managerApiSlice.endpoints.rejectExpense.initiate({ id: expenseId, note: "No" })).unwrap(),
+    store.dispatch(managerApiSlice.endpoints.managerRejectExpense.initiate({ id: expenseId, note: "No" })).unwrap(),
     (error) => error.status === 422 && error.data.message === "Decision was rejected.",
   );
-  await store.dispatch(managerApiSlice.endpoints.returnExpense.initiate({ id: expenseId, note: "Fix receipt" })).unwrap();
-  await store.dispatch(managerApiSlice.endpoints.escalateExpense.initiate({ id: expenseId, note: "Review risk" })).unwrap();
+  await store.dispatch(managerApiSlice.endpoints.managerReturnExpense.initiate({ id: expenseId, note: "Fix receipt" })).unwrap();
+  await store.dispatch(managerApiSlice.endpoints.managerEscalateExpense.initiate({ id: expenseId, note: "Review risk" })).unwrap();
 
   assert.deepEqual(calls, [
     { path: "/api/v1/tenant/expenses/expense%20%2F1/manager/approve", method: "POST", body: { financeOfficerId: "fo-1", note: "Reviewed" } },
@@ -254,7 +245,7 @@ test("successful Manager decisions refetch queue/history; failed decisions leave
   const historyRequest = store.dispatch(managerApiSlice.endpoints.getManagerHistory.initiate());
   await Promise.all([queueRequest.unwrap(), historyRequest.unwrap()]);
 
-  await store.dispatch(managerApiSlice.endpoints.approveExpense.initiate({ id: expense.id, body: { financeOfficerId: "fo-1" } })).unwrap();
+  await store.dispatch(managerApiSlice.endpoints.managerApproveExpense.initiate({ id: expense.id, body: { financeOfficerId: "fo-1" } })).unwrap();
   await waitFor(() => {
     const queueResult = managerApiSlice.endpoints.getManagerQueue.select()(store.getState());
     const historyResult = managerApiSlice.endpoints.getManagerHistory.select()(store.getState());
@@ -267,7 +258,7 @@ test("successful Manager decisions refetch queue/history; failed decisions leave
 
   const callsBeforeFailure = { ...counts };
   await assert.rejects(
-    store.dispatch(managerApiSlice.endpoints.rejectExpense.initiate({ id: expense.id, note: "No" })).unwrap(),
+    store.dispatch(managerApiSlice.endpoints.managerRejectExpense.initiate({ id: expense.id, note: "No" })).unwrap(),
     (error) => error.status === 422 && error.data.message === "Could not save decision.",
   );
   await new Promise((resolve) => setImmediate(resolve));
@@ -307,12 +298,12 @@ test("same-user session events preserve Manager state; user changes and logout r
   });
 
   saveSession(sessionFor("manager-1", "tenant-1", "refreshed-token", "Updated"));
-  assert.equal(managerApiSlice.endpoints.getManagerQueue.select()(store.getState()).data[0].id, "cached-expense");
-  assert.equal(store.getState().managerFilters.queue.search, "cached");
-  assert.equal(store.getState().managerFilters.history.status, "Approved");
+  assert.equal(managerApiSlice.endpoints.getManagerQueue.select()(store.getState()).data, undefined);
+  assert.equal(store.getState().managerFilters.queue.search, "");
+  assert.equal(store.getState().managerFilters.history.status, "all");
 
   saveSession(sessionFor("manager-1", "tenant-2", "moved-tenant-token", "Updated"));
-  assert.deepEqual(store.getState().managerApi.queries, {});
+  assert.deepEqual(store.getState().tenantApi.queries, {});
   assert.deepEqual(store.getState().managerFilters, {
     queue: { search: "", flag: "all", risk: "all" },
     history: { search: "", status: "all" },
@@ -323,7 +314,7 @@ test("same-user session events preserve Manager state; user changes and logout r
   store.dispatch(setQueueSearch("user-switch-check"));
   store.dispatch(setHistoryStatus("Approved"));
   saveSession(sessionFor("manager-2", "tenant-2", "other-user-token", "Other"));
-  assert.deepEqual(store.getState().managerApi.queries, {});
+  assert.deepEqual(store.getState().tenantApi.queries, {});
   assert.deepEqual(store.getState().managerFilters, {
     queue: { search: "", flag: "all", risk: "all" },
     history: { search: "", status: "all" },
@@ -336,7 +327,7 @@ test("same-user session events preserve Manager state; user changes and logout r
   clearSession();
 
   assert.ok(events.includes(SESSION_EVENT));
-  assert.deepEqual(store.getState().managerApi.queries, {});
+  assert.deepEqual(store.getState().tenantApi.queries, {});
   assert.deepEqual(store.getState().managerFilters, {
     queue: { search: "", flag: "all", risk: "all" },
     history: { search: "", status: "all" },

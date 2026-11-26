@@ -66,6 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearSession();
           return;
         }
+        if (context.user.role !== session.user.role) {
+          // A server-validated role change is an identity boundary too. Publish
+          // it through the same reset path before another workspace can render.
+          saveSession({ ...session, user: context.user });
+          return;
+        }
         // Identity is revalidated on boot, login, and tab focus; cached roles never grant access.
         sessionStorage.setItem(
           "finstackTenantUser",

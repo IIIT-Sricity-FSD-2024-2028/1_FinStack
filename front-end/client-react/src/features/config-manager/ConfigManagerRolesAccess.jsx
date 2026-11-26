@@ -1,16 +1,11 @@
+import { useConfigResource } from "./useConfigResource";
 import { Link } from "react-router-dom";
-import { useEmployeePage } from "../../hooks/useEmployeePage";
 import { TemplateMobileNavigation } from "./ConfigurationTemplatePicker";
 import "./roles-access.css";
 import { useState } from "react";
-import { configManagerResources } from "../../adapters/configManagerResources";
 import { Icon } from "../../components/Icon";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
 
-async function loadRoles() {
-  return configManagerResources.roles.list();
-}
 
 function presentationFor(roleId) {
   if (roleId === "expense_submitter")
@@ -182,7 +177,7 @@ function RoleDetails({ role }) {
 
 function RoleMembers({ role }) {
   const [page, setPage] = useState(1);
-  const members = useEmployeePage(configManagerResources.users.page, {
+  const members = useConfigResource("employees", {
     page,
     pageSize: 20,
     role: role.id.toUpperCase(),
@@ -261,7 +256,7 @@ function RoleMembers({ role }) {
   );
 }
 export function ConfigManagerRolesAccess() {
-  const { status, data, refresh } = useAsyncResource(loadRoles);
+  const { status, data, refresh } = useConfigResource("roles");
   const roles = data || [];
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const effectiveSelectedId = roles.some((role) => role.id === selectedRoleId)

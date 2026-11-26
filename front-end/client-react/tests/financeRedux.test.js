@@ -14,13 +14,13 @@ afterEach(() => {
 
 function fixture(request) {
   globalThis.window = Object.assign(new EventTarget(), {
-    FinStackTenantSession: { request },
+    FinStackTenantSession: { request, getTenantSession: () => ({ accessToken: 'fictional-finance', organizationId: 'org-finance', user: { id: 'finance', organizationId: 'org-finance', role: 'FINANCE_OFFICER', status: 'ACTIVE' } }) },
   })
   const store = createClientStore()
   cleanups.push(() => store.dispatch(api.util.resetApiState()))
   return store
 }
-const read = (store, name, args) => store.dispatch(api.endpoints[name].initiate(args))
+const read = (store, name, args) => store.dispatch(api.endpoints[name].initiate(args, { subscriptionOptions: { refetchOnFocus: true, refetchOnReconnect: true } }))
 const select = (store, name, args) => api.endpoints[name].select(args)(store.getState())
 async function settle(store) {
   await Promise.all(store.dispatch(api.util.getRunningQueriesThunk()))
@@ -65,14 +65,14 @@ test('every financial mutation refreshes workspace, queue, notifications and unr
   await Promise.all(['financeWorkspace', 'financeQueue', 'financeUnreadCount'].map((name) => read(store, name).unwrap()))
   await read(store, 'financeNotifications', { page: 1 }).unwrap()
   const cases = [
-    ['approveExpense', { expenseId: 'EXP-QA', note: '  Approved  ' }, '/EXP-QA/finance/approve'],
-    ['rejectExpense', { expenseId: 'EXP-QA', note: 'Reason' }, '/EXP-QA/finance/reject'],
-    ['requestInfoExpense', { expenseId: 'EXP-QA', note: 'Receipt needed' }, '/EXP-QA/finance/request-info'],
-    ['flagExpense', { expenseId: 'EXP-QA', note: 'Audit' }, '/EXP-QA/finance/flag'],
-    ['releasePayment', ['EXP-QA'], '/finance/payment-releases'],
-    ['processTransaction', 'TX-QA', '/finance/transactions/TX-QA/process'],
-    ['failTransaction', 'TX-QA', '/finance/transactions/TX-QA/fail'],
-    ['reconcileTransaction', 'TX-QA', '/finance/transactions/TX-QA/reconcile'],
+    ['financeApproveExpense', { expenseId: 'EXP-QA', note: '  Approved  ' }, '/EXP-QA/finance/approve'],
+    ['financeRejectExpense', { expenseId: 'EXP-QA', note: 'Reason' }, '/EXP-QA/finance/reject'],
+    ['financeRequestInfoExpense', { expenseId: 'EXP-QA', note: 'Receipt needed' }, '/EXP-QA/finance/request-info'],
+    ['financeFlagExpense', { expenseId: 'EXP-QA', note: 'Audit' }, '/EXP-QA/finance/flag'],
+    ['financeReleasePayment', ['EXP-QA'], '/finance/payment-releases'],
+    ['financeProcessTransaction', 'TX-QA', '/finance/transactions/TX-QA/process'],
+    ['financeFailTransaction', 'TX-QA', '/finance/transactions/TX-QA/fail'],
+    ['financeReconcileTransaction', 'TX-QA', '/finance/transactions/TX-QA/reconcile'],
   ]
   for (const [name, args, suffix] of cases) {
     await read(store, name, args).unwrap()
@@ -101,7 +101,7 @@ test('bank-evidence and permission errors remain serializable and preserve cache
   await read(store, 'financeWorkspace').unwrap()
   const cached = select(store, 'financeWorkspace').data
   for (status of [409, 403, 500]) {
-    await assert.rejects(read(store, 'processTransaction', 'TX-QA').unwrap(), (error) => {
+    await assert.rejects(read(store, 'financeProcessTransaction', 'TX-QA').unwrap(), (error) => {
       assert.equal(error.status, status)
       assert.equal(error.code, 'TENANT_BANK_EVIDENCE_REQUIRED')
       assert.equal(error.message, 'Bank evidence required')
@@ -147,10 +147,10 @@ test('payment validation rejects empty and oversized batches before any HTTP req
   let calls = 0
   const store = fixture(async () => { calls++; return { batchId: 'BATCH-QA' } })
   for (const ids of [[], null, Array.from({ length: 101 }, (_, index) => `EXP-${index}`)]) {
-    await assert.rejects(read(store, 'releasePayment', ids).unwrap(), (error) => /Select at least one|at most 100/.test(error.message))
+    await assert.rejects(read(store, 'financeReleasePayment', ids).unwrap(), (error) => /Select at least one|at most 100/.test(error.message))
   }
   assert.equal(calls, 0)
-  await read(store, 'releasePayment', Array.from({ length: 100 }, (_, index) => `EXP-${index}`)).unwrap()
+  await read(store, 'financeReleasePayment', Array.from({ length: 100 }, (_, index) => `EXP-${index}`)).unwrap()
   assert.equal(calls, 1)
 })
 
@@ -208,13 +208,13 @@ test('session changes abort requests and clear financial records, mutations and 
   await read(store, 'financeCategories').unwrap()
   store.dispatch(financeSlice.actions.setReviewFilter({ search: 'private old tenant' }))
   const oldQuery = read(store, 'financeWorkspace')
-  const oldMutation = read(store, 'approveExpense', { expenseId: 'OLD-EXPENSE' })
+  const oldMutation = read(store, 'financeApproveExpense', { expenseId: 'OLD-EXPENSE' })
   window.dispatchEvent(new Event('finstack:session'))
   assert.equal(querySignal.aborted, true)
   assert.equal(mutationSignal.aborted, true)
   assert.equal(store.getState().finance.review.search, '')
-  assert.deepEqual(store.getState().financeApi.queries, {})
-  assert.deepEqual(store.getState().financeApi.mutations, {})
+  assert.deepEqual(store.getState().tenantApi.queries, {})
+  assert.deepEqual(store.getState().tenantApi.mutations, {})
   window.FinStackTenantSession.request = async () => ({ expenses: [{ id: 'NEW-EXPENSE' }], transactions: [] })
   await read(store, 'financeWorkspace').unwrap()
   resolveOldQuery({ expenses: [{ id: 'OLD-EXPENSE' }], transactions: [] })

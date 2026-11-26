@@ -139,7 +139,7 @@ test("a completed write from an old session cannot announce a change for the rep
   await Promise.resolve();
   runtime.saveSession({ accessToken: "replacement-token", organizationId: "org-2", user: { ...session.user, organizationId: "org-2" } });
   finishResponse({ data: { id: "expense-1" } });
-  await pending;
+  await assert.rejects(pending, error => error.code === "TENANT_SESSION_CHANGED");
   assert.equal(announcements, 0);
 
   globalThis.fetch = async () => ({ ok: true, json: async () => ({ data: {} }) });

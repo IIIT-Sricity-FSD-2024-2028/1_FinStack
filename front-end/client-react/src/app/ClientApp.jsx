@@ -1,5 +1,4 @@
 import { lazy, Suspense } from "react";
-import { Provider } from "react-redux";
 import {
   BrowserRouter,
   Navigate,
@@ -13,7 +12,6 @@ import { ConfigurationManagerLayout } from "../layouts/ConfigurationManagerLayou
 import { PublicLayout } from "../layouts/PublicLayout";
 import { legacyPaths } from "../routes/paths";
 import { ToastHost } from "../components/ToastHost";
-import { store } from "../store/index.js";
 import {
   HomePage,
   LoginPage,
@@ -111,9 +109,8 @@ function LegacyRedirect() {
 }
 export function ClientApp() {
   return (
-    <Provider store={store}>
-      <ErrorBoundary>
-        <BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
         <AuthProvider>
           <Suspense
             fallback={
@@ -236,8 +233,7 @@ export function ClientApp() {
           </Suspense>
           <ToastHost />
         </AuthProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </Provider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

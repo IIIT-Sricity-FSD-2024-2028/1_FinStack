@@ -51,7 +51,7 @@ export function installCrossTabLiveRefresh(getOrganizationId, target = globalThi
 }
 
 export function announceLiveRefresh(target = globalThis.window, { dispatchLocal = true } = {}) {
-  if (dispatchLocal) target?.dispatchEvent?.(new Event(LIVE_REFRESH_EVENT))
+  if (dispatchLocal) target?.dispatchEvent?.(new CustomEvent(LIVE_REFRESH_EVENT, { detail: { source: 'local' } }))
   installedBridge?.broadcast()
 }
 
@@ -61,6 +61,7 @@ export function createLiveRefreshController({
   documentTarget = globalThis.document,
   pollIntervalMs = 15_000,
   minIntervalMs = 750,
+  ignoreLocalMutations = false,
   now = Date.now,
   setIntervalFn = globalThis.setInterval,
   clearIntervalFn = globalThis.clearInterval,
@@ -109,7 +110,10 @@ export function createLiveRefreshController({
   const onVisibilityChange = () => {
     if (isVisible()) requestRefresh().catch(() => undefined)
   }
-  const onMutation = () => requestRefresh({ force: true, allowHidden: true }).catch(() => undefined)
+  const onMutation = event => {
+    if (ignoreLocalMutations && event?.detail?.source === 'local') return
+    requestRefresh({ force: true, allowHidden: true }).catch(() => undefined)
+  }
 
   return {
     start({ refreshImmediately = true } = {}) {

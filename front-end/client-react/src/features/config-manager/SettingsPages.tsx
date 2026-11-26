@@ -11,13 +11,13 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { request } from "../../services/session";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { LoadingState, ErrorState } from "../../components/OperationalStates";
 import { Icon } from "../../components/Icon";
 import { ConfirmDialog, ToggleSwitch } from "../../components/CrudPrimitives";
 import {
+  cachePreferences,
   readPreferences,
-  savePreferences,
   type Preferences,
 } from "../../services/preferences";
 const base = "/api/v1/tenant/configuration/settings";
@@ -126,10 +126,8 @@ interface OrganizationSettings {
   fiscalYearStart: string;
   defaultPaymentMethod: string;
 }
-const loadOrganization = () =>
-  request<OrganizationSettings>(base + "/organization");
 export function OrganizationSettingsPage() {
-  const data = useAsyncResource(loadOrganization);
+  const data = useConfigResource<OrganizationSettings>("organization");
   const [saving, setSaving] = useState(false);
   return (
     <>
@@ -167,6 +165,7 @@ function OrganizationForm({
   initial: OrganizationSettings;
   onSavingChange: (busy: boolean) => void;
 }) {
+  const commands = useConfigCommands();
   const requestLock = useRef(false);
   const [values, setValues] = useState(initial),
     [busy, setBusy] = useState(false),
@@ -180,15 +179,12 @@ function OrganizationForm({
     onSavingChange(true);
     setError("");
     try {
-      const saved = await request<OrganizationSettings>(
-        base + "/organization",
+      const saved = await commands.mutate<OrganizationSettings>(
+        "updateOrganization",
         {
-          method: "PATCH",
-          body: {
-            companySize: values.companySize,
-            fiscalYearStart: values.fiscalYearStart,
-            defaultPaymentMethod: values.defaultPaymentMethod,
-          },
+          companySize: values.companySize,
+          fiscalYearStart: values.fiscalYearStart,
+          defaultPaymentMethod: values.defaultPaymentMethod,
         },
       );
       setValues(saved);
@@ -437,9 +433,8 @@ interface Profile {
   role: string;
   status: string;
 }
-const loadProfile = () => request<Profile>(base + "/profile");
 export function ProfilePage() {
-  const resource = useAsyncResource(loadProfile);
+  const resource = useConfigResource<Profile>("profile");
   const [saving, setSaving] = useState(false);
   return (
     <>
@@ -480,6 +475,7 @@ function ProfileForm({
   initial: Profile;
   onSavingChange: (busy: boolean) => void;
 }) {
+  const commands = useConfigCommands();
   const requestLock = useRef(false);
   const auth = useAuth();
   const [values, setValues] = useState({
@@ -518,14 +514,11 @@ function ProfileForm({
     onSavingChange(true);
     setError("");
     try {
-      await request(base + "/profile", {
-        method: "PATCH",
-        body: {
-          fullName: values.fullName,
-          phone: values.phone,
-          location: values.location,
-          avatarColor: values.avatarColor,
-        },
+      await commands.mutate("updateProfile", {
+        fullName: values.fullName,
+        phone: values.phone,
+        location: values.location,
+        avatarColor: values.avatarColor,
       });
       auth.retry();
       setNotice("Profile updated.");
@@ -679,7 +672,7 @@ function ProfileForm({
         onConfirm={async () => {
           setBusy(true);
           try {
-            await request(base + "/session-revocations", { method: "POST" });
+            await commands.mutate("revokeSessions");
             auth.logout();
           } catch (error) {
             setError(
@@ -699,6 +692,7 @@ function ProfileForm({
   );
 }
 export function PasswordSection() {
+  const commands = useConfigCommands();
   const auth = useAuth();
   const [currentPassword, setCurrent] = useState(""),
     [newPassword, setNew] = useState(""),
@@ -740,10 +734,7 @@ export function PasswordSection() {
             setBusy(true);
             setError("");
             try {
-              await request(base + "/password-changes", {
-                method: "POST",
-                body: { currentPassword, newPassword, confirmPassword },
-              });
+              await commands.mutate("changePassword", { currentPassword, newPassword, confirmPassword });
               setCurrent("");
               setNew("");
               setConfirm("");
@@ -854,6 +845,7 @@ function PreferenceToggle({
   );
 }
 export function PreferencesPage() {
+  const commands = useConfigCommands();
   const [values, setValues] = useState(readPreferences),
     [notice, setNotice] = useState(""),
     [saving, setSaving] = useState(false);
@@ -884,7 +876,8 @@ export function PreferencesPage() {
           setSaving(true);
           setNotice("");
           try {
-            const saved = await savePreferences(values);
+            const saved = await commands.mutate<Preferences>("updatePreferences", values);
+            cachePreferences(saved);
             setValues(saved);
             setNotice("Preferences saved to your account.");
           } catch {

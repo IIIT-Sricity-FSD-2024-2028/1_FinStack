@@ -1,0 +1,873 @@
+{
+  "baseline": "a41434c646d7a097a3c41730e4451db60ab24e60",
+  "original_pr_files_reviewed": 96,
+  "changes": [
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "back-end/src/tenant/auth/tenant-auth.service.spec.ts",
+      "disposition": "omitted / baseline retained",
+      "classification": "Requiring a separate approved change",
+      "reason": "Backend code is frozen. Submitter profile organization, department and manager projection plus its four backend test cases are absent; frontend helpers alone do not complete FIN-83.",
+      "follow_up": "Approve a scoped backend profile projection PR with same-tenant privacy tests."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "back-end/src/tenant/auth/tenant-auth.service.ts",
+      "disposition": "omitted / baseline retained",
+      "classification": "Requiring a separate approved change",
+      "reason": "Backend code is frozen. Submitter profile organization, department and manager projection plus its four backend test cases are absent; frontend helpers alone do not complete FIN-83.",
+      "follow_up": "Approve a scoped backend profile projection PR with same-tenant privacy tests."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "back-end/src/tenant/auth/tenant-auth.types.ts",
+      "disposition": "omitted / baseline retained",
+      "classification": "Requiring a separate approved change",
+      "reason": "Backend code is frozen. Submitter profile organization, department and manager projection plus its four backend test cases are absent; frontend helpers alone do not complete FIN-83.",
+      "follow_up": "Approve a scoped backend profile projection PR with same-tenant privacy tests."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/package-lock.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/package.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/app/ClientApp.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/SubmitterContext.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/components/Icons.jsx",
+      "disposition": "omitted / baseline retained",
+      "classification": "Intentionally deferred",
+      "reason": "Preserve the validated UI; the original eye-path correction is not included and its exact known SVG warning remains.",
+      "follow_up": "Separately approve the small UI correction."
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/components/SubmitterLayout.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/notificationPresentation.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/DashboardPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/ExpensesPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/NotificationsPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/ProfileSettingsPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/ReportsPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/StatusPage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/pages/SubmitExpensePage.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/profileDetails.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/SubmitterReduxProvider.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/categoriesSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/expensesSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/notificationsSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/resourceState.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/submitterActions.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/submitterSession.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/features/submitter/store/submitterStore.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/layouts/tenantNavigation.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/src/services/session.ts",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/tests/crossActorSync.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/tests/submitter-redux-routes.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/tests/submitter-redux.browser.cjs",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/tests/submitter-redux.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 15,
+      "original_head": "896330f9c66fd0348eb6c088884d655987a00a7d",
+      "path": "front-end/client-react/tests/submitter-ui-defects.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "docs/qa/FINANCE_REDUX_MIGRATION.md",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original document restored and updated for shared architecture; original verification counts remain explicitly historical.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/package-lock.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/package.json",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/app/store.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/ExpenseDetailModal.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/FinanceDashboard.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/FinanceDecisionDialog.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/FinanceLayout.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/FinanceNotifications.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/FinanceReviewQueue.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/PaymentReleaseView.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/TransactionsView.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/financeApi.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/financeApiSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/financeSlice.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/paymentWorkflow.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/features/finance/useFinanceWorkspace.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/layouts/tenantNavigation.js",
+      "disposition": "adapted",
+      "classification": "Intentionally deferred",
+      "reason": "Retain the existing Transactions & Reconciliation sidebar label; the no-op configuration parameter rename from PRs 15/17 is retained.",
+      "follow_up": "Separate UI task if the shorter label is still desired."
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/src/main.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/tests/financeCompliance.browser.cjs",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original FIN-81 reduxRegression groups, paging fixture and FINSTACK_FINANCE_REDUX_ONLY option are restored; compatible Compliance selectors are retained. Assertions are not removed.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/tests/financeRedux.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/tests/liveRefresh.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 16,
+      "original_head": "8253b462829dfae4977b848399c7fe222badfcd1",
+      "path": "front-end/client-react/tests/sharedUi.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/package-lock.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/package.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceAuditView.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceCaseModal.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceDashboard.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceDecisionDialog.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceLayout.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceNotifications.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/ComplianceReviewQueue.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/PoliciesViolationsView.jsx",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/complianceApi.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/store/ComplianceProvider.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/store/complianceSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/store/complianceStore.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/features/compliance/store/useComplianceData.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/layouts/tenantNavigation.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/src/services/session.ts",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/actorSpa.browser.cjs",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/compliance-downloads.test.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/compliance-redux.browser.cjs",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/compliance-redux.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/financeCompliance.browser.cjs",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original FIN-81 reduxRegression groups, paging fixture and FINSTACK_FINANCE_REDUX_ONLY option are restored; compatible Compliance selectors are retained. Assertions are not removed.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/liveRefresh.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/sharedUi.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 17,
+      "original_head": "853f8e6305e6d308d076411886cc9372b0cb9858",
+      "path": "front-end/client-react/tests/spaSession.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/package-lock.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/package.json",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "One tested dependency graph is retained: RTK 2.14.0, React Redux 9.3.1, Vite 7.3.6. PR 15/17 Vite 7.3.7 upgrades and PR 17/18 RTK 2.15.0 changes are deferred, not silently restored.",
+      "follow_up": "Separate approved dependency/security remediation and validation. Current audit is not zero-vulnerability."
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/app/ClientApp.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/ManagerDashboard.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/ManagerExpenseDetails.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/ManagerExpenseQueue.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/ManagerHistory.jsx",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/managerApiSlice.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/managerFiltersSlice.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/features/manager/managerSelectors.js",
+      "disposition": "retained exactly (line endings normalized)",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Original feature behavior is retained.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/hooks/liveRefreshController.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/services/session.ts",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/src/store/index.js",
+      "disposition": "adapted",
+      "classification": "Superseded by the shared architecture",
+      "reason": "Independent actor store/Provider/API/session lifetime or refresh plumbing is replaced by the shared root store, Provider, API, namespaced actor dependencies/endpoints and common reset guards.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/tests/managerRedux.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    },
+    {
+      "pr": 18,
+      "original_head": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca",
+      "path": "front-end/client-react/tests/sharedUi.test.js",
+      "disposition": "adapted",
+      "classification": "Necessary for the unified implementation",
+      "reason": "Tests use the common store, namespaced endpoint/state/dependency contracts, stronger session guards, and deterministic completion waits. Original actor coverage retained; Finance browser groups restored.",
+      "follow_up": null
+    }
+  ],
+  "not_original_pr_changes": [
+    "QA email recovery/onboarding/schema/fixture exclusions mentioned by the historical report are not changes in the four PR inventories."
+  ]
+}

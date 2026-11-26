@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createComplianceStore } from '../src/features/compliance/store/complianceStore.js'
+import { createClientStore } from '../src/app/store.js'
 import {
   decideExpense, fetchComplianceResource, markNotificationsRead, pageQueryChanged,
   queryKey, refreshResources, refreshWorkspace, resourceStatus,
@@ -38,7 +38,7 @@ function fixture(overrides = {}) {
     calls.push({ name, args })
     return fn(...args)
   }]))
-  const store = createComplianceStore({ api, getSession: () => current })
+  const store = createClientStore({ complianceApi: api, getSession: () => current })
   store.startSession()
   const load = (resource, query = {}, force = false) => store.dispatch(fetchComplianceResource({ resource, query, force }))
   return { store, api, calls, load, setSession: (value) => { current = value }, getSession: () => current,

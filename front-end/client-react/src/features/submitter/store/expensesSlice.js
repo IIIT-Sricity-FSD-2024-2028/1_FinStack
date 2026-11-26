@@ -3,7 +3,7 @@ import { addResourceCases, canFetchResource, initialResourceState } from "./reso
 
 export const fetchExpenses = createAsyncThunk(
   "expenses/fetch",
-  async (_options, { extra }) => extra.api.getMyExpenses(),
+  async (_options, { extra, getState, signal }) => extra.submitterSession.run(getState().submitter.session.generation, signal, () => extra.submitterApi.getMyExpenses()),
   { condition: (options, { getState }) => canFetchResource("expenses", getState(), options) },
 );
 
@@ -14,6 +14,6 @@ const expensesSlice = createSlice({
   extraReducers: (builder) => addResourceCases(builder, fetchExpenses, "Unable to load expenses."),
 });
 
-export const selectExpenses = (state) => state.expenses.items;
-export const selectExpenseState = (state) => state.expenses;
+export const selectExpenses = (state) => state.submitter.expenses.items;
+export const selectExpenseState = (state) => state.submitter.expenses;
 export default expensesSlice.reducer;

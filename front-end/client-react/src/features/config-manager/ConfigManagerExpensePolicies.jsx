@@ -1,12 +1,10 @@
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { useEffect, useState } from "react";
 import {
   ConfigurationTemplatePicker,
   TemplateMobileNavigation,
 } from "./ConfigurationTemplatePicker";
-import {
-  configManagerResources,
-  mutateAndRefresh,
-} from "../../adapters/configManagerResources";
+import { mutateAndRefresh } from "../../adapters/configManagerResources";
 import {
   ConfirmDialog,
   CrudModal,
@@ -20,7 +18,6 @@ import {
 } from "../../components/OperationalStates";
 import { Table } from "../../components/Table";
 import { Icon } from "../../components/Icon";
-import { useAsyncResource } from "../../hooks/useAsyncResource";
 import { CategorySuccessToast, useCategoryToast } from "./categoryToast";
 import { paginateCategories } from "./categoryLifecycle";
 import {
@@ -35,9 +32,6 @@ import {
 } from "./policyConfiguration";
 import "./category-lifecycle.css";
 import "./policy-configuration.css";
-const loadPolicies = () => configManagerResources.policies.list();
-const loadCategories = () => configManagerResources.categories.list();
-const loadCatalog = () => configManagerResources.templates.list();
 const blank = {
   name: "",
   categoryId: "",
@@ -212,9 +206,10 @@ function PolicyFields({
   );
 }
 export function ConfigManagerExpensePolicies() {
-  const policyResource = useAsyncResource(loadPolicies),
-    categoryResource = useAsyncResource(loadCategories),
-    catalogResource = useAsyncResource(loadCatalog);
+  const configManagerResources = useConfigCommands();
+  const policyResource = useConfigResource("policies"),
+    categoryResource = useConfigResource("categories"),
+    catalogResource = useConfigResource("templates");
   const resources = [policyResource, categoryResource, catalogResource];
   const status = resources.some((r) => r.status === "error")
     ? "error"

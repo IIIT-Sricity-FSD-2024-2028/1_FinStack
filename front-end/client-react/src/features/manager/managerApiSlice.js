@@ -1,32 +1,5 @@
-import { createApi } from "@reduxjs/toolkit/query/react";
-import { request } from "../../services/session.ts";
-
-const EXPENSES = "/api/v1/tenant/expenses";
-
-const managerBaseQuery = async ({ url, method, body, ...options }, { signal, type }) => {
-  try {
-    return {
-      data: await request(url, {
-        ...options,
-        method,
-        body,
-        signal,
-        // Mutation tag invalidation refreshes this tab; keep the cross-tab signal only.
-        ...(type === "mutation" ? { suppressLocalRefresh: true } : {}),
-      }),
-    };
-  } catch (error) {
-    return {
-      error: {
-        status: Number.isFinite(error?.status) ? error.status : "CUSTOM_ERROR",
-        data: {
-          message: error instanceof Error ? error.message : "The request failed.",
-          ...(error?.code ? { code: error.code } : {}),
-        },
-      },
-    };
-  }
-};
+import { tenantApi } from '../../app/api.js';
+const EXPENSES = '/api/v1/tenant/expenses';
 
 const asArray = (value) => Array.isArray(value) ? value : [];
 const decisionInvalidatesTags = (_result, error, { id }) => error ? [] : [
@@ -36,10 +9,7 @@ const decisionInvalidatesTags = (_result, error, { id }) => error ? [] : [
   { type: "ManagerHistory", id },
 ];
 
-export const managerApiSlice = createApi({
-  reducerPath: "managerApi",
-  baseQuery: managerBaseQuery,
-  tagTypes: ["ManagerQueue", "ManagerHistory"],
+export const managerApiSlice = tenantApi.injectEndpoints({
   endpoints: (builder) => ({
     getManagerQueue: builder.query({
       query: () => ({ url: `${EXPENSES}/manager/queue` }),
@@ -62,8 +32,9 @@ export const managerApiSlice = createApi({
     getFinanceOfficers: builder.query({
       query: () => ({ url: `${EXPENSES}/manager/finance-officers` }),
       transformResponse: asArray,
+      providesTags: ['ManagerOfficers'],
     }),
-    approveExpense: builder.mutation({
+    managerApproveExpense: builder.mutation({
       query: ({ id, body }) => ({
         url: `${EXPENSES}/${encodeURIComponent(id)}/manager/approve`,
         method: "POST",
@@ -71,7 +42,7 @@ export const managerApiSlice = createApi({
       }),
       invalidatesTags: decisionInvalidatesTags,
     }),
-    rejectExpense: builder.mutation({
+    managerRejectExpense: builder.mutation({
       query: ({ id, note }) => ({
         url: `${EXPENSES}/${encodeURIComponent(id)}/manager/reject`,
         method: "POST",
@@ -79,7 +50,7 @@ export const managerApiSlice = createApi({
       }),
       invalidatesTags: decisionInvalidatesTags,
     }),
-    returnExpense: builder.mutation({
+    managerReturnExpense: builder.mutation({
       query: ({ id, note }) => ({
         url: `${EXPENSES}/${encodeURIComponent(id)}/manager/return`,
         method: "POST",
@@ -87,7 +58,7 @@ export const managerApiSlice = createApi({
       }),
       invalidatesTags: decisionInvalidatesTags,
     }),
-    escalateExpense: builder.mutation({
+    managerEscalateExpense: builder.mutation({
       query: ({ id, note }) => ({
         url: `${EXPENSES}/${encodeURIComponent(id)}/manager/escalate`,
         method: "POST",
@@ -102,8 +73,8 @@ export const {
   useGetManagerQueueQuery,
   useGetManagerHistoryQuery,
   useGetFinanceOfficersQuery,
-  useApproveExpenseMutation,
-  useRejectExpenseMutation,
-  useReturnExpenseMutation,
-  useEscalateExpenseMutation,
+  useManagerApproveExpenseMutation: useApproveExpenseMutation,
+  useManagerRejectExpenseMutation: useRejectExpenseMutation,
+  useManagerReturnExpenseMutation: useReturnExpenseMutation,
+  useManagerEscalateExpenseMutation: useEscalateExpenseMutation,
 } = managerApiSlice;

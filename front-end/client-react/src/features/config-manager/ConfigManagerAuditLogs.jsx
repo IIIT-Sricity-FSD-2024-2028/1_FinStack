@@ -6,10 +6,11 @@ import { ErrorState, LoadingState } from "../../components/OperationalStates";
 import { Pagination } from "../../components/Pagination";
 import { Table } from "../../components/Table";
 import { Modal } from "../../components/Modal";
-import { useEmployeePage } from "../../hooks/useEmployeePage";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import "./tenant-audit.css";
 const PAGE_SIZE = 25;
 export function ConfigManagerAuditLogs() {
+  const commands = useConfigCommands();
   const [search, setSearch] = useState(""),
     [debounced, setDebounced] = useState("");
   const [filters, setFilters] = useState({
@@ -53,7 +54,7 @@ export function ConfigManagerAuditLogs() {
     setDetailPending(id);
     setDetailError("");
     try {
-      const record = await tenantAudit.detail(id);
+      const record = await commands.query("auditDetail", id);
       if (sequence === detailSequence.current) setDetail(record);
     } catch (e) {
       if (sequence === detailSequence.current) setDetailError(e.message);
@@ -69,8 +70,8 @@ export function ConfigManagerAuditLogs() {
     return () => clearTimeout(timer);
   }, [search]);
   const params = { ...filters, search: debounced, page, pageSize: PAGE_SIZE };
-  const { status, data, error, refresh } = useEmployeePage(
-    tenantAudit.list,
+  const { status, data, error, refresh } = useConfigResource(
+    "audit",
     params,
   );
   const change = (key, value) => {

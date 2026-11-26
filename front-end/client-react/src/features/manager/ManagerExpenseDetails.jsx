@@ -27,7 +27,7 @@ export function ManagerExpenseDetails() {
     historyQuery.refetch(),
     officersQuery.refetch(),
   ]), [queueQuery.refetch, historyQuery.refetch, officersQuery.refetch]);
-  const { refreshNow } = useLiveRefresh(refresh);
+  const { refreshNow } = useLiveRefresh(refresh, { refreshImmediately: false, ignoreLocalMutations: true });
   useEffect(() => {
     window.addEventListener("finstack:dashboard-refresh", refreshNow);
     return () => window.removeEventListener("finstack:dashboard-refresh", refreshNow);

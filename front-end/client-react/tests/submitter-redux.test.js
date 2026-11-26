@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSubmitterStore } from "../src/features/submitter/store/submitterStore.js";
-import { sessionChanged, submitterIdentity } from "../src/features/submitter/store/submitterSession.js";
+import { createSubmitterStore, bindSubmitterSession } from "./helpers/submitterStore.js";
+import { submitterIdentity } from "../src/features/submitter/store/submitterSession.js";
 import { fetchExpenses, selectExpenses, selectExpenseState } from "../src/features/submitter/store/expensesSlice.js";
 import { fetchCategories, selectCategories, selectCategoryState } from "../src/features/submitter/store/categoriesSlice.js";
 import { fetchNotifications, selectNotifications, selectNotificationState, selectUnreadCount } from "../src/features/submitter/store/notificationsSlice.js";
@@ -48,15 +48,15 @@ function fixture(overrides = {}, signedIn = true) {
     ...overrides,
   };
   const store = createSubmitterStore(api);
-  if (signedIn) store.dispatch(sessionChanged(identity()));
+  if (signedIn) bindSubmitterSession(store, identity());
   return { store, api, calls };
 }
 
 test("Submitter store initializes with independent empty, idle resources and no secrets", () => {
   const { store } = fixture({}, false);
-  assert.deepEqual(store.getState().session, { identity: null, generation: 0, pendingMutations: 0 });
+  assert.deepEqual(store.getState().submitter.session, { identity: null, generation: 0, pendingMutations: 0 });
   for (const resource of ["expenses", "categories", "notifications"]) {
-    assert.deepEqual(store.getState()[resource], { items: [], loading: false, error: "", requestId: null });
+    assert.deepEqual(store.getState().submitter[resource], { items: [], loading: false, error: "", requestId: null });
   }
 });
 
@@ -96,7 +96,7 @@ for (const [resource, fetchResource, selectState] of [
     assert.equal(selectState(store.getState()).error, `${resource} unavailable`);
     assert.equal(selectState(store.getState()).loading, false);
     for (const other of ["expenses", "categories", "notifications"].filter((name) => name !== resource)) {
-      assert.deepEqual(store.getState()[other], before[other]);
+      assert.deepEqual(store.getState().submitter[other], before.submitter[other]);
     }
     api[method] = original;
     await store.dispatch(fetchResource()).unwrap();
@@ -154,7 +154,7 @@ test("failed mutation leaves persisted state intact and releases refresh suppres
   await assert.rejects(store.dispatch(updateExpense("expense-1", {})), /Validation failed/);
   assert.deepEqual(selectExpenses(store.getState()), before);
   assert.deepEqual(calls, ["expenses"]);
-  assert.equal(store.getState().session.pendingMutations, 0);
+  assert.equal(store.getState().submitter.session.pendingMutations, 0);
 });
 
 test("confirmed creation with a failed refresh exposes retry without resubmitting the expense", async () => {
@@ -183,9 +183,9 @@ test("logout clears data, errors and loading across every resource", async () =>
   await store.dispatch(refreshSubmitter());
   api.getCategories = async () => { throw new Error("Offline"); };
   await store.dispatch(fetchCategories());
-  store.dispatch(sessionChanged(null));
+  bindSubmitterSession(store, null);
   for (const resource of ["expenses", "categories", "notifications"]) {
-    assert.deepEqual(store.getState()[resource], { items: [], loading: false, error: "", requestId: null });
+    assert.deepEqual(store.getState().submitter[resource], { items: [], loading: false, error: "", requestId: null });
   }
   assert.equal(selectUnreadCount(store.getState()), 0);
 });
@@ -204,7 +204,7 @@ for (const [label, nextIdentity] of [
       getNotifications: async () => ({ items: await old.promise }),
     });
     const request = store.dispatch(refreshSubmitter());
-    store.dispatch(sessionChanged(nextIdentity));
+    bindSubmitterSession(store, nextIdentity);
     if (nextIdentity) {
       api.getMyExpenses = async () => [{ id: "new-user-expense" }];
       api.getCategories = async () => [{ id: "new-tenant-category" }];
@@ -223,7 +223,7 @@ test("late rejection after logout cannot restore an error or loading indicator",
   const old = deferred();
   const { store } = fixture({ getMyExpenses: () => old.promise });
   const request = store.dispatch(fetchExpenses());
-  store.dispatch(sessionChanged(null));
+  bindSubmitterSession(store, null);
   old.reject(new Error("Previous tenant error"));
   await request;
   assert.equal(selectExpenseState(store.getState()).error, "");
@@ -235,11 +235,11 @@ for (const nextIdentity of [null, identity("employee-b")]) {
     const pending = deferred();
     const { store, calls } = fixture({ createExpense: () => pending.promise });
     const request = store.dispatch(createExpense({}, null));
-    store.dispatch(sessionChanged(nextIdentity));
+    bindSubmitterSession(store, nextIdentity);
     pending.resolve({ id: "old-expense" });
     await assert.rejects(request, /session changed/);
     assert.deepEqual(calls, []);
-    assert.equal(store.getState().session.pendingMutations, 0);
+    assert.equal(store.getState().submitter.session.pendingMutations, 0);
     assert.deepEqual(selectExpenses(store.getState()), []);
   });
 }

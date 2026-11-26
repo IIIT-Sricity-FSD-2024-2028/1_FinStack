@@ -1,0 +1,208 @@
+{
+  "workspace": "C:\\Users\\nikhi\\Downloads\\FinStack_Final_Integration_Candidate_20261126",
+  "validated_workspace": "C:\\Users\\nikhi\\Downloads\\FinStack_Unified_Redux_Integration_20261125",
+  "preparation_date_local": "2026-11-26",
+  "baseline_main": "a41434c646d7a097a3c41730e4451db60ab24e60",
+  "original_pr_heads": {
+    "15": "896330f9c66fd0348eb6c088884d655987a00a7d",
+    "16": "8253b462829dfae4977b848399c7fe222badfcd1",
+    "17": "853f8e6305e6d308d076411886cc9372b0cb9858",
+    "18": "bfcf50b82b81a28bf4571cc6c296c9915cc86fca"
+  },
+  "architecture": {
+    "production_store_instances": 1,
+    "root_providers": 1,
+    "shared_rtk_query_api_instances": 1,
+    "application_source_byte_identical_to_validated": true
+  },
+  "candidate_changes": [
+    "INTEGRATION-RESULTS.json",
+    "docs/qa/FINANCE_REDUX_MIGRATION.md",
+    "docs/qa/PR_CHANGE_RECONCILIATION.json",
+    "docs/qa/UNIFIED_REDUX_INTEGRATION_PLAN.md",
+    "front-end/client-react/tests/financeCompliance.browser.cjs"
+  ],
+  "finance_restoration": {
+    "original_pr": 16,
+    "groups_restored": 3,
+    "pagination_fixture_restored": true,
+    "finance_only_runner_restored": true,
+    "original_assertions_preserved": true,
+    "additional_badge_assertions": "9+ badge and 32 unread before mark-all; badge removed and 0 unread afterwards"
+  },
+  "verification": {
+    "frontend": {
+      "tests": 284,
+      "passed": 284,
+      "failed": 0,
+      "build": "passed",
+      "lint": "passed",
+      "typecheck": "passed"
+    },
+    "backend": {
+      "suites": 38,
+      "passed": 397,
+      "failed": 0,
+      "source_changes": false,
+      "database_access": false
+    },
+    "browser": {
+      "mode": "Chromium with fictional intercepted APIs; no database",
+      "finance_compliance_full_checks": 59,
+      "finance_focused_final_checks": 4,
+      "focused_final_run": "Executed after adding explicit unread badge assertions; 3 restored groups plus shared transport/error assertions",
+      "actor_route_auth_checks": 155,
+      "configuration_manager_suites_passed": 1,
+      "submitter_suites_passed": 1,
+      "submitter_routes_checked": 7,
+      "compliance_suites_passed": 1,
+      "compliance_named_checks": 28,
+      "cross_actor_multitab_suites_passed": 1,
+      "uncaught_errors": 0,
+      "failed": 0
+    },
+    "live_backend_e2e": {
+      "candidate_run": false,
+      "reason": "Candidate changes tests/docs/report only; production source is byte-identical. No database was accessed.",
+      "historical_validated_workspace_checks": 30,
+      "historical_evidence": ".candidate-evidence/prior-live-results.json",
+      "external_settlement_or_billing_verified": false
+    }
+  },
+  "dependencies": {
+    "installed_direct_versions": {
+      "frontend": {
+        "@fontsource-variable/inter": "5.3.0",
+        "@reduxjs/toolkit": "2.14.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "react-redux": "9.3.1",
+        "react-router-dom": "7.18.4",
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
+        "@vitejs/plugin-react": "5.2.0",
+        "typescript": "5.9.3",
+        "vite": "7.3.6"
+      },
+      "backend": {
+        "@nestjs/common": "10.4.22",
+        "@nestjs/config": "4.0.4",
+        "@nestjs/core": "10.4.22",
+        "@nestjs/jwt": "10.2.0",
+        "@nestjs/platform-express": "10.4.22",
+        "@nestjs/swagger": "8.1.1",
+        "@nestjs/throttler": "6.5.0",
+        "@prisma/client": "6.19.1",
+        "argon2": "0.45.1",
+        "class-transformer": "0.5.1",
+        "class-validator": "0.14.4",
+        "cookie-parser": "1.4.7",
+        "csv-parse": "7.0.3",
+        "helmet": "8.3.0",
+        "multer": "2.0.2",
+        "reflect-metadata": "0.2.2",
+        "rxjs": "7.8.2",
+        "swagger-ui-express": "5.0.1",
+        "winston": "3.17.0",
+        "winston-daily-rotate-file": "5.0.0",
+        "@eslint/js": "9.39.5",
+        "@nestjs/cli": "10.4.9",
+        "@nestjs/schematics": "10.2.3",
+        "@nestjs/testing": "10.4.22",
+        "@types/cookie-parser": "1.4.10",
+        "@types/express": "5.0.6",
+        "@types/jest": "29.5.14",
+        "@types/multer": "2.0.0",
+        "@types/node": "22.19.17",
+        "@types/supertest": "6.0.3",
+        "eslint": "9.39.5",
+        "eslint-config-prettier": "10.1.8",
+        "eslint-plugin-prettier": "5.5.6",
+        "globals": "16.5.0",
+        "jest": "29.7.0",
+        "prettier": "3.9.6",
+        "prisma": "6.19.1",
+        "supertest": "7.2.2",
+        "ts-jest": "29.4.12",
+        "ts-node": "10.9.2",
+        "typescript": "5.9.3",
+        "typescript-eslint": "8.67.0"
+      }
+    },
+    "versions_changed": false,
+    "all_dependency_audit": {
+      "frontend": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 1,
+        "critical": 0,
+        "total": 1
+      },
+      "backend": {
+        "info": 0,
+        "low": 3,
+        "moderate": 18,
+        "high": 14,
+        "critical": 0,
+        "total": 35
+      }
+    },
+    "production_dependency_audit": {
+      "frontend": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "backend": {
+        "info": 0,
+        "low": 0,
+        "moderate": 4,
+        "high": 10,
+        "critical": 0,
+        "total": 14
+      }
+    },
+    "audit_evidence": ".candidate-evidence/*audit.json",
+    "fixes_applied": false,
+    "zero_vulnerability_claim_valid": false
+  },
+  "reconciliation_ledger": "docs/qa/PR_CHANGE_RECONCILIATION.json",
+  "merge_plan": "docs/qa/UNIFIED_REDUX_INTEGRATION_PLAN.md",
+  "merge_order": [
+    16,
+    15,
+    17,
+    18
+  ],
+  "publication_manifest": ".candidate-evidence/publication-manifest.json",
+  "validated_workspace_unchanged": {
+    "verified": true,
+    "file_hashes_compared": 1882,
+    "includes_git_metadata": true,
+    "excludes": "node_modules only"
+  },
+  "protected_application_backend_schema_dependency_files_verified": 471,
+  "limitations": [
+    "PR 15 backend profile projection remains absent; frontend helper alone does not complete enhancement.",
+    "Existing Submitter eye SVG warning retained.",
+    "Dependency audit findings require separately approved remediation.",
+    "No fresh candidate live-backend or external settlement/billing test."
+  ],
+  "publication_gates": [
+    "Explicit authorization required for all GitHub writes and commit creation.",
+    "Confirm repository merge commits enabled and current protection/review requirements; detailed protection endpoint was inaccessible to connector.",
+    "Obtain contributor acceptance of the ledger and separate backend/security remediation decisions.",
+    "Revalidate exact staged/committed source against manifest and original commit ancestry in a separate publishing checkout."
+  ],
+  "commits_created": 0,
+  "pushes": 0,
+  "merges": 0,
+  "remote_changes": 0,
+  "contributor_branch_changes": 0,
+  "qa_or_production_data_changes": 0,
+  "verification_servers": "stopped after verification"
+}

@@ -1,19 +1,14 @@
 import { useState } from "react";
 import type { NotificationPage } from "../../services/contracts";
-import { request } from "../../services/session";
-import { useEmployeePage } from "../../hooks/useEmployeePage";
+import { useConfigResource, useConfigCommands } from "./useConfigResource";
 import { ErrorState, LoadingState } from "../../components/OperationalStates";
 import { ConfirmDialog } from "../../components/CrudPrimitives";
 import {
   CategorySuccessToast as SuccessToast,
   useCategoryToast as useSuccessToast,
 } from "./categoryToast";
-const NOTIFICATIONS = "/api/v1/tenant/expenses/notifications";
-const loadNotifications = (query: object) =>
-  request<NotificationPage>(
-    `${NOTIFICATIONS}/page?${new URLSearchParams(query as Record<string, string>)}`,
-  );
 export function NotificationsPage() {
+  const commands = useConfigCommands();
   const { notice, showSuccess } = useSuccessToast();
   const [type, setType] = useState("");
   const [state, setState] = useState("all"),
@@ -21,7 +16,7 @@ export function NotificationsPage() {
     [pending, setPending] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const resource = useEmployeePage(loadNotifications, {
+  const resource = useConfigResource<NotificationPage>("notifications", {
     page,
     pageSize: 25,
     state,
@@ -31,7 +26,7 @@ export function NotificationsPage() {
     setBusy(true);
     setError("");
     try {
-      await request(NOTIFICATIONS + path, { method });
+      await commands.mutate("updateNotifications", { path, method });
       await resource.refresh();
       setPending(null);
       showSuccess("Notifications updated.", 2000);
