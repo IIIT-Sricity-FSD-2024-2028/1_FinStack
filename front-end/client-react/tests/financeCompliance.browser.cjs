@@ -84,8 +84,11 @@ async function fixtureRoute(route) {
   if (endpoint.endsWith('/notifications/unread-count')) return json({ count: notifications.filter(n => n.unread).length });
   if (endpoint.endsWith('/notifications/page')) {
     const state = url.searchParams.get('state');
-    const items = empty ? [] : notifications.filter(n => !state || (state === 'unread' ? n.unread : !n.unread));
-    return json({ items, total: items.length, unreadCount: notifications.filter(n => n.unread).length, page: 1, pageSize: 20, totalPages: 1 });
+    const allItems = empty ? [] : notifications.filter(n => !state || (state === 'unread' ? n.unread : !n.unread));
+    const currentPage = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('pageSize') || 20);
+    const items = allItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    return json({ items, total: allItems.length, unreadCount: notifications.filter(n => n.unread).length, page: currentPage, pageSize, totalPages: Math.ceil(allItems.length / pageSize) });
   }
   if (endpoint.endsWith('/notifications/read-all')) { notifications.forEach(n => { n.unread = false; }); return json({ count: notifications.length }); }
   if (/\/notifications\/[^/]+\/read$/.test(endpoint)) { notifications.find(n => n.id === endpoint.split('/').at(-2)).unread = false; return json({ unread: false }); }
@@ -135,10 +138,11 @@ async function actorRoutes() {
     await textIncludes('saving is unavailable');
     check(`${actor}: unavailable preference saving is explicit`);
     await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
-    assert(await page.locator(`.${actor}-workspace.nav-collapsed`).count());
+    assert(await page.locator(`.${actor}-workspace.is-collapsed`).count());
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
-    await page.getByRole('button', { name: `${user().firstName} QA ▾`, exact: true }).click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.locator('button[aria-controls="tenant-account-menu"]').click();
+    await page.locator('#tenant-account-menu').getByRole('button', { name: 'Log out', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Log out', exact: true }).click();
     await page.waitForURL(`${base}/login`); await idle();
     assert.equal(new URL(page.url()).pathname, '/login');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('finstackTenantAccessToken')), null);
@@ -264,10 +268,10 @@ async function statesAndMobile() {
       const width = await page.evaluate(() => ({ viewport: innerWidth, body: document.documentElement.scrollWidth }));
       assert(width.body <= width.viewport + 1, `${actor}/${route} overflow: ${JSON.stringify(width)}`);
     }
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    assert.equal(await page.locator(`.${actor}-workspace.nav-mobile-open`).count(), 1);
+    await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    assert.equal(await page.locator(`.${actor}-workspace.is-mobile-open`).count(), 1);
     await page.keyboard.press('Escape');
-    assert.equal(await page.locator(`.${actor}-workspace.nav-mobile-open`).count(), 0);
+    assert.equal(await page.locator(`.${actor}-workspace.is-mobile-open`).count(), 0);
     await page.screenshot({ path: path.join(output, `${actor}-mobile.png`), fullPage: true });
     check(`${actor}: mobile dashboard/settings and navigation`);
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -310,6 +314,65 @@ async function accuracyChecks() {
   check('compliance: currency grouping, active-only definitions and restricted audit wording');
 }
 
+async function reduxRegression() {
+  actor = 'finance'; reset();
+  expenses = Array.from({ length: 12 }, (_, i) => expense(`CACHE-${String(i).padStart(2, '0')}`, 'finance_review'));
+  await goto('/finance/queue');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await textIncludes('Showing 11–12 of 12 expenses');
+  await page.getByPlaceholder('Search reference, employee, merchant...').fill('CACHE-02');
+  await textIncludes('Showing 1–1 of 1 expenses');
+  const nav = page.getByRole('navigation', { name: 'Finance Officer navigation' });
+  await nav.getByRole('link', { name: 'Dashboard', exact: true }).click(); await idle();
+  const queueResponse = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/finance/workspace'));
+  await nav.getByRole('link', { name: 'Review Queue', exact: true }).click();
+  await queueResponse; await idle();
+  assert.equal(await page.getByPlaceholder('Search reference, employee, merchant...').inputValue(), 'CACHE-02');
+  // Suspend periodic polling while measuring requests caused by opening details.
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  const workspaceCalls = () => apiCalls.filter(call => call.endpoint.endsWith('/finance/workspace')).length;
+  const beforeDetails = workspaceCalls();
+  await page.getByRole('button', { name: 'Details', exact: true }).click(); await idle();
+  assert.equal(workspaceCalls(), beforeDetails, 'details reuse the existing workspace cache');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await idle();
+  expenses[2].merchant = 'Updated merchant from another actor';
+  await page.evaluate(() => window.dispatchEvent(new Event('finstack:live-refresh'))); await idle();
+  await page.getByRole('dialog').getByText('Updated merchant from another actor', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 1);
+  failure = '/api/v1/tenant/expenses/finance/workspace';
+  await page.evaluate(() => window.dispatchEvent(new Event('finstack:live-refresh'))); await idle();
+  await textIncludes('Unable to refresh the queue. Showing the last loaded results.');
+  assert.equal(await page.getByRole('dialog').count(), 1, 'background errors preserve the open detail dialog');
+  failure = '';
+  await page.evaluate(() => window.dispatchEvent(new Event('finstack:live-refresh'))); await idle();
+  await page.getByText('Unable to refresh the queue. Showing the last loaded results.', { exact: true }).waitFor({ state: 'hidden' });
+  await page.keyboard.press('Escape');
+  check('finance Redux: filters persist across navigation, pagination resets, details share cache and stay current through refresh/error/recovery');
+
+  reset(); await goto('/finance/payments');
+  await page.getByLabel('Select FIN-RELEASE', { exact: true }).check();
+  await page.getByRole('button', { name: 'Release Batch (1)', exact: true }).click();
+  expenses.find(item => item.id === 'FIN-RELEASE').workflowStatus = 'payment_processing';
+  await page.evaluate(() => window.dispatchEvent(new Event('finstack:live-refresh'))); await idle();
+  assert(await page.getByRole('button', { name: 'Confirm Release (0)', exact: true }).isDisabled());
+  const releases = apiCalls.filter(call => call.endpoint.endsWith('/payment-releases')).length;
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.equal(apiCalls.filter(call => call.endpoint.endsWith('/payment-releases')).length, releases);
+  check('finance Redux: an external eligibility change removes selected claims and disables empty confirmation');
+
+  reset();
+  notifications = Array.from({ length: 32 }, (_, i) => ({ id: `NOTICE-${i}`, title: `Paged notice ${i}`, message: 'Pagination fixture', unread: true }));
+  await goto('/finance/notifications');
+  await page.getByRole('button', { name: 'Next', exact: true }).click(); await idle();
+  await textIncludes('Showing 16–30 of 32 notifications');
+  await page.locator('main select').selectOption('unread'); await idle();
+  await textIncludes('Showing 1–15 of 32 notifications');
+  await page.getByRole('button', { name: 'Mark All as Read', exact: true }).click(); await idle();
+  await textIncludes('No Notifications');
+  await page.getByRole('button', { name: 'Mark All as Read', exact: true }).waitFor({ state: 'hidden' });
+  check('finance Redux: paginated notification query keys, filter reset and badge invalidation');
+}
+
 (async () => {
   fs.mkdirSync(output, { recursive: true });
   browser = await chromium.launch({ headless: true, ...(process.env.FINSTACK_CHROMIUM_PATH ? { executablePath: process.env.FINSTACK_CHROMIUM_PATH } : {}) });
@@ -325,7 +388,10 @@ async function accuracyChecks() {
     sessionStorage.setItem('finstackTenantUser', JSON.stringify({ id: `${actor}-qa`, organizationId: 'org-qa', employeeId: `${actor.toUpperCase()}-QA`, role, status: 'ACTIVE' }));
   });
   // Fixture identity follows the test actor, including cross-role route denial.
-  await actorRoutes(); await reviewActions(); await paymentActions(); await notificationsAndAudit(); await accuracyChecks(); await statesAndMobile();
+  if (!process.env.FINSTACK_FINANCE_REDUX_ONLY) {
+    await actorRoutes(); await reviewActions(); await paymentActions(); await notificationsAndAudit(); await accuracyChecks(); await statesAndMobile();
+  }
+  await reduxRegression();
   assert.deepEqual(errors, []);
   assert(apiCalls.every(call => call.origin === base), 'Actor API transport must use injected same-origin base');
   assert(apiCalls.filter(call => !call.endpoint.endsWith('/auth/login')).every(call => call.headers.authorization === 'Bearer fictional-fixture-token'));

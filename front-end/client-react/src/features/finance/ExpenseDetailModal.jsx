@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { Modal } from '../../components/Modal'
 import { Icon } from '../../components/Icon'
 import { financeApi } from './financeApi'
+import { useFinanceExpense } from './useFinanceWorkspace.js'
 
 export function ExpenseDetailModal({
-  expense,
+  expense: suppliedExpense,
   open,
   onClose,
   categories = [],
   onOpenDecision,
 }) {
+  const expense = useFinanceExpense(suppliedExpense, open)
   const [receiptUrl, setReceiptUrl] = useState(null)
   const [receiptType, setReceiptType] = useState(null)
   const [receiptLoading, setReceiptLoading] = useState(false)
@@ -23,6 +25,8 @@ export function ExpenseDetailModal({
       return
     }
 
+    setReceiptUrl(null)
+    setReceiptType(null)
     let active = true
     let blobUrl = null
 

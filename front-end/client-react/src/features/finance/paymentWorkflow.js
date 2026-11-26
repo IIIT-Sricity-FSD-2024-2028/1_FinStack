@@ -2,7 +2,7 @@ import { financeApi } from './financeApi.js'
 
 // These endpoints record workflow requests. Settlement requires bank evidence;
 // the published base does not yet define an evidence projection for the UI.
-export async function submitTransactionAction(action, transactionId) {
+export async function submitTransactionAction(action, transactionId, api = financeApi) {
   const actions = {
     process: ['processTransaction', 'Processing request recorded. Bank settlement remains unverified.'],
     fail: ['failTransaction', 'Failed payment request recorded.'],
@@ -10,7 +10,7 @@ export async function submitTransactionAction(action, transactionId) {
   }
   const config = actions[action]
   if (!config) throw new Error('Unsupported transaction action.')
-  const transaction = await financeApi[config[0]](transactionId)
+  const transaction = await api[config[0]](transactionId)
   return { transaction, message: config[1] }
 }
 

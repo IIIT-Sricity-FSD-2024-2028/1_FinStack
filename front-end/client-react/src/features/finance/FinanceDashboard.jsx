@@ -3,40 +3,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { LoadingState, ErrorState } from '../../components/OperationalStates'
-import { financeApi } from './financeApi'
 import { ExpenseDetailModal } from './ExpenseDetailModal'
 import { FinanceDecisionDialog } from './FinanceDecisionDialog'
-import { useLiveRefresh } from '../../hooks/useLiveRefresh.js'
+import { useFinanceWorkspace } from './useFinanceWorkspace.js'
 
 export function FinanceDashboard() {
-  const [data, setData] = useState({ expenses: [], transactions: [] })
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data, categories, loading, error, refreshError, refreshNow, retryNow } = useFinanceWorkspace()
   const [selectedExpense, setSelectedExpense] = useState(null)
   const [decisionModal, setDecisionModal] = useState({ open: false, expense: null, action: null })
-
-  async function loadDashboard({ background = false } = {}) {
-    if (!background) {
-      setLoading(true)
-      setError('')
-    }
-    try {
-      const [workspace, cats] = await Promise.all([
-        financeApi.getFinanceWorkspace(),
-        financeApi.getCategories().catch(() => []),
-      ])
-      setData(workspace || { expenses: [], transactions: [] })
-      setCategories(cats || [])
-    } catch (err) {
-      if (background) throw err
-      setError(err.message || 'Failed to load finance dashboard metrics.')
-    } finally {
-      if (!background) setLoading(false)
-    }
-  }
-
-  const { refreshError, refreshNow, retryNow } = useLiveRefresh(loadDashboard)
 
   if (loading) return <LoadingState message="Loading finance metrics and workspace data…" />
   if (error) return <ErrorState title="Dashboard Error" description={error} onRetry={retryNow} />
